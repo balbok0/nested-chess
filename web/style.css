@@ -231,6 +231,7 @@ select { border: 1px solid var(--border); border-radius: var(--radius); backgrou
 .save-tools { display: flex; flex-wrap: wrap; gap: 18px; border-top: 1px solid var(--border); margin-top: 18px; padding-top: 10px; }
 .save-tools button { font-size: 12px; }
 .error { margin: 10px 0 24px; padding: 12px; border: 1px solid currentColor; color: var(--error-text); background: var(--error-bg); font-size: 13px; line-height: 1.5; }
+.site-footer { border-top: 1px solid var(--border); padding: 14px 0 20px; color: var(--muted); font-size: 12px; }
 dialog { border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); color: var(--text); padding: 24px; max-width: 560px; width: calc(100% - 32px); max-height: calc(100% - 40px); }
 dialog::backdrop { background: #0009; }
 .dialog-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 22px; }

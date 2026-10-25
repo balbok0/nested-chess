@@ -12,6 +12,6 @@ execFileSync('tar', [
   '-czf', `${output}/nested-chess.tar.gz`,
   '.gitignore', 'Cargo.toml', 'Cargo.lock', 'package.json', 'package-lock.json',
   'pyproject.toml', 'vite.config.js', 'LICENSE', 'LICENSE-MIT', 'LICENSING.md',
-  'THIRD_PARTY.md', 'README.md', 'rules.md', 'crates', 'web', 'scripts', 'variants', 'tests',
+  'THIRD_PARTY.md', 'README.md', 'crates', 'web', 'scripts', 'variants', 'tests',
   'docs', 'third_party',
 ], { stdio: 'inherit' });

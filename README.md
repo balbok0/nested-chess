@@ -99,8 +99,6 @@ backend, accounts, or external inference service is needed.
   decline a draw on the viewed board. Acceptance closes it, awards 0.5 points each,
   and does not consume a turn. A closed required board releases board choice.
 
-The complete rules are in [rules.md](rules.md).
-
 ![Routing and uneven local turns, demonstrated in 14.6 seconds](web/rules.gif)
 
 ## Rust API
@@ -220,3 +218,5 @@ Every build packages downloadable application source, lockfiles, build scripts,
 and the pinned Fairy-Stockfish source under `dist/source/`. The engine archive is
 also retained in `third_party/fairy-stockfish/` with provenance, build instructions,
 and a checksum. The live site's Rules dialog links these downloads and licenses.
+
+[Buy me a coffee](https://www.buymeacoffee.com/balbok0).
