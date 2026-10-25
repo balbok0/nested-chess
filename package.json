@@ -2,9 +2,10 @@
   "name": "nested-chess",
   "version": "0.1.0",
   "private": true,
+  "license": "GPL-3.0-only",
   "type": "module",
   "scripts": {
-    "build:wasm": "node scripts/build-wasm.mjs && node scripts/setup-bot.mjs",
+    "build:wasm": "node scripts/build-wasm.mjs && node scripts/setup-bot.mjs && node scripts/package-source.mjs",
     "dev": "npm run build:wasm && vite --host 0.0.0.0",
     "build": "npm run build:wasm && vite build",
     "preview": "vite preview --host 0.0.0.0",

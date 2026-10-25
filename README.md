@@ -8,7 +8,7 @@ single-board Fairy-Stockfish opponent.
 
 ## Play locally
 
-Requires Rust, Node.js 22+, and npm.
+Requires Rust, Node.js 22+, npm, and GNU tar for source packaging.
 
 ```sh
 rustup target add wasm32-unknown-unknown
@@ -198,7 +198,12 @@ The Python suite runs real Fairy-Stockfish processes, including king captures an
 Black opening an untouched board. It requires `npm ci` first. Browser QA covered
 a real opponent reply, routing, grid sizes, saves, undo, and mobile layout.
 
-The Rust code is MIT licensed. The bundled third-party Fairy-Stockfish WASM engine
-is GPL-3.0; its license and authors are copied into `dist/fairy/`, and its
-[corresponding source](https://github.com/fairy-stockfish/fairy-stockfish.wasm/tree/b2e693ef1e111233ce3fb40685921708b3276ed6)
-is maintained upstream. See [third-party notices](THIRD_PARTY.md).
+The browser app and Fairy-Stockfish integration are **GPL-3.0-only**; see
+[LICENSE](LICENSE). The independent Rust engine, WASM/Python bindings, and their
+Rust code remain **MIT**; see [LICENSE-MIT](LICENSE-MIT). See the complete
+[licensing map](LICENSING.md) and [third-party notices](THIRD_PARTY.md).
+
+Every build packages downloadable application source, lockfiles, build scripts,
+and the pinned Fairy-Stockfish source under `dist/source/`. The engine archive is
+also retained in `third_party/fairy-stockfish/` with provenance, build instructions,
+and a checksum. The live site's Rules dialog links these downloads and licenses.

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 nested-chess contributors
+
 import config from '../variants/nested.ini?raw';
 import { parseEvaluation } from './evaluation.js';
 

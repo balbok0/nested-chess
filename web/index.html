@@ -1,4 +1,6 @@
 <!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- Copyright (c) 2026 nested-chess contributors -->
 <html lang="en" data-theme="classic">
 <head>
   <meta charset="UTF-8" />
@@ -83,6 +85,7 @@
     </ol>
     <p class="small-note">En passant is available only on the next global turn, on that same board. A board draws after 100 local moves without a pawn move or capture. Threefold repetition of the entire nested position draws unfinished boards; so does having no move anywhere.</p>
     <p class="small-note">Fairy-Stockfish analyzes one local board at a time and assumes alternating local turns. It does not account for routing or future repeat turns. <a href="https://github.com/fairy-stockfish/fairy-stockfish.wasm" target="_blank" rel="noreferrer">Engine source</a> · <a href="%BASE_URL%fairy/Copying.txt" target="_blank">GPL license</a></p>
+    <p class="small-note">This browser app is GPLv3; the independent Rust engine is MIT. No warranty. <a href="%BASE_URL%LICENSE" target="_blank">App license</a> · <a href="%BASE_URL%LICENSING.md" target="_blank">Licensing details</a> · <a href="%BASE_URL%source/nested-chess.tar.gz">App source</a> · <a href="%BASE_URL%source/fairy-stockfish.tar.gz">Fairy-Stockfish source</a> · <a href="%BASE_URL%source/fairy-stockfish.README.md" target="_blank">Engine build instructions</a></p>
   </dialog>
   <dialog id="promotion" aria-labelledby="promotion-title"><h2 id="promotion-title">Promote pawn</h2><div id="promotion-options"></div><button id="promotion-cancel" class="text-button">Cancel</button></dialog>
   <script type="module" src="/main.js"></script>

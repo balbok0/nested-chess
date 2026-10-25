@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 nested-chess contributors
+
 import init, { NestedGame, destination_board } from './pkg/nested_chess_wasm.js';
 import { LEVELS, Opponent } from './bot.js';
 import { describeEvaluation } from './evaluation.js';

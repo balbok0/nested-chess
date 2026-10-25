@@ -1,7 +1,8 @@
 # Third-party components
 
-The Rust engine and application code in this repository are MIT licensed.
-Dependencies retain their own licenses.
+The browser application and Fairy-Stockfish integration are GPL-3.0-only. The
+independent Rust engine and bindings remain MIT. See `LICENSING.md` for the
+component map. Dependencies retain their own licenses.
 
 The browser and optional Node opponent use unmodified
 `fairy-stockfish-nnue.wasm` **1.1.12**, GPL-3.0, by Fabian Fichter and the
@@ -14,6 +15,9 @@ Fairy-Stockfish/Stockfish contributors. npm records its source commit as
 - Authors: `node_modules/fairy-stockfish-nnue.wasm/AUTHORS`
 
 The build copies the engine, license, and authors into `dist/fairy/`.
+The pinned source archive and build instructions are retained in
+`third_party/fairy-stockfish/` and copied into `dist/source/` on every build.
+The site also provides its own application source and build inputs there.
 Redistributing that engine requires preserving its GPL license and providing
 the corresponding source under its terms; the MIT license does not relicense
 the engine. No Fairy-Stockfish neural weights are bundled.

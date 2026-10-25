@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 nested-chess contributors
+
 const fs = require('node:fs');
 const readline = require('node:readline');
 const Stockfish = require('fairy-stockfish-nnue.wasm/stockfish.js');

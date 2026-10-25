@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 nested-chess contributors
+
 const BAR_SCALE_CP = 400;
 const BAR_MIN_PERCENT = 2;
 
