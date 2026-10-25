@@ -11,13 +11,36 @@
     "preview": "vite preview --host 0.0.0.0",
     "server": "cargo run -p nested-chess-server --",
     "deploy:pages": "node scripts/deploy-pages.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "build:mobile": "npm run build:wasm && vite build --mode mobile",
+    "mobile:sync": "npm run build:mobile && cap sync",
+    "mobile:android": "cap open android",
+    "mobile:ios": "cap open ios",
+    "mobile:run:android": "cap run android",
+    "mobile:run:ios": "cap run ios",
+    "mobile:icons": "node scripts/mobile-icons.mjs"
   },
   "dependencies": {
+    "@aparajita/capacitor-secure-storage": "8.0.1",
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/browser": "8.0.5",
+    "@capacitor/clipboard": "8.0.1",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/filesystem": "8.1.5",
+    "@capacitor/ios": "8.5.3",
+    "@capacitor/preferences": "8.0.1",
+    "@capacitor/share": "8.0.3",
     "coi-serviceworker": "0.1.7",
     "fairy-stockfish-nnue.wasm": "1.1.12"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.5.3",
     "vite": "^7.1.0"
+  },
+  "overrides": {
+    "xcode": {
+      "uuid": "11.1.1"
+    }
   }
 }

@@ -1,0 +1,9 @@
+{
+  "appId": "io.github.balbok0.nestedchess",
+  "appName": "Nested chess",
+  "webDir": "dist-mobile",
+  "android": { "path": "mobile/android", "minWebViewVersion": 111 },
+  "ios": { "path": "mobile/ios", "contentInset": "never" },
+  "server": { "hostname": "localhost", "androidScheme": "https" },
+  "plugins": { "CapacitorHttp": { "enabled": false } }
+}

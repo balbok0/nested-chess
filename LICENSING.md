@@ -6,7 +6,7 @@ independent Rust rules engine and its bindings remain **MIT**.
 
 | Component | License |
 | --- | --- |
-| `web/`, `scripts/bot-worker.js`, `scripts/fairy-uci.cjs`, `variants/`, JavaScript tests | GPL-3.0-only; see `LICENSE` |
+| Original code in `web/`, `mobile/`, `scripts/bot-worker.js`, `scripts/fairy-uci.cjs`, `variants/`, JavaScript tests | GPL-3.0-only; see `LICENSE` |
 | `crates/`, Cargo workspace files, Python package metadata and Python tests | MIT; see `LICENSE-MIT` and each crate's `LICENSE` |
 | Other original build/deployment scripts and documentation | MIT; see `LICENSE-MIT` |
 | Fairy-Stockfish and other third-party components | Their upstream licenses; see `THIRD_PARTY.md` |
@@ -31,6 +31,10 @@ The Fairy-Stockfish archive is also committed at
 `third_party/fairy-stockfish/source.tar.gz`. Its provenance and checksum are
 recorded in that directory. Preserve the source downloads and notices when
 redistributing the application.
+
+Native app bundles include the same source archive plus `MOBILE_NOTICES.txt` for
+the Capacitor runtime, native plugins, and KeychainSwift. Rebuild them using
+`docs/mobile.md`; Android/iOS projects and configuration are included in the archive.
 
 ## Rebuild
 

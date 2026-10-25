@@ -264,6 +264,15 @@ dialog li { font-size: 13px; line-height: 1.65; margin: 13px 0; }
 #promotion-options button { font-family: Georgia, 'DejaVu Sans', serif; font-size: 42px; width: 23%; padding: 10px; border: 1px solid var(--border); background: var(--control); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 [hidden] { display: none !important; }
+html[data-native] body {
+  padding-top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
+  padding-right: max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px));
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
+  padding-left: max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px));
+}
+html[data-native] dialog { max-height: calc(90dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
+html[data-native] button, html[data-native] select, html[data-native] input { touch-action: manipulation; }
+html[data-native] input, html[data-native] select { font-size: 16px; }
 .online-section { border-top: 1px solid var(--border); margin-top: 20px; padding-top: 16px; }
 .online-section h3 { font-size: 14px; margin: 0 0 12px; }
 .online-actions, .online-account-row, .online-link-row, .online-game-row, .online-player { display: flex; align-items: center; gap: 12px; }

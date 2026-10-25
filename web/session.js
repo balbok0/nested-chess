@@ -1,25 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { NestedGame } from './pkg/nested_chess_wasm.js';
-
-export class ApiError extends Error {
-  constructor(message, status) { super(message); this.status = status; }
-}
-
-export async function request(path, { method = 'GET', data } = {}) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15_000);
-  try {
-    const response = await fetch(`/api/v1${path}`, {
-      method, credentials: 'same-origin', signal: controller.signal,
-      ...(data === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
-    });
-    if (response.status === 204) return null;
-    const body = await response.json().catch(() => null);
-    if (!response.ok) throw new ApiError(body?.error || `Request failed (${response.status}).`, response.status);
-    if (body === null) throw new ApiError('Online play is unavailable here.', response.status);
-    return body;
-  } finally { clearTimeout(timeout); }
-}
+import { ApiError, request, streamURL } from './transport.js';
 
 export class LocalSession {
   kind = 'local';
@@ -42,11 +23,21 @@ export class RemoteSession {
   sending = false;
   closed = false;
   delay = 500;
+  suspended = false;
+  connectionGeneration = 0;
 
   constructor(snapshot, { onchange, onerror }) {
     this.onchange = onchange; this.onerror = onerror;
     this.install(snapshot);
-    this.connect();
+    this.onNativeState = ({ detail }) => {
+      this.suspended = !detail.active;
+      this.connectionGeneration += 1;
+      clearTimeout(this.reconnect); this.closeSocket(); this.connected = false;
+      this.onchange(this.state());
+      if (!this.suspended) void this.recover();
+    };
+    window.addEventListener('native-state', this.onNativeState);
+    void this.connect().catch(error => this.connectionError(error));
   }
 
   install(snapshot) {
@@ -68,11 +59,19 @@ export class RemoteSession {
   move_details(board, uci) { return this.engine.move_details(board, uci); }
   canPlay() { return this.connected && !this.pending && this.info.status === 'active' && this.info.turn === this.seat; }
 
-  connect() {
-    if (this.closed) return;
-    if (['finished', 'cancelled'].includes(this.info.status)) { this.connected = true; return; }
-    const url = new URL(`/api/v1/games/${this.info.id}/stream`, location.href);
-    url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  async connect() {
+    if (this.closed || this.suspended) return;
+    if (['finished', 'cancelled'].includes(this.info.status)) {
+      this.connected = true;
+      if (this.pending && !this.sending) void this.flush().catch(this.onerror);
+      return;
+    }
+    const attempt = ++this.connectionGeneration;
+    let url;
+    try { url = await streamURL(this.info.id); }
+    catch (error) { this.connectionError(error); return; }
+    if (this.closed || this.suspended || attempt !== this.connectionGeneration) return;
+    this.closeSocket();
     const socket = new WebSocket(url);
     this.socket = socket;
     socket.onmessage = event => {
@@ -89,13 +88,25 @@ export class RemoteSession {
     socket.onclose = () => {
       if (this.closed || this.socket !== socket || ['finished', 'cancelled'].includes(this.info.status)) return;
       this.connected = false; this.onchange(this.state());
-      this.reconnect = setTimeout(async () => {
-        try { await this.resync(); }
-        catch (error) { if (error instanceof ApiError && [401, 403, 404].includes(error.status)) { this.onerror(error); return; } }
-        this.connect();
-      }, this.delay);
-      this.delay = Math.min(this.delay * 2, 8000);
+      this.scheduleReconnect();
     };
+  }
+
+  scheduleReconnect() {
+    if (this.closed || this.suspended) return;
+    clearTimeout(this.reconnect);
+    this.reconnect = setTimeout(() => { void this.recover(); }, this.delay);
+    this.delay = Math.min(this.delay * 2, 8000);
+  }
+  closeSocket() { const socket = this.socket; this.socket = null; socket?.close(); }
+  connectionError(error) {
+    if (this.closed || this.suspended) return;
+    if (error instanceof ApiError && [401, 403, 404].includes(error.status)) this.onerror(error);
+    else this.scheduleReconnect();
+  }
+  async recover() {
+    try { await this.resync(); await this.connect(); }
+    catch (error) { this.connectionError(error); }
   }
 
   apply(event) {
@@ -143,5 +154,5 @@ export class RemoteSession {
   }
 
   play(board, uci) { return this.send({ kind: 'move', board, uci }); }
-  free() { this.closed = true; clearTimeout(this.reconnect); this.socket?.close(); this.engine.free(); }
+  free() { this.closed = true; window.removeEventListener('native-state', this.onNativeState); clearTimeout(this.reconnect); this.closeSocket(); this.engine.free(); }
 }

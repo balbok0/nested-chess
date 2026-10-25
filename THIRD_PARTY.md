@@ -30,3 +30,18 @@ license are included in the site output.
 
 - [Source](https://github.com/gzuidhof/coi-serviceworker)
 - License: `node_modules/coi-serviceworker/LICENSE`
+
+The Android/iOS wrappers and shared client use Capacitor 8 and its App, Browser,
+Clipboard, Filesystem, Preferences, and Share plugins (MIT), plus
+`@aparajita/capacitor-secure-storage` 8.0.1 (MIT). Its iOS backend uses
+KeychainSwift (MIT). Exact npm versions are in `package-lock.json`; native Swift
+dependencies are declared in `mobile/ios/App/CapApp-SPM/Package.swift`.
+The build includes their full notices in `MOBILE_NOTICES.txt`.
+
+- [Capacitor source](https://github.com/ionic-team/capacitor)
+- [Official plugins](https://github.com/ionic-team/capacitor-plugins)
+- [Secure storage](https://github.com/aparajita/capacitor-secure-storage)
+- [KeychainSwift](https://github.com/evgenyneu/keychain-swift)
+
+The Android Gradle wrapper retains its Apache-2.0 license. The full license is
+included at `third_party/mobile/Gradle.LICENSE`.

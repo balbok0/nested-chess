@@ -1,0 +1,100 @@
+name: Mobile builds
+
+on:
+  push:
+    branches: [feat/mobile-app, main]
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: Backend origin embedded in the app (HTTPS for deployed servers)
+        default: http://localhost:4180
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  assets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      NESTED_CHESS_API_URL: ${{ inputs.api_url || vars.MOBILE_API_URL || 'http://localhost:4180' }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: rustup toolchain install stable --profile minimal --target wasm32-unknown-unknown
+      - run: rustup default stable
+      - run: cargo install wasm-bindgen-cli --version 0.2.105 --locked
+      - run: npm ci
+      - run: npm run build:mobile
+      - run: npm test
+      - run: cargo test --workspace --locked
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mobile-web
+          path: dist-mobile/
+          retention-days: 7
+          if-no-files-found: error
+
+  android:
+    needs: assets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: mobile-web
+          path: dist-mobile/
+      - run: npm ci
+      - run: npx cap sync android
+      - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - run: ./gradlew :app:assembleDebug --no-daemon
+        working-directory: mobile/android
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nested-chess-android-debug
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+          if-no-files-found: error
+
+  ios:
+    needs: assets
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: mobile-web
+          path: dist-mobile/
+      - run: npm ci
+      - run: npx cap sync ios
+      - run: xcodebuild -project mobile/ios/App/App.xcodeproj -scheme App -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO build
+      - run: tar -czf build/nested-chess-ios-simulator.tar.gz -C build/ios/Build/Products/Debug-iphonesimulator App.app
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nested-chess-ios-simulator
+          path: build/nested-chess-ios-simulator.tar.gz
+          retention-days: 14
+          if-no-files-found: error

@@ -7,6 +7,8 @@ import { describeEvaluation } from './evaluation.js';
 import { resolveTheme, THEMES } from './theme.js';
 import { LocalSession, RemoteSession } from './session.js';
 import { setupOnline, renderOnline } from './online.js';
+import { botsAvailable, native, initializeMobile, shareSave, hydrateLocal, saveLocal, rememberMatch, setNativeAppearance } from './platform.js';
+import { request } from './transport.js';
 
 const $ = id => document.getElementById(id);
 const GLYPHS = { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚' };
@@ -40,7 +42,7 @@ function clearError() { $('error').hidden = true; }
 function persist() {
   if (game.kind === 'online') return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ save: game.save(), mode: $('mode').value, level: $('difficulty').value }));
+    void saveLocal(STORAGE_KEY, JSON.stringify({ save: game.save(), mode: $('mode').value, level: $('difficulty').value })).catch(() => { $('save-status').textContent = 'Device storage unavailable. Export to keep this match.'; });
     $('save-status').textContent = '';
   } catch { $('save-status').textContent = 'Device storage unavailable. Export to keep this match.'; }
 }
@@ -48,6 +50,7 @@ function persist() {
 function applyPreferences() {
   const online = game?.kind === 'online';
   document.documentElement.dataset.theme = resolveTheme(preferences.theme, systemAppearance.matches);
+  void setNativeAppearance(document.documentElement.dataset.theme).catch(showError);
   document.querySelector(`input[name="theme"][value="${preferences.theme}"]`).checked = true;
   document.querySelector('meta[name="theme-color"]').content = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
   $('show-evaluations').checked = preferences.evaluations;
@@ -55,7 +58,7 @@ function applyPreferences() {
   $('chess960-layout').value = preferences.chess960Independent ? 'independent' : 'shared';
   $('chess960-layout').disabled = online || !preferences.chess960;
   $('chess960').disabled = online;
-  $('show-evaluations').disabled = online;
+  $('show-evaluations').disabled = online || !botsAvailable;
   const animate = preferences.animations && !reducedMotion.matches;
   document.documentElement.dataset.animations = animate ? 'on' : 'off';
   $('animate-moves').checked = animate;
@@ -65,7 +68,7 @@ function applyPreferences() {
 }
 
 function savePreferences() {
-  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(preferences)); }
+  try { void saveLocal(SETTINGS_KEY, JSON.stringify(preferences)).catch(() => { $('save-status').textContent = 'Settings could not be saved on this device.'; }); }
   catch { $('save-status').textContent = 'Settings could not be saved on this device.'; }
 }
 
@@ -86,7 +89,7 @@ function evaluationFor(board) {
 }
 
 function updateEvaluations() {
-  const enabled = preferences.evaluations && game.kind !== 'online';
+  const enabled = botsAvailable && preferences.evaluations && game.kind !== 'online';
   document.querySelectorAll('.board-evaluation').forEach(element => {
     element.hidden = !enabled;
     if (!enabled) return;
@@ -117,7 +120,7 @@ async function refreshEvaluations() {
   if (analyzer) analyzer.destroy();
   analyzer = null; evaluationError = '';
   updateEvaluations();
-  if (game.kind === 'online' || !preferences.evaluations || busy || ($('mode').value === 'bot' && state.turn === 'black')) return;
+  if (!botsAvailable || game.kind === 'online' || !preferences.evaluations || busy || ($('mode').value === 'bot' && state.turn === 'black')) return;
   const cache = new Map([...evaluations.values()].map(result => [result.fen, result.evaluation]));
   const boards = state.boards.toSorted((a, b) => Number(b.id === viewing) - Number(a.id === viewing));
   try {
@@ -399,7 +402,7 @@ function enterOnline(snapshot) {
   if (game.kind === 'online') game.free();
   else { localGame = game; localMode = $('mode').value; localFlipped = flipped; }
   game = remote; $('mode').value = 'online'; viewing = 0; flipped = snapshot.seat === 'black';
-  sessionStorage.setItem('nested-online-match', snapshot.info.id);
+  void rememberMatch(snapshot.info.id).catch(showError);
   setMatchURL(snapshot.info.id);
   $('save-status').textContent = ''; applyPreferences(); acceptState(game.state());
 }
@@ -407,7 +410,7 @@ function enterOnline(snapshot) {
 function leaveOnline() {
   if (game.kind !== 'online') return;
   resetOpponent(); clearError(); game.free(); game = localGame; localGame = null; $('mode').value = localMode; viewing = 0; flipped = localFlipped;
-  sessionStorage.removeItem('nested-online-match');
+  void rememberMatch(null).catch(showError);
   setMatchURL(null);
   applyPreferences(); acceptState(game.state()); void maybeBot();
 }
@@ -420,6 +423,8 @@ function setMatchURL(id) {
 }
 
 async function boot() {
+  try { await hydrateLocal([STORAGE_KEY, SETTINGS_KEY, 'nested-online-match']); }
+  catch (error) { showError(`Could not restore device storage: ${error}`); }
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
     if (saved) preferences = { theme: THEMES.includes(saved.theme) ? saved.theme : 'system', evaluations: saved.evaluations === true, animations: saved.animations !== false, chess960: saved.chess960 === true, chess960Independent: saved.chess960Independent === true };
@@ -439,6 +444,11 @@ async function boot() {
       if (LEVELS[Number(saved.level)]) $('difficulty').value = saved.level;
     }
   } catch { $('save-status').textContent = 'Previous save unavailable. Starting a new match.'; }
+  if (!botsAvailable) {
+    $('mode').querySelector('[value="bot"]').disabled = true;
+    $('mode').value = 'local';
+    $('mobile-engine-note').hidden = false;
+  }
   localMode = $('mode').value;
   onlineControls = setupOnline({ enter: enterOnline, current: () => game, leave: leaveOnline, onerror: showError });
   acceptState(game.state());
@@ -487,6 +497,7 @@ async function boot() {
   $('retry-evaluations').onclick = () => { void refreshEvaluations(); };
   $('promotion-cancel').onclick = () => $('promotion').close();
   $('export').onclick = () => {
+    if (native) { void shareSave(game.save()).catch(showError); return; }
     const url = URL.createObjectURL(new Blob([game.save()], { type: 'application/json' }));
     const link = document.createElement('a'); link.href = url; link.download = `nested-${state.size}x${state.size}-ply${state.ply}.json`; link.click(); URL.revokeObjectURL(url);
   };
@@ -503,7 +514,14 @@ async function boot() {
   };
   setInterval(() => { if (game.kind === 'online') renderOnline(game); }, 200);
   const restoreGeneration = generation;
-  void onlineControls.restore(() => generation === restoreGeneration).catch(showError);
+  const launched = await initializeMobile({
+    request,
+    onlogin: () => onlineControls.loggedIn(),
+    onmatch: id => onlineControls.invitation(id),
+    onback: () => { if (game.kind !== 'online') return false; leaveOnline(); return true; },
+    onerror: showError,
+  });
+  if (!launched) void onlineControls.restore(() => generation === restoreGeneration).catch(showError);
   void maybeBot();
 }
 boot().catch(error => { $('turn-label').textContent = 'Could not load the game'; showError(error); });

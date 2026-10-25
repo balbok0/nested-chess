@@ -4,7 +4,7 @@
 <html lang="en" data-theme="classic">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#dad8d2" />
   <meta name="description" content="Chess on a grid of boards. Moves route the opponent to another board. Capture kings and win more boards." />
   <title>Nested chess</title>
@@ -48,13 +48,14 @@
           <div class="online-player"><span>White · <strong id="online-white"></strong></span><output id="online-clock-white" hidden></output></div>
           <div class="online-player"><span>Black · <strong id="online-black"></strong></span><output id="online-clock-black" hidden></output></div>
           <p id="online-connection" class="small-note" role="status"></p>
-          <div id="online-share" hidden><label for="online-link">Invite link</label><div class="online-link-row"><input id="online-link" readonly /><button id="online-copy" class="text-button">Copy</button></div></div>
+          <div id="online-share" hidden><label for="online-link">Invite link</label><div class="online-link-row"><input id="online-link" readonly /><button id="online-copy" class="text-button">Copy</button><button id="online-share-native" class="text-button" hidden>Share</button></div></div>
           <div class="online-actions"><button id="online-resume" class="outline-button" hidden>Resume match</button><button id="online-resign" class="text-button">Resign</button><button id="online-leave" class="text-button">Back to local</button></div>
         </div>
         <div class="section-heading"><h2>Opponent</h2></div>
         <label class="sr-only" for="mode">Opponent</label><select id="mode"><option value="bot">Fairy-Stockfish</option><option value="local">Local two-player</option><option value="online">Online player</option></select>
         <div id="bot-settings"><label for="difficulty">Difficulty</label><select id="difficulty"></select><p class="small-note">Skill presets; no calibrated Elo.</p></div>
         <p id="engine-status" class="engine-status" role="status">You play White.</p><button id="retry-bot" class="text-button" hidden>Retry opponent</button>
+        <p id="mobile-engine-note" class="small-note" hidden>Bot play is available in the web app. This mobile build supports online and local two-player games.</p>
         <div class="history-section">
           <div class="section-heading"><h2>Global moves</h2><span id="ply-count">0 moves</span></div>
           <ol id="history" class="history" aria-label="Global moves"><li class="empty-history">No moves yet.</li></ol>
@@ -115,7 +116,7 @@
       <label for="online-layout">Start<select id="online-layout"><option value="classical">Classical</option><option value="chess960">Chess960</option><option value="independent960">Chess960ⁿ</option></select></label>
       <label for="online-clock">Clock<select id="online-clock"><option value="none">No clock</option><option value="15+10">15 + 10</option><option value="10+5">10 + 5</option><option value="30+0">30 + 0</option></select></label>
     </div><label class="checkbox-label"><input id="online-rated" type="checkbox" />Rated · classical 2×2, 15+10</label><div class="online-actions"><button class="outline-button">Create invitation</button><button id="online-queue" type="button" class="text-button">Find rated opponent</button></div></form>
-    <form id="online-join" class="online-section"><label for="online-invite">Join an invitation</label><div class="online-link-row"><input id="online-invite" placeholder="Invite link or match ID" required /><button class="outline-button">Join</button></div></form>
+    <form id="online-join" class="online-section"><label for="online-invite">Join an invitation</label><div class="online-link-row"><input id="online-invite" placeholder="Invite link or match ID" required /><button class="outline-button">Join</button></div><a id="online-open-app" class="text-button" hidden>Open in app</a></form>
     <details id="online-history-section" class="online-section"><summary>Match history</summary><div id="online-history"></div><button id="online-history-more" class="text-button" hidden>More matches</button></details>
   </dialog>
   <dialog id="online-confirm" aria-labelledby="online-confirm-title"><h2 id="online-confirm-title">Resign this match?</h2><div class="online-actions"><button id="online-confirm-yes" class="outline-button">Confirm</button><button id="online-confirm-cancel" class="text-button">Keep playing</button></div></dialog>

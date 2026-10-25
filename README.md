@@ -25,6 +25,13 @@ file in the repository root. See [server setup and API](docs/server.md) for logi
 configuration, storage, clocks, deployment, and the protocol shared with mobile.
 The GitHub Pages demo remains client-side; it does not host the multiplayer API.
 
+## Android and iOS
+
+The Capacitor apps share the UI and Rust/WASM rules engine. They support online
+and offline two-player games; bots/evaluations remain available in the web app.
+See [mobile setup](docs/mobile.md) for Android Studio/Xcode, server configuration,
+native login, and build artifacts.
+
 ## Play locally
 
 Requires Rust, Node.js 22+, npm, and GNU tar for source packaging.
