@@ -130,10 +130,10 @@ h1, h2 { font-family: var(--heading-font); }
 .section-heading > span { color: var(--muted); font-size: 12px; white-space: nowrap; }
 .section-note { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 9px 0 12px; min-height: 18px; }
 .macro-grid { display: grid; gap: 8px; }
-.macro-cell { padding: 6px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); min-width: 0; text-align: left; }
+.macro-cell { position: relative; padding: 6px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); min-width: 0; text-align: left; }
 .macro-cell.playable { border-color: var(--accent); }
 .macro-cell.viewing { outline: 2px solid var(--accent); outline-offset: 1px; }
-.macro-cell.next { outline: 3px solid var(--route); outline-offset: 1px; }
+.macro-cell.forced, .macro-cell.next { outline: 4px solid var(--route); outline-offset: 2px; box-shadow: 0 0 0 7px var(--panel); z-index: 1; }
 .macro-cell.closed { opacity: .65; }
 .macro-cell:hover { background: var(--hover); }
 .macro-cell-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 3px; margin-bottom: 5px; font-size: 10px; color: var(--muted); }
@@ -242,6 +242,7 @@ dialog li { font-size: 13px; line-height: 1.65; margin: 13px 0; }
 .swatch-classic-dark { background: linear-gradient(90deg, #24211e 0 34%, #c5aa86 34% 67%, #8e6847 67%); }
 .swatch-system { background: linear-gradient(90deg, #f0d9b5 0 50%, #8e6847 50%); }
 .evaluation-settings { border-top: 1px solid var(--border); padding: 20px 0 16px; }
+.motion-settings { margin: 20px 0; }
 .checkbox-label { display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 600; }
 .checkbox-label input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
 #retry-evaluations { color: var(--error-text); }
@@ -283,3 +284,4 @@ dialog li { font-size: 13px; line-height: 1.65; margin: 13px 0; }
   .theme-option { padding: 8px; }
 }
 @media (prefers-reduced-motion: reduce) { .evaluation-white { transition: none; } }
+:root[data-animations="off"] .evaluation-white { transition: none; }

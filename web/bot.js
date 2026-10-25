@@ -14,7 +14,7 @@ export const LEVELS = [
 
 export class Opponent {
   constructor() {
-    this.worker = new Worker('/bot-worker.js');
+    this.worker = new Worker(`${import.meta.env.BASE_URL}bot-worker.js`);
     this.worker.onmessage = ({ data }) => {
       if (data.error) return this.fail(new Error(data.error));
       if (!this.pending) return;
@@ -28,7 +28,7 @@ export class Opponent {
     this.ready = this.initialize();
   }
   async initialize() {
-    if (!globalThis.crossOriginIsolated) throw new Error('The opponent needs cross-origin isolation. Start the app with npm run dev or npm run preview.');
+    if (!globalThis.crossOriginIsolated) throw new Error('The engine could not start in this browser. Reload the page or switch to local two-player mode.');
     const loaded = this.wait('loaded', 20000);
     this.worker.postMessage({ type: 'init', config });
     await loaded;

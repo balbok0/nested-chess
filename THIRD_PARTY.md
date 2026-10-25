@@ -19,3 +19,10 @@ the corresponding source under its terms; the MIT license does not relicense
 the engine. No Fairy-Stockfish neural weights are bundled.
 
 The interface uses system fonts.
+
+GitHub Pages uses `coi-serviceworker` 0.1.7 (MIT), by Guido Zuidhof and contributors,
+to provide cross-origin isolation on static hosting. Its unmodified script and
+license are included in the site output.
+
+- [Source](https://github.com/gzuidhof/coi-serviceworker)
+- License: `node_modules/coi-serviceworker/LICENSE`

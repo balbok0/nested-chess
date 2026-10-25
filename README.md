@@ -4,6 +4,8 @@ A Rust king-capture chess engine on a routed 2×2, 4×4, or 8×8 grid of games,
 with a playable browser UI, WebAssembly bindings, Python bindings, and a
 single-board Fairy-Stockfish opponent.
 
+[Play on GitHub Pages](https://balbok0.github.io/nested-chess/).
+
 ## Play locally
 
 Requires Rust, Node.js 22+, and npm.
@@ -34,6 +36,17 @@ ignore routing and assume alternating local turns. They use full engine skill,
 independently of the opponent difficulty, and run one position at a time. Identical
 positions share a result, and stale searches are canceled when the position changes.
 The setting is off by default and is saved on this device with the selected theme.
+**Animate moves** controls engine piece movement and evaluation-bar transitions.
+System reduced-motion preferences take priority. Engine turns have a short pause
+so the move and its routing are easier to follow.
+
+## Publish to GitHub Pages
+
+After committing source changes on `main`, run `npm run deploy:pages`. This builds
+the project at `/nested-chess/`, runs the JavaScript tests, and pushes the output to
+the `gh-pages` branch. GitHub Pages publishes that branch. The site's service worker
+provides the isolation needed by Fairy-Stockfish on static hosting; the first visit
+may reload once. Local development still uses the normal server headers.
 
 ```sh
 npm run build

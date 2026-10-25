@@ -8,10 +8,11 @@
   <title>Nested chess</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23252525'/%3E%3Ctext x='3' y='26' font-size='29' fill='white'%3E♞%3C/text%3E%3C/svg%3E" />
   <link rel="stylesheet" href="/style.css" />
+  <script src="%BASE_URL%coi-serviceworker.js"></script>
 </head>
 <body>
   <header class="masthead">
-    <h1><a href="/">Nested chess</a></h1>
+    <h1><a href="%BASE_URL%">Nested chess</a></h1>
     <nav aria-label="Game controls"><button id="rules-open" class="text-button">Rules</button><button id="settings-open" class="text-button">Settings</button></nav>
   </header>
   <main>
@@ -61,6 +62,7 @@
       <label class="theme-option"><input type="radio" name="theme" value="dark" /><span class="theme-swatch swatch-dark" aria-hidden="true"></span>Dark</label>
     </div></fieldset>
     <p class="small-note">System uses Classic in light mode and Classic Dark in dark mode.</p>
+    <div class="motion-settings"><label class="checkbox-label" for="animate-moves"><input id="animate-moves" type="checkbox" checked />Animate moves</label><p id="motion-note" class="small-note">Animate engine moves and changes to the evaluation bar.</p></div>
     <div class="evaluation-settings">
       <label class="checkbox-label" for="show-evaluations"><input id="show-evaluations" type="checkbox" />Show board evaluations</label>
       <p class="small-note">Positive scores favor White; negative scores favor Black. Scores are in pawn units, not win probabilities.</p>
@@ -80,7 +82,7 @@
       <li><strong>Scoring.</strong> The player who wins more boards wins the match. Play continues until all boards finish. Equal numbers of wins draw the match.</li>
     </ol>
     <p class="small-note">En passant is available only on the next global turn, on that same board. A board draws after 100 local moves without a pawn move or capture. Threefold repetition of the entire nested position draws unfinished boards; so does having no move anywhere.</p>
-    <p class="small-note">Fairy-Stockfish analyzes one local board at a time and assumes alternating local turns. It does not account for routing or future repeat turns. <a href="https://github.com/fairy-stockfish/fairy-stockfish.wasm" target="_blank" rel="noreferrer">Engine source</a> · <a href="/fairy/Copying.txt" target="_blank">GPL license</a></p>
+    <p class="small-note">Fairy-Stockfish analyzes one local board at a time and assumes alternating local turns. It does not account for routing or future repeat turns. <a href="https://github.com/fairy-stockfish/fairy-stockfish.wasm" target="_blank" rel="noreferrer">Engine source</a> · <a href="%BASE_URL%fairy/Copying.txt" target="_blank">GPL license</a></p>
   </dialog>
   <dialog id="promotion" aria-labelledby="promotion-title"><h2 id="promotion-title">Promote pawn</h2><div id="promotion-options"></div><button id="promotion-cancel" class="text-button">Cancel</button></dialog>
   <script type="module" src="/main.js"></script>

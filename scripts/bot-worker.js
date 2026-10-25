@@ -1,11 +1,12 @@
-importScripts('/fairy/stockfish.js');
+const engineRoot = new URL('./fairy/', self.location.href).href;
+importScripts(`${engineRoot}stockfish.js`);
 let engine;
 self.onmessage = async ({ data }) => {
   try {
     if (data.type === 'init') {
       engine = await Stockfish({
-        locateFile: file => `/fairy/${file}`,
-        mainScriptUrlOrBlob: '/fairy/stockfish.js',
+        locateFile: file => `${engineRoot}${file}`,
+        mainScriptUrlOrBlob: `${engineRoot}stockfish.js`,
       });
       engine.FS.writeFile('/nested.ini', data.config);
       engine.addMessageListener(line => self.postMessage({ line }));

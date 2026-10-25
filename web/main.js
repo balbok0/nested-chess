@@ -8,10 +8,14 @@ const GLYPHS = { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚' };
 const NAMES = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king' };
 const STORAGE_KEY = 'nested-chess-v1';
 const SETTINGS_KEY = 'nested-chess-settings';
+const BOT_TURN_MIN_MS = 650;
+const BOT_MOVE_DURATION_MS = 400;
 const systemAppearance = window.matchMedia('(prefers-color-scheme: dark)');
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 let game, state, viewing = 0, source = null, flipped = false, busy = false, opponent = null, generation = 0;
 let engineError = '';
-let preferences = { theme: 'system', evaluations: false };
+let botAnimation = null;
+let preferences = { theme: 'system', evaluations: false, animations: true };
 let analyzer = null, evaluationGeneration = 0, evaluationError = '';
 const evaluations = new Map();
 
@@ -37,6 +41,12 @@ function applyPreferences() {
   document.querySelector(`input[name="theme"][value="${preferences.theme}"]`).checked = true;
   document.querySelector('meta[name="theme-color"]').content = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
   $('show-evaluations').checked = preferences.evaluations;
+  const animate = preferences.animations && !reducedMotion.matches;
+  document.documentElement.dataset.animations = animate ? 'on' : 'off';
+  $('animate-moves').checked = animate;
+  $('animate-moves').disabled = reducedMotion.matches;
+  $('motion-note').textContent = reducedMotion.matches ? 'Disabled by your system’s reduced-motion setting.' : 'Animate engine moves and changes to the evaluation bar.';
+  if (!animate) botAnimation?.finish();
 }
 
 function savePreferences() {
@@ -115,8 +125,35 @@ async function refreshEvaluations() {
 
 function resetOpponent() {
   generation += 1;
+  botAnimation?.cancel();
+  botAnimation = null;
   if (opponent) opponent.destroy();
   opponent = null; busy = false; engineError = '';
+}
+
+async function animateBotMove(board, move) {
+  if (!preferences.animations || reducedMotion.matches) return;
+  viewing = board; source = null; render();
+  const piece = document.querySelector(`[data-square="${move.slice(0, 2)}"] .piece`);
+  const destination = document.querySelector(`[data-square="${move.slice(2, 4)}"]`);
+  const from = piece.getBoundingClientRect();
+  const to = destination.getBoundingClientRect();
+  const moving = piece.cloneNode(true);
+  moving.setAttribute('aria-hidden', 'true');
+  Object.assign(moving.style, {
+    position: 'fixed', left: `${from.x}px`, top: `${from.y}px`,
+    width: `${from.width}px`, height: `${from.height}px`, margin: '0',
+    display: 'grid', placeItems: 'center', zIndex: '1000',
+    fontSize: getComputedStyle(piece).fontSize,
+  });
+  document.body.append(moving);
+  piece.style.visibility = 'hidden';
+  botAnimation = moving.animate([
+    { transform: 'translate(0, 0)' },
+    { transform: `translate(${to.x + (to.width - from.width) / 2 - from.x}px, ${to.y + (to.height - from.height) / 2 - from.y}px)` },
+  ], { duration: BOT_MOVE_DURATION_MS, easing: 'ease-in-out', fill: 'forwards' });
+  try { await botAnimation.finished; }
+  finally { moving.remove(); piece.style.visibility = ''; botAnimation = null; }
 }
 
 function acceptState(json) {
@@ -137,7 +174,7 @@ function renderMacro() {
     for (let file = 0; file < state.size; file++) {
       const id = rank * state.size + file, board = state.boards[id];
       const button = document.createElement('button');
-      button.className = `macro-cell ${state.legal_boards.includes(id) ? 'playable' : ''} ${viewing === id ? 'viewing' : ''} ${board.outcome !== 'ongoing' ? 'closed' : ''}`;
+      button.className = `macro-cell ${state.legal_boards.includes(id) ? 'playable' : ''} ${state.forced_board === id ? 'forced' : ''} ${viewing === id ? 'viewing' : ''} ${board.outcome !== 'ongoing' ? 'closed' : ''}`;
       button.dataset.board = id;
       button.setAttribute('aria-label', `View board ${boardName(id)}, ${board.outcome === 'ongoing' ? state.legal_boards.includes(id) ? 'playable' : 'waiting' : board.outcome === 'draw' ? 'drawn' : `${board.outcome} won`}`);
       button.setAttribute('aria-pressed', String(viewing === id));
@@ -264,6 +301,7 @@ function play(move) {
 async function maybeBot() {
   if ($('mode').value !== 'bot' || state.turn !== 'black' || state.outcome !== 'ongoing' || busy) return;
   const ticket = generation;
+  const started = performance.now();
   busy = true; engineError = ''; render();
   try {
     opponent ??= new Opponent();
@@ -271,6 +309,10 @@ async function maybeBot() {
     const move = await opponent.bestMove(state.boards[board].fen, LEVELS[Number($('difficulty').value)]);
     if (ticket !== generation) return;
     if (!JSON.parse(game.legal_moves(board)).includes(move)) throw new Error(`Opponent returned an invalid move (${move}).`);
+    await new Promise(resolve => setTimeout(resolve, Math.max(0, BOT_TURN_MIN_MS - (performance.now() - started))));
+    if (ticket !== generation) return;
+    await animateBotMove(board, move);
+    if (ticket !== generation) return;
     busy = false;
     acceptState(game.play(board, move));
   } catch (error) {
@@ -288,10 +330,11 @@ function newGame(size) {
 async function boot() {
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
-    if (saved) preferences = { theme: THEMES.includes(saved.theme) ? saved.theme : 'system', evaluations: saved.evaluations === true };
+    if (saved) preferences = { theme: THEMES.includes(saved.theme) ? saved.theme : 'system', evaluations: saved.evaluations === true, animations: saved.animations !== false };
   } catch {}
   applyPreferences();
   systemAppearance.addEventListener('change', () => { if (preferences.theme === 'system') applyPreferences(); });
+  reducedMotion.addEventListener('change', applyPreferences);
   await init();
   game = new NestedGame(2);
   LEVELS.forEach((level, index) => $('difficulty').add(new Option(level.label, index)));
@@ -326,6 +369,7 @@ async function boot() {
     input.onchange = () => { preferences.theme = input.value; applyPreferences(); savePreferences(); };
   });
   $('show-evaluations').onchange = () => { preferences.evaluations = $('show-evaluations').checked; savePreferences(); void refreshEvaluations(); };
+  $('animate-moves').onchange = () => { preferences.animations = $('animate-moves').checked; applyPreferences(); savePreferences(); };
   $('retry-evaluations').onclick = () => { void refreshEvaluations(); };
   $('promotion-cancel').onclick = () => $('promotion').close();
   $('export').onclick = () => {
