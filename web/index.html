@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="classic">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#252525" />
+  <meta name="theme-color" content="#dad8d2" />
   <meta name="description" content="Chess on a grid of boards. Moves route the opponent to another board. Capture kings and win more boards." />
   <title>Nested chess</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23252525'/%3E%3Ctext x='3' y='26' font-size='29' fill='white'%3E♞%3C/text%3E%3C/svg%3E" />
@@ -48,10 +48,13 @@
   <dialog id="settings" aria-labelledby="settings-title">
     <div class="dialog-heading"><h2 id="settings-title">Settings</h2><button id="settings-close" class="dialog-close" aria-label="Close settings">×</button></div>
     <fieldset class="theme-settings"><legend>Theme</legend><div class="theme-options">
-      <label class="theme-option"><input type="radio" name="theme" value="dark" checked /><span class="theme-swatch swatch-dark" aria-hidden="true"></span>Dark</label>
-      <label class="theme-option"><input type="radio" name="theme" value="light" /><span class="theme-swatch swatch-light" aria-hidden="true"></span>Light</label>
+      <label class="theme-option"><input type="radio" name="theme" value="system" checked /><span class="theme-swatch swatch-system" aria-hidden="true"></span>System</label>
       <label class="theme-option"><input type="radio" name="theme" value="classic" /><span class="theme-swatch swatch-classic" aria-hidden="true"></span>Classic</label>
+      <label class="theme-option"><input type="radio" name="theme" value="classic-dark" /><span class="theme-swatch swatch-classic-dark" aria-hidden="true"></span>Classic Dark</label>
+      <label class="theme-option"><input type="radio" name="theme" value="light" /><span class="theme-swatch swatch-light" aria-hidden="true"></span>Light</label>
+      <label class="theme-option"><input type="radio" name="theme" value="dark" /><span class="theme-swatch swatch-dark" aria-hidden="true"></span>Dark</label>
     </div></fieldset>
+    <p class="small-note">System uses Classic in light mode and Classic Dark in dark mode.</p>
     <div class="evaluation-settings">
       <label class="checkbox-label" for="show-evaluations"><input id="show-evaluations" type="checkbox" />Show board evaluations</label>
       <p class="small-note">Positive scores favor White; negative scores favor Black. Scores are in pawn units, not win probabilities.</p>

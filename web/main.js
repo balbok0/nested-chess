@@ -1,16 +1,17 @@
 import init, { NestedGame, destination_board } from './pkg/nested_chess_wasm.js';
 import { LEVELS, Opponent } from './bot.js';
 import { describeEvaluation } from './evaluation.js';
+import { resolveTheme, THEMES } from './theme.js';
 
 const $ = id => document.getElementById(id);
 const GLYPHS = { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚' };
 const NAMES = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king' };
 const STORAGE_KEY = 'nested-chess-v1';
 const SETTINGS_KEY = 'nested-chess-settings';
-const THEMES = ['dark', 'light', 'classic'];
+const systemAppearance = window.matchMedia('(prefers-color-scheme: dark)');
 let game, state, viewing = 0, source = null, flipped = false, busy = false, opponent = null, generation = 0;
 let engineError = '';
-let preferences = { theme: 'dark', evaluations: false };
+let preferences = { theme: 'system', evaluations: false };
 let analyzer = null, evaluationGeneration = 0, evaluationError = '';
 const evaluations = new Map();
 
@@ -32,7 +33,7 @@ function persist() {
 }
 
 function applyPreferences() {
-  document.documentElement.dataset.theme = preferences.theme;
+  document.documentElement.dataset.theme = resolveTheme(preferences.theme, systemAppearance.matches);
   document.querySelector(`input[name="theme"][value="${preferences.theme}"]`).checked = true;
   document.querySelector('meta[name="theme-color"]').content = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
   $('show-evaluations').checked = preferences.evaluations;
@@ -274,9 +275,10 @@ function newGame(size) {
 async function boot() {
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
-    if (saved) preferences = { theme: THEMES.includes(saved.theme) ? saved.theme : 'dark', evaluations: saved.evaluations === true };
+    if (saved) preferences = { theme: THEMES.includes(saved.theme) ? saved.theme : 'system', evaluations: saved.evaluations === true };
   } catch {}
   applyPreferences();
+  systemAppearance.addEventListener('change', () => { if (preferences.theme === 'system') applyPreferences(); });
   await init();
   game = new NestedGame(2);
   LEVELS.forEach((level, index) => $('difficulty').add(new Option(level.label, index)));

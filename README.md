@@ -20,7 +20,10 @@ against Fairy-Stockfish, or choose two players on the same device. The app suppo
 all three grids, legal-move highlights, route previews, promotion choice, board
 inspection, board flipping, undo, automatic local saves, and JSON import/export.
 
-Open **Settings** to compare Dark, Light, and Classic themes. The optional
+The default **System** theme uses Classic or Classic Dark according to the browser's
+light/dark preference, including changes while the page is open. **Settings** also
+lets you choose a fixed Classic, Classic Dark, Light, or Dark theme; an explicit
+choice overrides the system preference and is preserved across reloads. The optional
 **Show board evaluations** setting displays Fairy-Stockfish scores on each board
 and the selected board. Positive scores favor White; negative scores favor Black,
 in pawn units. Forced king-capture predictions have separate labels. Evaluations
