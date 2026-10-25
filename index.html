@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en" data-theme="classic">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#dad8d2" />
+  <meta name="description" content="Chess on a grid of boards. Moves route the opponent to another board. Capture kings and win more boards." />
+  <title>Nested chess</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23252525'/%3E%3Ctext x='3' y='26' font-size='29' fill='white'%3E♞%3C/text%3E%3C/svg%3E" />
+  <script src="/nested-chess/coi-serviceworker.js"></script>
+  <script type="module" crossorigin src="/nested-chess/assets/index-DJFC-tBf.js"></script>
+  <link rel="stylesheet" crossorigin href="/nested-chess/assets/index-CtYgfY94.css">
+</head>
+<body>
+  <header class="masthead">
+    <h1><a href="/nested-chess/">Nested chess</a></h1>
+    <nav aria-label="Game controls"><button id="rules-open" class="text-button">Rules</button><button id="settings-open" class="text-button">Settings</button></nav>
+  </header>
+  <main>
+    <section class="matchbar" aria-label="Match controls">
+      <div class="turn"><span id="turn-disc" class="turn-disc" aria-hidden="true"></span><div><strong id="turn-label">Loading game…</strong><span id="turn-detail"></span></div></div>
+      <div class="grid-control"><span>Boards</span><div class="segmented" id="grid-options"><button data-size="2" class="active" aria-pressed="true">2 × 2</button><button data-size="4" aria-pressed="false">4 × 4</button><button data-size="8" aria-pressed="false">8 × 8</button></div></div>
+      <button id="new-game" class="outline-button">New match</button>
+    </section>
+    <div class="workspace">
+      <aside class="overview">
+        <div class="section-heading"><h2>Boards</h2><span id="board-count">4 boards</span></div>
+        <p class="section-note" id="routing-note">Choose a board.</p>
+        <div id="macro-grid" class="macro-grid" aria-label="Grid of chess boards"></div>
+        <div class="legend"><span><i class="legend-active"></i> Playable</span><span><i class="legend-selected"></i> Selected</span><span><i class="legend-next"></i> Next board</span></div>
+        <div class="scorecard"><div class="section-heading"><h2>Boards won</h2></div><div class="score-values"><div><span>White</span><strong id="white-score">0</strong></div><span class="score-divider">–</span><div><span>Black</span><strong id="black-score">0</strong></div></div><div class="score-foot"><span id="draws">0 drawn</span><span id="remaining">4 unfinished</span></div></div>
+      </aside>
+      <section class="focus">
+        <div class="focus-heading"><h2 id="focus-title">Board A1</h2><span id="board-status" class="status-tag">Playable</span></div>
+        <div class="board-layout">
+          <div id="evaluation-bar" class="evaluation-bar" role="img" aria-label="Evaluation pending" data-ready="false" data-side="pending" hidden>
+            <div id="evaluation-white" class="evaluation-white" aria-hidden="true" hidden></div>
+            <output id="focus-evaluation" aria-hidden="true">…</output>
+          </div>
+          <div class="board-frame"><div id="rank-labels" class="rank-labels" aria-hidden="true"></div><div id="chessboard" class="chessboard" aria-label="Selected chess board"></div><div class="file-labels" aria-hidden="true"></div></div>
+        </div>
+        <div class="route-strip"><strong id="route-title">Next board</strong><span id="route-detail">Select a piece.</span></div>
+        <div class="board-tools"><button id="undo" class="text-button">Undo</button><span id="local-counts">White: 0 moves · Black: 0 moves</span><button id="flip" class="text-button">Flip board</button></div>
+      </section>
+      <aside class="sidebar">
+        <div class="section-heading"><h2>Opponent</h2></div>
+        <label class="sr-only" for="mode">Opponent</label><select id="mode"><option value="bot">Fairy-Stockfish</option><option value="local">Local two-player</option></select>
+        <div id="bot-settings"><label for="difficulty">Difficulty</label><select id="difficulty"></select><p class="small-note">Skill presets; no calibrated Elo.</p></div>
+        <p id="engine-status" class="engine-status" role="status">You play White.</p><button id="retry-bot" class="text-button" hidden>Retry opponent</button>
+        <div class="history-section"><div class="section-heading"><h2>Moves</h2><span id="ply-count">0 moves</span></div><ol id="history" class="history"><li class="empty-history">No moves yet.</li></ol></div>
+        <div class="save-tools"><button id="export" class="text-button">Export match</button><button id="import" class="text-button">Import match</button><input id="import-file" type="file" accept="application/json,.json" hidden /></div><p id="save-status" class="small-note">Saved on this device.</p>
+      </aside>
+    </div>
+    <div id="error" class="error" role="alert" hidden></div>
+  </main>
+  <dialog id="settings" aria-labelledby="settings-title">
+    <div class="dialog-heading"><h2 id="settings-title">Settings</h2><button id="settings-close" class="dialog-close" aria-label="Close settings">×</button></div>
+    <fieldset class="theme-settings"><legend>Theme</legend><div class="theme-options">
+      <label class="theme-option"><input type="radio" name="theme" value="system" checked /><span class="theme-swatch swatch-system" aria-hidden="true"></span>System</label>
+      <label class="theme-option"><input type="radio" name="theme" value="classic" /><span class="theme-swatch swatch-classic" aria-hidden="true"></span>Classic</label>
+      <label class="theme-option"><input type="radio" name="theme" value="classic-dark" /><span class="theme-swatch swatch-classic-dark" aria-hidden="true"></span>Classic Dark</label>
+      <label class="theme-option"><input type="radio" name="theme" value="light" /><span class="theme-swatch swatch-light" aria-hidden="true"></span>Light</label>
+      <label class="theme-option"><input type="radio" name="theme" value="dark" /><span class="theme-swatch swatch-dark" aria-hidden="true"></span>Dark</label>
+    </div></fieldset>
+    <p class="small-note">System uses Classic in light mode and Classic Dark in dark mode.</p>
+    <div class="motion-settings"><label class="checkbox-label" for="animate-moves"><input id="animate-moves" type="checkbox" checked />Animate moves</label><p id="motion-note" class="small-note">Animate engine moves and changes to the evaluation bar.</p></div>
+    <div class="evaluation-settings">
+      <label class="checkbox-label" for="show-evaluations"><input id="show-evaluations" type="checkbox" />Show board evaluations</label>
+      <p class="small-note">Positive scores favor White; negative scores favor Black. Scores are in pawn units, not win probabilities.</p>
+      <p class="small-note">The main board’s bar shows White from the bottom and Black from the top. It is a visual evaluation scale, not a win probability.</p>
+      <p class="small-note">Evaluations assume alternating moves on each board and ignore routing. They are estimates of the local position, not the whole match.</p>
+      <p id="evaluation-status" class="small-note" role="status">Off</p><button id="retry-evaluations" class="text-button" hidden>Retry evaluations</button>
+    </div>
+    <p class="small-note">Settings are saved on this device.</p>
+  </dialog>
+  <dialog id="rules" aria-labelledby="rules-title">
+    <div class="dialog-heading"><h2 id="rules-title">Rules</h2><button id="rules-close" class="dialog-close" aria-label="Close rules">×</button></div>
+    <ol>
+      <li><strong>Players alternate globally.</strong> White, Black, White, Black—even when one board gets several moves by the same color.</li>
+      <li><strong>The landing square selects the next board.</strong> On a 2 × 2 grid, a quadrant selects a board. On 4 × 4, each 2 × 2 region does. On 8 × 8, every square has its own board. Coordinates use White’s orientation.</li>
+      <li><strong>Capture a king to win a board.</strong> There is no check or checkmate. Kings can stand next to each other. Castling ignores attacks.</li>
+      <li><strong>An unavailable destination gives a free choice.</strong> If the destination is finished or has no moves for you, choose any board where you can move.</li>
+      <li><strong>Scoring.</strong> The player who wins more boards wins the match. Play continues until all boards finish. Equal numbers of wins draw the match.</li>
+    </ol>
+    <p class="small-note">En passant is available only on the next global turn, on that same board. A board draws after 100 local moves without a pawn move or capture. Threefold repetition of the entire nested position draws unfinished boards; so does having no move anywhere.</p>
+    <p class="small-note">Fairy-Stockfish analyzes one local board at a time and assumes alternating local turns. It does not account for routing or future repeat turns. <a href="https://github.com/fairy-stockfish/fairy-stockfish.wasm" target="_blank" rel="noreferrer">Engine source</a> · <a href="/nested-chess/fairy/Copying.txt" target="_blank">GPL license</a></p>
+  </dialog>
+  <dialog id="promotion" aria-labelledby="promotion-title"><h2 id="promotion-title">Promote pawn</h2><div id="promotion-options"></div><button id="promotion-cancel" class="text-button">Cancel</button></dialog>
+</body>
+</html>
