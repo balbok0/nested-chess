@@ -36,7 +36,7 @@ function clearError() { $('error').hidden = true; }
 function persist() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ save: game.save(), mode: $('mode').value, level: $('difficulty').value }));
-    $('save-status').textContent = 'Saved on this device.';
+    $('save-status').textContent = '';
   } catch { $('save-status').textContent = 'Device storage unavailable. Export to keep this match.'; }
 }
 

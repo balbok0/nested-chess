@@ -296,3 +296,4 @@ dialog li { font-size: 13px; line-height: 1.65; margin: 13px 0; }
 }
 @media (prefers-reduced-motion: reduce) { .evaluation-white { transition: none; } }
 :root[data-animations="off"] .evaluation-white { transition: none; }
+.small-note:empty { display: none; }
