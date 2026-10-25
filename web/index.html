@@ -29,7 +29,7 @@
         <p class="section-note" id="routing-note">Choose a board.</p>
         <div id="macro-grid" class="macro-grid" aria-label="Grid of chess boards"></div>
         <div class="legend"><span><i class="legend-active"></i> Playable</span><span><i class="legend-selected"></i> Selected</span><span><i class="legend-next"></i> Next board</span></div>
-        <div class="scorecard"><div class="section-heading"><h2>Boards won</h2></div><div class="score-values"><div><span>White</span><strong id="white-score">0</strong></div><span class="score-divider">–</span><div><span>Black</span><strong id="black-score">0</strong></div></div><div class="score-foot"><span id="draws">0 drawn</span><span id="remaining">4 unfinished</span></div></div>
+        <div class="scorecard"><div class="section-heading"><h2>Score</h2></div><div class="score-values"><div><span>White</span><strong id="white-score">0</strong></div><span class="score-divider">–</span><div><span>Black</span><strong id="black-score">0</strong></div></div><div class="score-foot"><span id="draws">0 drawn</span><span id="remaining">4 unfinished</span></div></div>
       </aside>
       <section class="focus">
         <div class="focus-heading"><h2 id="focus-title">Board A1</h2><span id="board-status" class="status-tag">Playable</span></div>
@@ -41,7 +41,7 @@
           <div class="board-frame"><div id="rank-labels" class="rank-labels" aria-hidden="true"></div><div id="chessboard" class="chessboard" aria-label="Selected chess board"></div><div class="file-labels" aria-hidden="true"></div></div>
         </div>
         <div class="route-strip"><strong id="route-title">Next board</strong><span id="route-detail">Select a piece.</span></div>
-        <div class="board-tools"><button id="undo" class="text-button">Undo</button><span id="local-counts">White: 0 moves · Black: 0 moves</span><button id="flip" class="text-button">Flip board</button></div>
+        <div class="board-tools"><button id="offer-draw" class="text-button" hidden>Offer draw</button><button id="undo" class="text-button">Undo</button><span id="local-counts">White: 0 moves · Black: 0 moves</span><button id="flip" class="text-button">Flip board</button></div>
       </section>
       <aside class="sidebar">
         <div class="section-heading"><h2>Opponent</h2></div>
@@ -81,12 +81,17 @@
       <li><strong>The landing square selects the next board.</strong> On a 2 × 2 grid, a quadrant selects a board. On 4 × 4, each 2 × 2 region does. On 8 × 8, every square has its own board. Coordinates use White’s orientation.</li>
       <li><strong>Capture a king to win a board.</strong> There is no check or checkmate. Kings can stand next to each other. Castling ignores attacks.</li>
       <li><strong>An unavailable destination gives a free choice.</strong> If the destination is finished or has no moves for you, choose any board where you can move.</li>
-      <li><strong>Scoring.</strong> The player who wins more boards wins the match. Play continues until all boards finish. Equal numbers of wins draw the match.</li>
+      <li><strong>Scoring.</strong> A win earns 1 point; a draw earns ½ point for each player. The match ends when one score exceeds half the total boards, or all boards finish. Equal final scores draw the match.</li>
+      <li><strong>Agreed draws.</strong> In local two-player mode, offer a draw on the viewed board and let the other player accept or decline. Acceptance closes that board without using a turn.</li>
     </ol>
     <p class="small-note">En passant is available only on the next global turn, on that same board. A board draws after 100 local moves without a pawn move or capture. Threefold repetition of the entire nested position draws unfinished boards; so does having no move anywhere.</p>
+    <p class="small-note">En passant example: after Black plays d7–d5, a White pawn on e5 may capture on d6, removing the pawn on d5. Routing must allow White to play on that board immediately; otherwise the opportunity expires.</p>
+    <img class="rules-demo rules-demo-animated" src="/rules.gif" alt="Four moves showing how landing squares route the opponent and allow Black to move twice on board B1 before White moves there." width="1100" height="850" loading="lazy" />
+    <img class="rules-demo rules-demo-still" src="/rules-still.png" alt="Board B1 has zero White moves and two Black moves; White is required to play on A2." width="1100" height="850" loading="lazy" />
     <p class="small-note">Fairy-Stockfish analyzes one local board at a time and assumes alternating local turns. It does not account for routing or future repeat turns. <a href="https://github.com/fairy-stockfish/fairy-stockfish.wasm" target="_blank" rel="noreferrer">Engine source</a> · <a href="%BASE_URL%fairy/Copying.txt" target="_blank">GPL license</a></p>
     <p class="small-note">This browser app is GPLv3; the independent Rust engine is MIT. No warranty. <a href="%BASE_URL%LICENSE" target="_blank">App license</a> · <a href="%BASE_URL%LICENSING.md" target="_blank">Licensing details</a> · <a href="%BASE_URL%source/nested-chess.tar.gz">App source</a> · <a href="%BASE_URL%source/fairy-stockfish.tar.gz">Fairy-Stockfish source</a> · <a href="%BASE_URL%source/fairy-stockfish.README.md" target="_blank">Engine build instructions</a></p>
   </dialog>
+  <dialog id="draw-offer" aria-labelledby="draw-offer-title"><h2 id="draw-offer-title">Draw board?</h2><p id="draw-offer-detail" class="small-note"></p><div class="draw-actions"><button id="accept-draw" class="outline-button">Accept draw</button><button id="decline-draw" class="text-button">Decline</button></div></dialog>
   <dialog id="promotion" aria-labelledby="promotion-title"><h2 id="promotion-title">Promote pawn</h2><div id="promotion-options"></div><button id="promotion-cancel" class="text-button">Cancel</button></dialog>
   <script type="module" src="/main.js"></script>
 </body>

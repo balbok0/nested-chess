@@ -88,7 +88,7 @@ fn king_capture_settles_board_and_final_score_counts_wins() {
     assert_eq!(state.outcome, Outcome::White);
     assert_eq!(
         (state.score.white, state.score.black, state.score.draws),
-        (1, 0, 3)
+        (2.5, 1.5, 3)
     );
     assert!(state.legal_boards.is_empty());
     assert!(game.play(0, "e1d1").is_err());

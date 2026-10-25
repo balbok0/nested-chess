@@ -203,7 +203,7 @@ function renderBoard() {
   tag.className = `status-tag ${playable ? '' : 'inactive'}`;
   $('local-counts').textContent = `White: ${board.white_moves} moves · Black: ${board.black_moves} moves`;
   const legal = source === null ? [] : movesOnView().filter(move => squareIndex(move.slice(0, 2)) === source);
-  const last = state.history.findLast(action => action.board === viewing)?.uci;
+  const last = state.history.findLast(action => action.kind === 'move' && action.board === viewing)?.uci;
   container.replaceChildren();
   $('rank-labels').replaceChildren();
   for (let row = 0; row < 8; row++) {
@@ -248,12 +248,14 @@ function render() {
   const finished = state.outcome !== 'ongoing';
   $('turn-disc').classList.toggle('black', state.turn === 'black');
   $('turn-label').textContent = finished ? state.outcome === 'draw' ? 'Match drawn' : `${capitalize(state.outcome)} wins the match` : `${capitalize(state.turn)} to move${busy ? ' · thinking' : ''}`;
-  $('turn-detail').textContent = finished ? `${state.score.white} – ${state.score.black} boards won` : state.forced_board === null ? 'Free choice of any playable board' : `Routed to board ${boardName(state.forced_board)}`;
+  $('turn-detail').textContent = finished ? `${state.score.white} – ${state.score.black} points` : state.forced_board === null ? 'Free choice of any playable board' : `Routed to board ${boardName(state.forced_board)}`;
   $('routing-note').textContent = finished ? 'Match finished.' : state.forced_board === null ? 'Choose a playable board.' : `${capitalize(state.turn)} plays on ${boardName(state.forced_board)}.`;
   $('board-count').textContent = `${state.boards.length} boards`;
   $('white-score').textContent = state.score.white; $('black-score').textContent = state.score.black;
   $('draws').textContent = `${state.score.draws} drawn`; $('remaining').textContent = `${state.score.remaining} unfinished`;
-  $('undo').disabled = state.ply === 0;
+  $('undo').disabled = state.history.length === 0;
+  $('offer-draw').hidden = $('mode').value !== 'local';
+  $('offer-draw').disabled = finished || state.boards[viewing].outcome !== 'ongoing';
   $('bot-settings').hidden = $('mode').value === 'local';
   $('retry-bot').hidden = !engineError || $('mode').value === 'local';
   $('engine-status').textContent = $('mode').value === 'local' ? 'Two players on this device.' : engineError || (busy ? 'Fairy-Stockfish is thinking…' : 'You: White · Fairy-Stockfish: Black');
@@ -262,10 +264,16 @@ function render() {
   const history = $('history'); history.replaceChildren();
   if (!state.history.length) history.innerHTML = '<li class="empty-history">No moves yet.</li>';
   const first = state.ply % 2 === 0 ? state.turn : state.turn === 'white' ? 'black' : 'white';
-  state.history.forEach((action, index) => {
+  let moveNumber = 0;
+  state.history.forEach(action => {
     const item = document.createElement('li');
-    const color = index % 2 === 0 ? first : first === 'white' ? 'black' : 'white';
-    item.innerHTML = `<span>${index + 1}</span><i class="move-color ${color}"></i><b>${action.uci.slice(0, 2)}–${action.uci.slice(2)}</b><span>${boardName(action.board)}</span>`;
+    if (action.kind === 'draw') {
+      item.innerHTML = `<span>½</span><b>Draw agreed</b><span>${boardName(action.board)}</span>`;
+    } else {
+      const color = moveNumber % 2 === 0 ? first : first === 'white' ? 'black' : 'white';
+      moveNumber += 1;
+      item.innerHTML = `<span>${moveNumber}</span><i class="move-color ${color}"></i><b>${action.uci.slice(0, 2)}–${action.uci.slice(2)}</b><span>${boardName(action.board)}</span>`;
+    }
     history.append(item);
   });
   history.scrollTop = history.scrollHeight;
@@ -325,7 +333,7 @@ async function maybeBot() {
 }
 
 function newGame(size) {
-  resetOpponent(); clearError(); $('promotion').close();
+  resetOpponent(); clearError(); $('promotion').close(); $('draw-offer').close();
   game.free(); game = new NestedGame(size); viewing = 0;
   acceptState(game.state());
 }
@@ -357,8 +365,9 @@ async function boot() {
   $('undo').onclick = () => {
     resetOpponent(); clearError();
     try {
+      const undoMove = state.history.at(-1)?.kind === 'move';
       acceptState(game.undo());
-      if ($('mode').value === 'bot' && state.turn === 'black' && state.ply) acceptState(game.undo());
+      if ($('mode').value === 'bot' && undoMove && state.turn === 'black' && state.history.at(-1)?.kind === 'move') acceptState(game.undo());
     } catch (error) { showError(error); }
   };
   $('mode').onchange = () => { resetOpponent(); clearError(); render(); persist(); void refreshEvaluations(); void maybeBot(); };
@@ -366,6 +375,17 @@ async function boot() {
   $('retry-bot').onclick = () => { resetOpponent(); clearError(); void maybeBot(); };
   $('rules-open').onclick = () => $('rules').showModal();
   $('rules-close').onclick = () => $('rules').close();
+  $('offer-draw').onclick = () => {
+    $('draw-offer-title').textContent = `Draw board ${boardName(viewing)}?`;
+    $('draw-offer-detail').textContent = `${capitalize(state.turn)} offers a draw. Both players receive ½ point if ${capitalize(state.turn === 'white' ? 'black' : 'white')} accepts. This does not use a move.`;
+    $('accept-draw').textContent = `Accept for ${capitalize(state.turn === 'white' ? 'black' : 'white')}`;
+    $('draw-offer').showModal();
+  };
+  $('decline-draw').onclick = () => $('draw-offer').close();
+  $('accept-draw').onclick = () => {
+    try { $('draw-offer').close(); acceptState(game.agree_draw(viewing)); }
+    catch (error) { showError(error); }
+  };
   $('settings-open').onclick = () => $('settings').showModal();
   $('settings-close').onclick = () => $('settings').close();
   document.querySelectorAll('input[name="theme"]').forEach(input => {

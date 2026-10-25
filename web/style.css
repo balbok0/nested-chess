@@ -205,6 +205,12 @@ h1, h2 { font-family: var(--heading-font); }
 .route-strip > span { color: var(--muted); line-height: 1.5; }
 .board-tools { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 0 var(--board-indent, 18px); gap: 10px; }
 .board-tools > span { color: var(--muted); font-size: 11px; }
+.board-tools { flex-wrap: wrap; }
+.draw-actions { display: flex; gap: 20px; margin-top: 20px; }
+.rules-demo { width: 100%; height: auto; margin: 16px 0; }
+.rules-demo-still { display: none; }
+:root[data-animations="off"] .rules-demo-animated { display: none; }
+:root[data-animations="off"] .rules-demo-still { display: block; }
 .sidebar { border-left: 1px solid var(--border); padding-left: 20px; }
 label { font-size: 12px; }
 .sidebar label:not(.sr-only) { display: block; margin: 16px 0 7px; }

@@ -49,3 +49,16 @@ def test_real_fairy_stockfish_plays_black_on_an_untouched_board():
     assert actual["turn"] == "white"
     assert actual["boards"][1]["white_moves"] == 0
     assert actual["boards"][1]["black_moves"] == 1
+
+
+def test_agreed_draw_does_not_consume_a_turn_and_survives_undo():
+    game = nested_chess.Game(2)
+    before = game.state()
+    actual = json.loads(game.agree_draw(0))
+    assert actual["score"]["white"] == 0.5
+    assert actual["score"]["black"] == 0.5
+    assert actual["turn"] == "white"
+    assert actual["ply"] == 0
+    restored = nested_chess.Game.load(game.save())
+    assert restored.state() == game.state()
+    assert restored.undo() == before

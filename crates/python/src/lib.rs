@@ -39,6 +39,10 @@ impl PyGame {
         self.game.undo().map_err(py_error)?;
         self.state()
     }
+    fn agree_draw(&mut self, board: usize) -> PyResult<String> {
+        self.game.agree_draw(board).map_err(py_error)?;
+        self.state()
+    }
     fn save(&self) -> PyResult<String> {
         self.game.save_json().map_err(py_error)
     }

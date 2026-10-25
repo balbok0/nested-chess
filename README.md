@@ -92,7 +92,16 @@ backend, accounts, or external inference service is needed.
   unfinished boards. A player having no move anywhere also draws unfinished
   boards. These are explicit v0 draw rules, not FIDE adjudication.
 - Play ends when every board is settled. The player with more board wins wins
-  the match; equal wins draw it. There is no early clinch rule or clock.
+  the match; equal wins draw it. Wins award 1 point and draws award 0.5 points to
+  each player. A match also ends immediately when one player's points exceed half
+  the total boards. There is no clock.
+- In local two-player mode, **Offer draw** asks the other player to accept or
+  decline a draw on the viewed board. Acceptance closes it, awards 0.5 points each,
+  and does not consume a turn. A closed required board releases board choice.
+
+The complete rules are in [rules.md](rules.md).
+
+![Routing and uneven local turns, demonstrated in 14.6 seconds](web/rules.gif)
 
 ## Rust API
 
@@ -153,6 +162,10 @@ game.play(1, move)
 `legal_moves()` returns UCI strings (a Python list; a JSON array string in WASM).
 `save()` returns a versioned replay string; `Game.load()` / `NestedGame.load()`
 reconstruct a match. `piece_planes()` returns binary plane values.
+`agree_draw(board)` records an agreement after both players have consented.
+Version-2 saves record moves and draw agreements in one event history. Version-1
+saves still load and retain their original finish-at-all-boards rule, including
+games whose history continued past a majority; new matches use early completion.
 
 For a native Fairy-Stockfish binary, use
 `Opponent("/path/to/fairy-stockfish", [], "/absolute/path/to/variants/nested.ini")`.

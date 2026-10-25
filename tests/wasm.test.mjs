@@ -39,3 +39,19 @@ test('invalid WASM actions raise an error without changing state', () => {
   assert.throws(() => new NestedGame(3));
   game.free();
 });
+
+test('agreed board draws award half each and survive save, load, and undo', () => {
+  const game = new NestedGame(2);
+  game.play(0, 'e2e4');
+  const before = game.state();
+  const actual = JSON.parse(game.agree_draw(1));
+  assert.equal(actual.score.white, 0.5);
+  assert.equal(actual.score.black, 0.5);
+  assert.equal(actual.turn, 'black');
+  assert.equal(actual.ply, 1);
+  assert.equal(actual.forced_board, null);
+  const restored = NestedGame.load(game.save());
+  assert.deepEqual(JSON.parse(restored.state()), actual);
+  assert.equal(restored.undo(), before);
+  game.free(); restored.free();
+});

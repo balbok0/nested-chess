@@ -46,6 +46,10 @@ impl NestedGame {
         self.game.undo().map_err(js_error)?;
         self.state()
     }
+    pub fn agree_draw(&mut self, board: usize) -> Result<String, JsValue> {
+        self.game.agree_draw(board).map_err(js_error)?;
+        self.state()
+    }
     pub fn save(&self) -> Result<String, JsValue> {
         self.game.save_json().map_err(js_error)
     }

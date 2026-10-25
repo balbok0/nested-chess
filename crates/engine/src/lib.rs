@@ -6,8 +6,9 @@ pub use board::{BOARD_WIDTH, Board, Move, Piece, Role, SQUARES, parse_square, sq
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-const SAVE_VERSION: u8 = 1;
+const SAVE_VERSION: u8 = 2;
 const REPETITION_LIMIT: u8 = 3;
+const DRAW_POINTS: f32 = 0.5;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -31,6 +32,8 @@ pub enum Error {
     InvalidSave(String),
     #[error("there is no move to undo")]
     NothingToUndo,
+    #[error("this board is already finished")]
+    BoardFinished,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -61,15 +64,16 @@ pub enum Outcome {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Action {
-    pub board: usize,
-    pub uci: String,
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum Action {
+    Move { board: usize, uci: String },
+    Draw { board: usize },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Score {
-    pub white: usize,
-    pub black: usize,
+    pub white: f32,
+    pub black: f32,
     pub draws: usize,
     pub remaining: usize,
 }
@@ -85,7 +89,7 @@ pub struct BoardView {
     pub black_moves: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct State {
     pub size: u8,
     pub turn: Color,
@@ -106,7 +110,33 @@ struct Save {
     size: u8,
     first_player: Color,
     initial_fens: Vec<String>,
-    moves: Vec<Action>,
+    finish_rule: FinishRule,
+    events: Vec<Action>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum FinishRule {
+    Majority,
+    AllBoards,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct VersionOneSave {
+    #[serde(rename = "version")]
+    _version: u8,
+    size: u8,
+    first_player: Color,
+    initial_fens: Vec<String>,
+    moves: Vec<VersionOneMove>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct VersionOneMove {
+    board: usize,
+    uci: String,
 }
 
 /// A routed match whose players alternate globally and capture kings to win boards.
@@ -192,7 +222,8 @@ impl Game {
                 size,
                 first_player: turn,
                 initial_fens: fens.to_vec(),
-                moves: Vec::new(),
+                finish_rule: FinishRule::Majority,
+                events: Vec::new(),
             },
         };
         game.resolve_turn();
@@ -208,6 +239,9 @@ impl Game {
     }
 
     pub fn legal_boards(&self) -> Vec<usize> {
+        if self.outcome() != Outcome::Ongoing {
+            return Vec::new();
+        }
         if let Some(board) = self.forced_board {
             return vec![board];
         }
@@ -246,7 +280,7 @@ impl Game {
         }
         self.outcomes[id] = self.boards[id].outcome();
         self.counts[id][self.turn as usize] += 1;
-        self.save.moves.push(Action {
+        self.save.events.push(Action::Move {
             board: id,
             uci: mv.to_string(),
         });
@@ -263,6 +297,10 @@ impl Game {
     }
 
     fn resolve_turn(&mut self) {
+        if self.outcome() != Outcome::Ongoing {
+            self.forced_board = None;
+            return;
+        }
         self.forced_board = self.requested_board.filter(|id| {
             self.outcomes[*id] == Outcome::Ongoing
                 && !self.boards[*id].legal_moves(self.turn).is_empty()
@@ -270,6 +308,21 @@ impl Game {
         if self.legal_boards().is_empty() {
             self.draw_remaining();
         }
+    }
+
+    /// Record both players' agreement to draw one board without consuming a turn.
+    pub fn agree_draw(&mut self, id: usize) -> Result<(), Error> {
+        if self.outcome() != Outcome::Ongoing {
+            return Err(Error::Finished);
+        }
+        self.board(id)?;
+        if self.outcomes[id] != Outcome::Ongoing {
+            return Err(Error::BoardFinished);
+        }
+        self.outcomes[id] = Outcome::Draw;
+        self.save.events.push(Action::Draw { board: id });
+        self.resolve_turn();
+        Ok(())
     }
 
     fn draw_remaining(&mut self) {
@@ -298,36 +351,44 @@ impl Game {
     }
 
     pub fn score(&self) -> Score {
-        Score {
-            white: self
-                .outcomes
-                .iter()
-                .filter(|outcome| **outcome == Outcome::White)
-                .count(),
-            black: self
-                .outcomes
-                .iter()
-                .filter(|outcome| **outcome == Outcome::Black)
-                .count(),
-            draws: self
-                .outcomes
-                .iter()
-                .filter(|outcome| **outcome == Outcome::Draw)
-                .count(),
-            remaining: self
-                .outcomes
-                .iter()
-                .filter(|outcome| **outcome == Outcome::Ongoing)
-                .count(),
-        }
+        self.outcomes.iter().fold(
+            Score {
+                white: 0.0,
+                black: 0.0,
+                draws: 0,
+                remaining: 0,
+            },
+            |mut score, outcome| {
+                match outcome {
+                    Outcome::White => score.white += 1.0,
+                    Outcome::Black => score.black += 1.0,
+                    Outcome::Draw => {
+                        score.white += DRAW_POINTS;
+                        score.black += DRAW_POINTS;
+                        score.draws += 1;
+                    }
+                    Outcome::Ongoing => score.remaining += 1,
+                }
+                score
+            },
+        )
     }
 
     pub fn outcome(&self) -> Outcome {
         let score = self.score();
+        if self.save.finish_rule == FinishRule::Majority {
+            let majority = self.boards.len() as f32 / 2.0;
+            if score.white > majority {
+                return Outcome::White;
+            }
+            if score.black > majority {
+                return Outcome::Black;
+            }
+        }
         if score.remaining > 0 {
             Outcome::Ongoing
         } else {
-            match score.white.cmp(&score.black) {
+            match score.white.total_cmp(&score.black) {
                 std::cmp::Ordering::Greater => Outcome::White,
                 std::cmp::Ordering::Less => Outcome::Black,
                 std::cmp::Ordering::Equal => Outcome::Draw,
@@ -344,7 +405,12 @@ impl Game {
             legal_boards: self.legal_boards(),
             outcome: self.outcome(),
             score: self.score(),
-            ply: self.save.moves.len(),
+            ply: self
+                .save
+                .events
+                .iter()
+                .filter(|event| matches!(event, Action::Move { .. }))
+                .count(),
             boards: self
                 .boards
                 .iter()
@@ -368,7 +434,7 @@ impl Game {
                     black_moves: self.counts[id][1],
                 })
                 .collect(),
-            history: self.save.moves.clone(),
+            history: self.save.events.clone(),
         }
     }
 
@@ -390,21 +456,46 @@ impl Game {
     }
 
     pub fn load_json(json: &str) -> Result<Self, Error> {
-        let save: Save =
+        let value: serde_json::Value =
             serde_json::from_str(json).map_err(|error| Error::InvalidSave(error.to_string()))?;
-        if save.version != SAVE_VERSION {
-            return Err(Error::InvalidSave("unsupported version".into()));
-        }
+        let save: Save = match value.get("version").and_then(serde_json::Value::as_u64) {
+            Some(1) => {
+                let old: VersionOneSave = serde_json::from_value(value)
+                    .map_err(|error| Error::InvalidSave(error.to_string()))?;
+                Save {
+                    version: SAVE_VERSION,
+                    size: old.size,
+                    first_player: old.first_player,
+                    initial_fens: old.initial_fens,
+                    finish_rule: FinishRule::AllBoards,
+                    events: old
+                        .moves
+                        .into_iter()
+                        .map(|event| Action::Move {
+                            board: event.board,
+                            uci: event.uci,
+                        })
+                        .collect(),
+                }
+            }
+            Some(2) => serde_json::from_value(value)
+                .map_err(|error| Error::InvalidSave(error.to_string()))?,
+            _ => return Err(Error::InvalidSave("unsupported version".into())),
+        };
         let mut game = Self::from_fens(save.size, save.first_player, &save.initial_fens)?;
-        for action in save.moves {
-            game.play(action.board, &action.uci)?;
+        game.save.finish_rule = save.finish_rule;
+        for action in save.events {
+            match action {
+                Action::Move { board, uci } => game.play(board, &uci)?,
+                Action::Draw { board } => game.agree_draw(board)?,
+            }
         }
         Ok(game)
     }
 
     pub fn undo(&mut self) -> Result<(), Error> {
         let mut save = self.save.clone();
-        save.moves.pop().ok_or(Error::NothingToUndo)?;
+        save.events.pop().ok_or(Error::NothingToUndo)?;
         *self = Self::load_json(
             &serde_json::to_string(&save).map_err(|error| Error::InvalidSave(error.to_string()))?,
         )?;
