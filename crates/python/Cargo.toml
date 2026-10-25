@@ -1,0 +1,14 @@
+[package]
+name = "nested-chess-python"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "nested_chess"
+crate-type = ["cdylib"]
+
+[dependencies]
+nested-chess.workspace = true
+serde_json.workspace = true
+pyo3 = { version = "0.27", features = ["extension-module"] }

@@ -1,0 +1,13 @@
+[package]
+name = "nested-chess-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+nested-chess.workspace = true
+serde_json.workspace = true
+wasm-bindgen = "=0.2.105"

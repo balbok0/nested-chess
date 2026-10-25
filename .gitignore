@@ -1,0 +1,10 @@
+/target/
+/node_modules/
+/dist/
+/web/pkg/
+/web/vendor/
+/.venv/
+__pycache__/
+*.so
+/.playwright-mcp/
+/.pytest_cache/
