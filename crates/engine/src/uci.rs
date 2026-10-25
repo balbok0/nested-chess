@@ -28,6 +28,8 @@ pub enum UciError {
     InvalidMoveTime,
     #[error("engine does not advertise the nested variant")]
     UnsupportedVariant,
+    #[error("analysis node budget must be positive")]
+    InvalidAnalysisNodes,
 }
 
 /// A persistent UCI opponent that receives only the selected local board.
@@ -35,9 +37,18 @@ pub struct UciEngine {
     child: Child,
     input: ChildStdin,
     output: Receiver<String>,
+    analysis_nodes: u64,
 }
 
 impl UciEngine {
+    /// Set the Fairy-Stockfish node budget for each global-search leaf request.
+    pub fn set_analysis_nodes(&mut self, nodes: u64) -> Result<(), UciError> {
+        if nodes == 0 {
+            return Err(UciError::InvalidAnalysisNodes);
+        }
+        self.analysis_nodes = nodes;
+        Ok(())
+    }
     /// Choose a global board and move with Rust's budgeted negamax search.
     pub fn search(
         &mut self,
@@ -71,6 +82,7 @@ impl UciEngine {
             child,
             input,
             output,
+            analysis_nodes: LOCAL_SEARCH_NODES,
         };
         engine.send("uci")?;
         engine.wait_for("uciok", Duration::from_secs(10))?;
@@ -171,7 +183,7 @@ impl Evaluator for UciEngine {
             self.send("isready")?;
             self.wait_for("readyok", Duration::from_secs(10))?;
             self.send(&format!("position fen {fen}"))?;
-            self.send(&format!("go nodes {LOCAL_SEARCH_NODES}"))?;
+            self.send(&format!("go nodes {}", self.analysis_nodes))?;
             let lines = self.wait_for("bestmove ", Duration::from_secs(10))?;
             let white_turn = fen.split_whitespace().nth(1) == Some("w");
             let sign = if white_turn { 1 } else { -1 };
