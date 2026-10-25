@@ -1,4 +1,6 @@
 <!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- Copyright (c) 2026 nested-chess contributors -->
 <html lang="en" data-theme="classic">
 <head>
   <meta charset="UTF-8" />
@@ -8,7 +10,7 @@
   <title>Nested chess</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23252525'/%3E%3Ctext x='3' y='26' font-size='29' fill='white'%3E♞%3C/text%3E%3C/svg%3E" />
   <script src="/nested-chess/coi-serviceworker.js"></script>
-  <script type="module" crossorigin src="/nested-chess/assets/index-DJFC-tBf.js"></script>
+  <script type="module" crossorigin src="/nested-chess/assets/index-XecjP76B.js"></script>
   <link rel="stylesheet" crossorigin href="/nested-chess/assets/index-CtYgfY94.css">
 </head>
 <body>
@@ -84,6 +86,7 @@
     </ol>
     <p class="small-note">En passant is available only on the next global turn, on that same board. A board draws after 100 local moves without a pawn move or capture. Threefold repetition of the entire nested position draws unfinished boards; so does having no move anywhere.</p>
     <p class="small-note">Fairy-Stockfish analyzes one local board at a time and assumes alternating local turns. It does not account for routing or future repeat turns. <a href="https://github.com/fairy-stockfish/fairy-stockfish.wasm" target="_blank" rel="noreferrer">Engine source</a> · <a href="/nested-chess/fairy/Copying.txt" target="_blank">GPL license</a></p>
+    <p class="small-note">This browser app is GPLv3; the independent Rust engine is MIT. No warranty. <a href="/nested-chess/LICENSE" target="_blank">App license</a> · <a href="/nested-chess/LICENSING.md" target="_blank">Licensing details</a> · <a href="/nested-chess/source/nested-chess.tar.gz">App source</a> · <a href="/nested-chess/source/fairy-stockfish.tar.gz">Fairy-Stockfish source</a> · <a href="/nested-chess/source/fairy-stockfish.README.md" target="_blank">Engine build instructions</a></p>
   </dialog>
   <dialog id="promotion" aria-labelledby="promotion-title"><h2 id="promotion-title">Promote pawn</h2><div id="promotion-options"></div><button id="promotion-cancel" class="text-button">Cancel</button></dialog>
 </body>
