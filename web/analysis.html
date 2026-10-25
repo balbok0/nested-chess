@@ -1,0 +1,263 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="description" content="An analysis of fairness, routing strategy, and a minimax bot for nested chess." />
+  <link rel="icon" href="data:," />
+  <title>Fairness and bot design · Nested chess</title>
+  <style>
+    :root { color-scheme: light dark; --paper: #f7f5ef; --ink: #272722; --muted: #65645c; --line: #d7d3c7; --panel: #eeece4; --link: #375b47; --mark: #ddd8bf; }
+    * { box-sizing: border-box; }
+    html { scroll-padding-top: 24px; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.7 system-ui, sans-serif; }
+    a { color: var(--link); text-underline-offset: 3px; }
+    a:hover { text-decoration-thickness: 2px; }
+    a:focus-visible, button:focus-visible { outline: 2px solid var(--link); outline-offset: 4px; }
+    .page { max-width: 1100px; margin: auto; padding: 28px 32px 64px; }
+    header { border-bottom: 1px solid var(--line); padding-bottom: 28px; }
+    .breadcrumb { display: flex; justify-content: space-between; gap: 20px; color: var(--muted); font-size: 13px; }
+    h1, h2, h3 { font-family: Georgia, serif; line-height: 1.2; font-weight: 500; }
+    h1 { font-size: clamp(34px, 5vw, 54px); margin: 38px 0 18px; letter-spacing: -.02em; }
+    h2 { font-size: 28px; margin: 0 0 20px; }
+    h3 { font-size: 20px; margin: 30px 0 12px; }
+    p { margin: 0 0 18px; }
+    .lead { max-width: 68ch; font-size: 19px; line-height: 1.6; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 64px; align-items: start; }
+    article { min-width: 0; width: 100%; max-width: 76ch; }
+    section { padding: 38px 0; border-bottom: 1px solid var(--line); }
+    aside { position: sticky; top: 28px; padding-top: 38px; font-size: 13px; }
+    aside a { display: block; margin-bottom: 12px; }
+    .note { color: var(--muted); font-size: 14px; }
+    .finding { border-left: 3px solid var(--link); padding: 12px 18px; background: var(--panel); margin: 22px 0; }
+    .finding p:last-child { margin-bottom: 0; }
+    ul, ol { padding-left: 24px; margin: 12px 0 22px; }
+    li { padding-left: 4px; margin: 9px 0; }
+    .table-wrap { overflow-x: auto; margin: 22px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; line-height: 1.5; }
+    caption { text-align: left; color: var(--muted); margin-bottom: 12px; }
+    th, td { text-align: left; vertical-align: top; padding: 12px 10px; border-bottom: 1px solid var(--line); }
+    th { font-weight: 600; }
+    code { font: .88em/1.6 ui-monospace, monospace; }
+    pre { background: var(--panel); padding: 20px; overflow-x: auto; border: 1px solid var(--line); font-size: 14px; line-height: 1.65; }
+    .architecture { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); margin: 24px 0; }
+    .architecture div { background: var(--paper); padding: 16px; font-size: 13px; }
+    .architecture strong { display: block; margin-bottom: 6px; font-size: 15px; }
+    .demo { border: 1px solid var(--line); padding: 20px; margin: 24px 0; }
+    .demo h3 { margin-top: 0; }
+    .demo-controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+    button { font: inherit; font-size: 13px; background: var(--paper); color: var(--ink); padding: 8px 12px; border: 1px solid var(--line); cursor: pointer; }
+    button[aria-pressed="true"] { background: var(--mark); border-color: var(--muted); }
+    .tree { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 20px 0; }
+    .branch { border-top: 2px solid var(--muted); padding-top: 10px; min-width: 0; }
+    .branch.best { border-color: var(--link); }
+    .branch strong { font-size: 14px; }
+    .branch p { font-size: 12px; color: var(--muted); margin: 5px 0 10px; }
+    .replies { display: flex; gap: 5px; flex-wrap: wrap; }
+    .reply { border: 1px solid var(--line); padding: 4px 8px; font: 14px ui-monospace, monospace; }
+    .reply.pruned { color: var(--muted); border-style: dashed; text-decoration: line-through; opacity: .55; }
+    output { display: block; font-size: 14px; font-weight: 600; }
+    footer { margin-top: 28px; color: var(--muted); font-size: 13px; }
+    @media (prefers-color-scheme: dark) {
+      :root { --paper: #24221f; --ink: #e6e1d6; --muted: #b3ac9d; --line: #49453d; --panel: #302d28; --link: #b6c5a5; --mark: #494735; }
+    }
+    @media (max-width: 820px) {
+      .page { padding: 20px 20px 40px; }
+      .layout { display: flex; flex-direction: column; gap: 0; }
+      aside { position: static; order: -1; display: flex; flex-wrap: wrap; gap: 6px 20px; padding-top: 22px; }
+      aside a { margin: 0; }
+      section { padding: 30px 0; }
+    }
+    @media (max-width: 460px) {
+      body { font-size: 15px; }
+      .architecture { grid-template-columns: 1fr; }
+      .demo { padding: 14px; }
+      .tree { gap: 8px; }
+      .reply { padding: 4px 6px; }
+    }
+    @media print {
+      :root { --paper: white; --ink: black; --muted: #444; --line: #bbb; --panel: #f5f5f5; --link: black; }
+      .page { max-width: none; padding: 0; }
+      .layout { display: block; }
+      article { max-width: none; }
+      aside, .demo-controls, .breadcrumb a { display: none; }
+      section { padding: 20px 0; }
+      h2, h3 { break-after: avoid; }
+      table, .demo, .architecture { break-inside: avoid; }
+      a { text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="breadcrumb"><a href="./">Nested chess</a><span>Design notes · 25 October 2026</span></div>
+      <h1>Fairness and bot design</h1>
+      <p class="lead">Balance is unmeasured. Minimax with alpha-beta pruning is the straightforward first search. Fairy-Stockfish can provide local evaluations and move ordering while the Rust engine handles the full match.</p>
+    </header>
+    <div class="layout">
+      <article>
+        <section id="fairness">
+          <h2>1. Is the game fair?</h2>
+          <p>The rules have a sound competitive structure, but we do not yet know whether equally strong players have equal chances. There is no balance tournament or solved-game result behind this assessment.</p>
+          <p>In standard and shared-start Chess960, exchanging colors while reflecting the ranks of both the local boards and the macro grid preserves the board arrangements and routing rules. This makes the two colors structurally equivalent apart from who moves first. An engine check confirmed the opening move and routing correspondence across all 960 shared starts; that check is not an exhaustive proof about complete games.</p>
+          <p>Symmetry does not make the first move neutral. White chooses the first board and move. That may provide initiative, but mandatory moves and routing may sometimes make moving first a disadvantage. Ordinary chess's first-player advantage cannot simply be transferred to these rules.</p>
+          <p>Chess960ⁿ adds setup variation. Each local board mirrors its two colors, but a particular macro arrangement of different starting positions need not have the whole-match reflection symmetry. Independent random layouts are symmetric in distribution; individual layouts may still favor one side.</p>
+          <div class="finding"><p><strong>Current verdict:</strong> structurally symmetric in shared-start mode; practical balance and the optimal-play result remain unknown. More boards do not necessarily average out a bias, because routing couples their outcomes.</p></div>
+          <p>Once a starting layout is fixed, the game is deterministic, perfect-information, and zero-sum. Pawn advances and captures are finite, and the no-progress rule bounds the quiet moves between them, so play is finite. Each fixed start therefore has an optimal-play outcome: White win, Black win, or draw. Minimax is the appropriate framework, although solving the complete game is far beyond a small bot. <a href="https://www.cs.cmu.edu/~me/courses/15-150-Spring2020/lectures/20/MiniMaxGames.pdf">Game-search background: CMU</a>.</p>
+        </section>
+        <section id="routing">
+          <h2>2. Routing changes the opening</h2>
+          <p>I enumerated legal moves from the standard starting position in the current engine. Initially, the available destinations occupy only a few macro rows.</p>
+          <div class="table-wrap"><table>
+            <caption>Destinations from an untouched standard board. These are not restrictions for the rest of the game.</caption>
+            <thead><tr><th scope="col">Grid</th><th scope="col">White sends Black to</th><th scope="col">Black sends White to</th><th scope="col">White's initial global actions</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">2 × 2</th><td>A1–B1</td><td>A2–B2</td><td>80</td></tr>
+              <tr><th scope="row">4 × 4</th><td>A2–D2</td><td>A3–D3</td><td>320</td></tr>
+              <tr><th scope="row">8 × 8</th><td>Ranks 3–4</td><td>Ranks 5–6</td><td>1,280</td></tr>
+            </tbody>
+          </table></div>
+          <p>This produces a natural opening partition: ordinary opening moves initially give the players access to different rows of boards. My expectation is that choosing when and how to break that pattern will matter. Whether it creates interesting openings or repetitive ones needs playtesting.</p>
+        </section>
+        <section id="strategy">
+          <h2>3. What makes the strategy different?</h2>
+          <p>Every move spends a turn on one board and assigns the opponent's next opportunity. The relevant resource is access to a board at a useful time. Move-count advantage alone is not positional advantage: an extra move can be wasted or harmful.</p>
+          <ul>
+            <li><strong>Threats can wait.</strong> An exposed king can survive while the opponent is routed elsewhere. A conventional local forced-capture prediction is conditional on getting the required turns.</li>
+            <li><strong>Small moves can control access.</strong> A modest local move can be valuable if its destination gives the opponent an unproductive turn or creates a route back to the board you want.</li>
+            <li><strong>Sacrifices can buy opportunities.</strong> Losing material, or even one board, can be worthwhile if the resulting sequence secures the match elsewhere.</li>
+            <li><strong>Finishing a board changes future choices.</strong> Later moves targeting that board grant free choice. Winning a board has both a scoring effect and a routing effect.</li>
+            <li><strong>The score changes priorities.</strong> A narrow lead may justify draws and conservative play. A losing player may need uncertain lines rather than a larger expected point margin.</li>
+          </ul>
+          <p>The main design risks to investigate are repetitive opening routes, long periods where an important board cannot be reached, and whether control of routing makes early leads too hard to challenge.</p>
+          <p>The boards cannot be assigned independent values and simply added to solve the game. Their move opportunities depend on one another. Restricted component choices also appear in research on <em>entailing moves</em>, but that theory is not a direct solution to this scoring, partisan game. <a href="https://cris.technion.ac.il/en/publications/impartial-games-with-entailing-moves/">Larsson, Nowakowski and Santos</a>.</p>
+        </section>
+        <section id="search">
+          <h2>4. Yes: minimax with alpha-beta</h2>
+          <p><strong>That is the recommended starting point.</strong> The global players alternate normally, even when a local board gets consecutive moves from one color. Search depth should count global moves.</p>
+          <p>Alpha-beta avoids exploring branches that cannot change the minimax result. For the same game tree, depth, and leaf evaluations, it preserves the root value. Strong move ordering makes pruning more effective. It does not make a shallow evaluation exact, or remove the cost of every engine call. <a href="https://www.cs.cmu.edu/~15281/coursenotes/search/index.html">CMU's alpha-beta explanation</a>.</p>
+          <div class="demo" aria-labelledby="demo-title">
+            <h3 id="demo-title">Why move ordering matters</h3>
+            <p class="note">A toy two-ply tree: we choose a move, then the opponent chooses our lowest score. Crossed-out replies are skipped by alpha-beta. These are illustrative match values, not measured chess evaluations.</p>
+            <div class="demo-controls"><button type="button" data-order="good" aria-pressed="true">Good moves first</button><button type="button" data-order="poor" aria-pressed="false">Good moves last</button></div>
+            <div id="tree" class="tree"></div>
+            <output id="search-result" aria-live="polite"></output>
+            <noscript><p>Good ordering evaluates 5 of 9 replies; poor ordering evaluates all 9. Both choose Move A with value 3.</p></noscript>
+          </div>
+          <div class="architecture" aria-label="Responsibilities in the proposed bot">
+            <div><strong>Rust rules</strong>Legal actions, routing, king captures, scoring, draws, and complete search state.</div>
+            <div><strong>Alpha-beta search</strong>Global move sequences, terminal match results, time budget, and move ordering.</div>
+            <div><strong>Fairy-Stockfish</strong>Local positional estimates and promising local moves.</div>
+          </div>
+          <p>A negamax form keeps the implementation short. The sign changes once per global move, regardless of which local board is played.</p>
+          <pre><code>search(state, depth, alpha, beta):
+    if match_finished(state):
+        return outcome_for_current_player(state)
+    if depth == 0:
+        return estimate_for_current_player(state)
+
+    best = -infinity
+    for action in ordered_legal_global_moves(state):
+        child = apply_move(state, action)
+        score = -search(child, depth - 1, -beta, -alpha)
+        best = max(best, score)
+        alpha = max(alpha, score)
+        if alpha &gt;= beta:
+            break
+    return best</code></pre>
+          <p class="note">This is design pseudocode, not a new bot implementation. Search actions are moves; a local draw agreement requires both human players' consent.</p>
+          <p>I would start on 2 × 2 with all legal moves, iterative deepening, and a time budget. Two global plies see our move and the opponent's reply. Three can see us return to the original board after the opponent plays elsewhere. Good ordering and deeper search can then be measured against the existing bot.</p>
+          <h3>Move ordering and candidate filtering are different</h3>
+          <p>Use Fairy-Stockfish's suggestions to try promising moves first. Keep the other legal moves available initially. If profiling later requires a top-K cutoff, make that an explicit approximation: discarded moves are not alpha-beta cutoffs, and the best global move may be among them.</p>
+          <p>In particular, the top five local moves may all send the opponent to the same board. If candidate filtering becomes necessary, preserve destination diversity and immediate king captures. The bundled engine supports <code>MultiPV</code> for multiple local lines and <code>searchmoves</code> for restricting a search to a supplied move group. <a href="https://github.com/fairy-stockfish/fairy-stockfish.wasm/blob/b2e693ef1e111233ce3fb40685921708b3276ed6/src/ucioption.cpp">MultiPV source</a> · <a href="https://github.com/fairy-stockfish/fairy-stockfish.wasm/blob/b2e693ef1e111233ce3fb40685921708b3276ed6/src/uci.cpp">searchmoves source</a>.</p>
+          <p>Local suggestions still assume alternating turns on that board. A move that looks bad under an immediate local reply can be good under routing. Ordering it late is recoverable through further search; removing it entirely prevents that discovery.</p>
+        </section>
+        <section id="evaluation">
+          <h2>5. Evaluate points, then access</h2>
+          <p>Do not sum raw centipawn scores across boards. Being a queen ahead on one board still offers only one board win. A position evaluator needs to respect that scale.</p>
+          <pre><code>settled point difference
+ sum of bounded local advantages on unfinished boards</code></pre>
+          <p>Each unfinished board can contribute a value between −1 and +1. A smooth transform such as <code>tanh(local_score / scale)</code> is a simple starting heuristic, not a calibrated probability. An actual match win or loss overrides every positional estimate.</p>
+          <p>Fairy-Stockfish scores are conditional estimates. A remote board does not automatically belong to the current global player next. Queries with White and Black to move can help distinguish positional strength from the value of getting access; they still cannot predict the routing sequence themselves.</p>
+          <p>The Rust search resolves the turns it actually explores. At the horizon, local estimates remain approximate. This is the main evaluation issue to measure after the basic search works.</p>
+          <h3>Keep engine calls under control</h3>
+          <ul>
+            <li>Keep the engine process or worker alive across requests.</li>
+            <li>Cache local results by position, queried color, variant, and search settings.</li>
+            <li>Reuse unchanged board estimates instead of evaluating every board at every node.</li>
+            <li>Start with inexpensive local estimates; use deeper local searches selectively.</li>
+            <li>Return the last completed search depth when the move budget expires.</li>
+          </ul>
+          <p>The budget is important: hundreds of leaves multiplied by a 100 ms local search quickly becomes seconds or tens of seconds. Alpha-beta helps, but the achieved depth depends on ordering, cache reuse, evaluation cost, and the position. Larger free-choice turns will be the difficult cases.</p>
+          <p>A full-match transposition cache is a later optimization. Its identity must account for routing, global turn, local rights and counters, and repetition history; equal piece placements alone do not guarantee equal game states.</p>
+        </section>
+        <section id="testing">
+          <h2>6. How to test balance and strength</h2>
+          <p>Start with 2 × 2. Use several policies, equal computation budgets, and paired games with the players swapping colors on the same setup. Keep standard, shared Chess960, and Chess960ⁿ results separate.</p>
+          <ul>
+            <li>Record White's match score, draw rate, game length, and final point margins.</li>
+            <li>Measure free-choice frequency, repeated local moves, and local move-count imbalance.</li>
+            <li>Compare the existing local-only bot with progressively deeper global search.</li>
+            <li>Use varied seeds or randomized tie-breaking. One deterministic matchup from one fixed start repeats one game.</li>
+            <li>Report uncertainty and treat paired games as related observations. Bot results characterize those policies, not perfect play.</li>
+          </ul>
+          <p>For competitive play today, two games per setup with players swapping colors is a reasonable format. It shares the first-move role fairly across the match; it does not prove that either individual game is balanced.</p>
+        </section>
+        <section id="learning">
+          <h2>7. Learning later</h2>
+          <p>The first learning step could rank moves using the full macro state while keeping Fairy-Stockfish's local knowledge. Games from the alpha-beta bot would provide starting data. The learned model could improve ordering before being trusted to filter candidates.</p>
+          <p>A bot trained entirely from scratch would need a policy/value model, self-play generation, search, and evaluation against previous versions—the broad AlphaZero approach. A shared board encoder could be combined with a model of routing and the other boards. Train toward match outcomes; an auxiliary point-margin target should not replace the objective of winning the match. <a href="https://arxiv.org/abs/1712.01815">AlphaZero paper</a>.</p>
+          <div class="finding"><p><strong>Recommended next implementation:</strong> Rust negamax with alpha-beta, all legal moves on 2 × 2, iterative deepening, cached Fairy-Stockfish estimates, and Fairy-assisted move ordering. Measure the bottleneck before adding candidate cutoffs or a learned model.</p></div>
+        </section>
+      </article>
+      <aside aria-label="Contents">
+        <a href="#fairness">1. Fairness</a><a href="#routing">2. Opening routes</a><a href="#strategy">3. Strategy</a><a href="#search">4. Minimax + alpha-beta</a><a href="#evaluation">5. Evaluation</a><a href="#testing">6. Testing</a><a href="#learning">7. Learning later</a>
+      </aside>
+    </div>
+    <footer>Analysis of the current king-capture rules, local en passant expiry, and half-point draws. This page proposes a bot; it does not claim that bot has been implemented or that balance has been measured. <a href="https://github.com/balbok0/nested-chess">Project source</a>.</footer>
+  </div>
+  <script type="module">
+    const branches = [{ name: 'A', values: [3, 5, 6] }, { name: 'B', values: [2, 9, 10] }, { name: 'C', values: [1, 4, 8] }];
+    function render(order) {
+      const tree = document.getElementById('tree');
+      tree.replaceChildren();
+      let alpha = -Infinity, visited = 0, best = '';
+      for (const branch of order === 'good' ? branches : branches.toReversed()) {
+        const values = order === 'good' ? branch.values : branch.values.toReversed();
+        let value = Infinity, cutoff = false;
+        const card = document.createElement('div');
+        card.className = 'branch';
+        const title = document.createElement('strong');
+        title.textContent = `Move ${branch.name}`;
+        const replies = document.createElement('div');
+        replies.className = 'replies';
+        for (const score of values) {
+          const cell = document.createElement('span');
+          cell.className = `reply${cutoff ? ' pruned' : ''}`;
+          cell.textContent = score;
+          cell.setAttribute('aria-label', `${score}, ${cutoff ? 'pruned' : 'evaluated'}`);
+          replies.append(cell);
+          if (!cutoff) {
+            visited += 1;
+            value = Math.min(value, score);
+            cutoff = value <= alpha;
+          }
+        }
+        const result = document.createElement('p');
+        result.textContent = `Opponent's reply: ${cutoff ? '≤ ' : ''}${value}`;
+        card.append(title, result, replies);
+        tree.append(card);
+        if (value > alpha) { alpha = value; best = branch.name; }
+      }
+      for (const card of tree.children) card.classList.toggle('best', card.firstChild.textContent === `Move ${best}`);
+      document.getElementById('search-result').textContent = `${visited} of 9 replies evaluated. Best move: ${best}. Minimax value: ${alpha}.`;
+      document.querySelectorAll('[data-order]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.order === order)));
+    }
+    document.querySelectorAll('[data-order]').forEach(button => { button.onclick = () => render(button.dataset.order); });
+    render('good');
+  </script>
+</body>
+</html>
