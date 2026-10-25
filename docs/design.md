@@ -88,13 +88,24 @@ and [configuration documentation](https://github.com/fairy-stockfish/Fairy-Stock
 The integration uses `fairy-stockfish-nnue.wasm` 1.1.12 with its classical evaluator
 (`Use NNUE = false`), because no neural weights for this custom variant are
 provided. The same binary runs in a browser worker or a persistent Node process
-behind the native Rust/Python UCI adapter. Each search receives just one board,
+behind the native Rust/Python UCI adapter. Each Fairy-Stockfish request receives just one board,
 with the global player written into the FEN side field. The Rust engine validates
 the result before accepting it.
 
 Fairy-Stockfish understands the local king-capture objective. Its search still
 alternates colors locally, which is an approximation of the full nested game.
-The v0 bot intentionally ignores future routing and other-board evaluations.
+The Rust global bot wraps these local estimates in negamax with alpha-beta,
+iterative deepening, and depth/node/time budgets. It searches every legal global
+move, with actual routing and repetition history. A local evaluation cache is
+shared across iterations; there is no full-match transposition table.
+
+The leaf utility is expected match score, not point margin. A dynamic program over
+half-point totals combines independent board win/draw/loss estimates with settled
+points, then computes the probability of finishing above or at the majority
+threshold. Terminal match results override the estimates. The initial local
+conversion uses bounded tanh centipawn estimates and zero ongoing draw mass except
+for boards immobile for both colors. This is a heuristic, not calibrated WDL.
+See [the HTML analysis](../web/analysis.html) and `crates/engine/src/search.rs`.
 
 ## About 400–2500 Elo presets
 

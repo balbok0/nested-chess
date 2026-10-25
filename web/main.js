@@ -336,8 +336,9 @@ async function maybeBot() {
   busy = true; engineError = ''; render();
   try {
     opponent ??= new Opponent();
-    const board = state.legal_boards[state.ply % state.legal_boards.length];
-    const move = await opponent.bestMove(state.boards[board].fen, LEVELS[Number($('difficulty').value)]);
+    const result = await opponent.bestMove(game, LEVELS[Number($('difficulty').value)]);
+    const board = result.best_move.board;
+    const move = result.best_move.uci;
     if (ticket !== generation) return;
     if (!JSON.parse(game.legal_moves(board)).includes(move)) throw new Error(`Opponent returned an invalid move (${move}).`);
     await new Promise(resolve => setTimeout(resolve, Math.max(0, BOT_TURN_MIN_MS - (performance.now() - started))));

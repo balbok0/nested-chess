@@ -2,7 +2,7 @@
 
 A Rust king-capture chess engine on a routed 2×2, 4×4, or 8×8 grid of games,
 with a playable browser UI, WebAssembly bindings, Python bindings, and a
-single-board Fairy-Stockfish opponent.
+global Rust negamax opponent using Fairy-Stockfish for local analysis.
 
 [Play on GitHub Pages](https://balbok0.github.io/nested-chess/).
 
@@ -171,8 +171,9 @@ print(json.loads(game.state())["forced_board"])  # 1
 opponent = nested_chess.Opponent(
     "node", ["scripts/fairy-uci.cjs"], "variants/nested.ini"
 )
-move = opponent.best_move(game, 1, skill=5, milliseconds=200)
-game.play(1, move)
+result = json.loads(opponent.search(game, max_depth=3, milliseconds=1000))
+action = result["best_move"]
+game.play(action["board"], action["uci"])
 ```
 
 `state()`, `play()`, and `undo()` return JSON state strings in both bindings.
@@ -192,25 +193,51 @@ For a native Fairy-Stockfish binary, use
 Rust exposes the same persistent, timeout-bounded process adapter as
 `nested_chess::uci::UciEngine`. Ordinary Stockfish is incompatible with these rules.
 
+`Opponent.search()` returns JSON with `best_move: {board, uci}`, `expected_score`,
+`completed_depth`, and node/evaluation/cache/cutoff counts. Rust exposes the same
+operation as `UciEngine::search(&game, SearchLimits { max_depth, max_nodes,
+milliseconds })`, or runtime-independent async `search::best_move` with an
+`Evaluator`. WASM `game.best_move(limits_json, evaluate)` returns a Promise of the
+same JSON; the callback receives `(fen, chess960)` and resolves to JSON containing
+`evaluation: {kind: "cp", value: white_relative_cp}` or `{kind: "capture", winner}`,
+plus an optional UCI `best_move`. The existing native/Python `best_move(game,
+board, skill, milliseconds)` remains available as the local-only baseline.
+
 ## Opponent strength
 
 The custom [Fairy-Stockfish variant](variants/nested.ini) inherits extinction
 chess, retaining only king extinction as the loss condition and normal
-promotions. Kings are nonroyal, capturable pieces. The bot receives one local
-FEN with the global mover as its active color. It does not receive the macro
-position; on a free choice, it selects a board deterministically without comparing
-board evaluations. Each analysis clears the previous local game context.
+promotions. Kings are nonroyal, capturable pieces. Rust searches the full match
+with negamax, alpha-beta, and iterative deepening. All legal board/move pairs stay
+available; ordering favors the previous best move, cached Fairy-Stockfish moves,
+captures, and promotions. Search uses complete cloned game states, preserving
+routing, repeated local turns, draw counters, and repetition history.
 
 The browser offers Beginner, Casual, Club, Strong, Expert, and Maximum presets
-using Fairy-Stockfish skill levels 0, 2, 5, 10, 15, and 20, with increasing search
-time. These are **uncalibrated presets**, not 400/800/1200/1600/2000/2500 Elo bots.
+with depth caps 1–6, time budgets 300/600/1000/1600/2400/4000 ms, and local
+Fairy-Stockfish node budgets 32/64/128/128/256/256. These are **uncalibrated
+presets**, not 400/800/1200/1600/2000/2500 Elo bots.
 Even the weakest preset may be difficult for a beginner.
 
-A further limitation is deliberate for v0: its search assumes locally alternating
-colors. It understands king capture but cannot anticipate routing or a color
-getting multiple consecutive local moves. Standard-chess ratings therefore cannot
-be promised even for strong engines. Beginner-level error profiles and meaningful
-nested-chess ratings require playtesting and calibration.
+Leaf evaluation targets `P(match win) + 0.5 * P(match draw)`. A half-point dynamic
+program combines settled points with independent board-outcome estimates. Local
+centipawn scores map to `p_white = (1 + tanh(cp / 400)) / 2`, clamped to
+0.001–0.999; local capture predictions use those bounds too. Unfinished boards
+initially have zero estimated draw probability, except boards frozen for both
+colors, which are treated as eventual draws. Settled draws and draws found by
+search remain exact. The DP also accepts supplied nonzero draw probabilities.
+
+The forced board uses the incoming player's conditional local estimate. Other
+boards average estimates with White and Black to move. Local results are cached
+by FEN/color and castling convention within a search. These estimates are
+uncalibrated and assume independent eventual board outcomes; Fairy-Stockfish's
+local search still assumes alternating local turns. Global routing is exact within
+the Rust search horizon. Actual terminal wins/losses outrank every heuristic.
+
+The bot returns the last completed depth when a budget expires. If no iteration
+finishes, it returns an ordered legal fallback with `completed_depth: 0` and
+`expected_score: null`. Time is checked between oracle calls, so a call already
+in progress can overrun the budget. Larger grids may complete shallower searches.
 
 See [the design notes](docs/design.md) for representation costs, training
 feasibility, engine research, and related games.

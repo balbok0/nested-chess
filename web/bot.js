@@ -5,14 +5,15 @@ import config from '../variants/nested.ini?raw';
 import { parseEvaluation } from './evaluation.js';
 
 const EVALUATION_TIME_MS = 100;
+const SEARCH_NODE_BUDGET = 100000;
 
 export const LEVELS = [
-  { label: 'Beginner', skill: 0, ms: 60 },
-  { label: 'Casual', skill: 2, ms: 100 },
-  { label: 'Club', skill: 5, ms: 180 },
-  { label: 'Strong', skill: 10, ms: 300 },
-  { label: 'Expert', skill: 15, ms: 500 },
-  { label: 'Maximum', skill: 20, ms: 900 },
+  { label: 'Beginner', depth: 1, ms: 300, nodes: 32 },
+  { label: 'Casual', depth: 2, ms: 600, nodes: 64 },
+  { label: 'Club', depth: 3, ms: 1000, nodes: 128 },
+  { label: 'Strong', depth: 4, ms: 1600, nodes: 128 },
+  { label: 'Expert', depth: 5, ms: 2400, nodes: 256 },
+  { label: 'Maximum', depth: 6, ms: 4000, nodes: 256 },
 ];
 
 export class Opponent {
@@ -50,18 +51,20 @@ export class Opponent {
     this.worker.postMessage({ commands });
     return response;
   }
-  async search(fen, level) {
+  async search(fen, level, chess960 = /[A-Ha-h]/.test(fen.split(' ')[2])) {
     await this.ready;
-    const chess960 = /[A-Ha-h]/.test(fen.split(' ')[2]);
-    await this.command('readyok', ['ucinewgame', `setoption name UCI_Chess960 value ${chess960}`, 'setoption name UCI_LimitStrength value false', `setoption name Skill Level value ${level.skill}`, 'setoption name MultiPV value 1', 'isready']);
-    return this.command('bestmove ', [`position fen ${fen}`, `go movetime ${level.ms}`]);
+    await this.command('readyok', ['ucinewgame', `setoption name UCI_Chess960 value ${chess960}`, 'setoption name UCI_LimitStrength value false', 'setoption name Skill Level value 20', 'setoption name MultiPV value 1', 'isready']);
+    return this.command('bestmove ', [`position fen ${fen}`, level.nodes ? `go nodes ${level.nodes}` : `go movetime ${level.ms}`]);
   }
-  async bestMove(fen, level) {
-    const lines = await this.search(fen, level);
-    return lines.at(-1).split(' ')[1];
+  async bestMove(game, level) {
+    await this.ready;
+    return JSON.parse(await game.best_move(JSON.stringify({ max_depth: level.depth, max_nodes: SEARCH_NODE_BUDGET, milliseconds: level.ms }), async (fen, chess960) => {
+      const lines = await this.search(fen, { nodes: level.nodes }, chess960);
+      return JSON.stringify({ evaluation: parseEvaluation(lines, fen.split(' ')[1] === 'w' ? 'white' : 'black'), best_move: lines.at(-1).split(' ')[1] });
+    }));
   }
   async evaluate(fen) {
-    return parseEvaluation(await this.search(fen, { skill: 20, ms: EVALUATION_TIME_MS }), fen.split(' ')[1] === 'w' ? 'white' : 'black');
+    return parseEvaluation(await this.search(fen, { ms: EVALUATION_TIME_MS }), fen.split(' ')[1] === 'w' ? 'white' : 'black');
   }
   fail(error) {
     if (this.pending) {

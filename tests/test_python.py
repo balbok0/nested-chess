@@ -90,3 +90,19 @@ def test_independent_chess960_starts_preserve_board_order():
     game.play(0, "a2a3")
     assert nested_chess.Game.load(game.save()).state() == game.state()
     assert json.loads(game.undo()) == actual
+
+
+def test_global_search_avoids_a_local_win_that_permits_a_third_loss():
+    game = nested_chess.Game.load(json.dumps({
+        "version": 3, "size": 2, "first_player": "black", "finish_rule": "majority", "en_passant_rule": "local",
+        "initial_fens": ["7k/8/8/8/8/8/7R/Kr6 w - - 0 1", "4k3/8/8/8/8/8/7r/7K w - - 0 1", "3Kk3/8/8/8/8/8/3r4/8 b - - 0 1", "3Kk3/8/8/8/8/8/3r4/8 b - - 0 1"],
+        "events": [{"kind": "move", "board": board, "uci": uci} for board, uci in [(2, "d2d8"), (0, "h2h7"), (3, "d2d8")]],
+    }))
+    before = game.state()
+    opponent = nested_chess.Opponent("node", ["scripts/fairy-uci.cjs"], "variants/nested.ini")
+    actual = json.loads(opponent.search(game, max_depth=2, milliseconds=10000))
+    assert actual["completed_depth"] == 2
+    assert actual["best_move"] != {"board": 0, "uci": "h7h8"}
+    assert actual["expected_score"] > 0
+    assert actual["best_move"]["uci"] in game.legal_moves(actual["best_move"]["board"])
+    assert game.state() == before

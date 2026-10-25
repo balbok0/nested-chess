@@ -10,6 +10,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+const LOCAL_SEARCH_NODES: u64 = 128;
+
 #[derive(Debug, thiserror::Error)]
 pub enum UciError {
     #[error(transparent)]
@@ -169,7 +171,7 @@ impl Evaluator for UciEngine {
             self.send("isready")?;
             self.wait_for("readyok", Duration::from_secs(10))?;
             self.send(&format!("position fen {fen}"))?;
-            self.send("go nodes 128")?;
+            self.send(&format!("go nodes {LOCAL_SEARCH_NODES}"))?;
             let lines = self.wait_for("bestmove ", Duration::from_secs(10))?;
             let white_turn = fen.split_whitespace().nth(1) == Some("w");
             let sign = if white_turn { 1 } else { -1 };

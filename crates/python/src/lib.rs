@@ -1,3 +1,4 @@
+use ::nested_chess::search::SearchLimits;
 use ::nested_chess::{Game, uci::UciEngine};
 use pyo3::{exceptions::PyValueError, prelude::*};
 
@@ -78,6 +79,29 @@ struct PyOpponent {
 
 #[pymethods]
 impl PyOpponent {
+    #[pyo3(signature = (game, max_depth=3, max_nodes=100_000, milliseconds=1000))]
+    fn search(
+        &mut self,
+        game: &PyGame,
+        max_depth: u8,
+        max_nodes: u64,
+        milliseconds: u64,
+    ) -> PyResult<String> {
+        serde_json::to_string(
+            &self
+                .engine
+                .search(
+                    &game.game,
+                    SearchLimits {
+                        max_depth,
+                        max_nodes,
+                        milliseconds,
+                    },
+                )
+                .map_err(py_error)?,
+        )
+        .map_err(py_error)
+    }
     #[new]
     fn new(executable: &str, args: Vec<String>, variant_path: &str) -> PyResult<Self> {
         Ok(Self {

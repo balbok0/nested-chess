@@ -95,7 +95,7 @@
     <header>
       <div class="breadcrumb"><a href="./">Nested chess</a><span>Design notes · 25 October 2026</span></div>
       <h1>Fairness and bot design</h1>
-      <p class="lead">Balance is unmeasured. Minimax with alpha-beta pruning is the straightforward first search. Fairy-Stockfish can provide local evaluations and move ordering while the Rust engine handles the full match.</p>
+      <p class="lead">Balance is unmeasured. The bot now uses Rust negamax with alpha-beta pruning and a dynamic-program match evaluator. Fairy-Stockfish supplies local evaluations while Rust searches the full match.</p>
     </header>
     <div class="layout">
       <article>
@@ -147,7 +147,7 @@
             <output id="search-result" aria-live="polite"></output>
             <noscript><p>Good ordering evaluates 5 of 9 replies; poor ordering evaluates all 9. Both choose Move A with value 3.</p></noscript>
           </div>
-          <div class="architecture" aria-label="Responsibilities in the proposed bot">
+          <div class="architecture" aria-label="Responsibilities in the bot">
             <div><strong>Rust rules</strong>Legal actions, routing, king captures, scoring, draws, and complete search state.</div>
             <div><strong>Alpha-beta search</strong>Global move sequences, terminal match results, time budget, and move ordering.</div>
             <div><strong>Fairy-Stockfish</strong>Local positional estimates and promising local moves.</div>
@@ -168,21 +168,30 @@
         if alpha &gt;= beta:
             break
     return best</code></pre>
-          <p class="note">This is design pseudocode, not a new bot implementation. Search actions are moves; a local draw agreement requires both human players' consent.</p>
-          <p>I would start on 2 × 2 with all legal moves, iterative deepening, and a time budget. Two global plies see our move and the opponent's reply. Three can see us return to the original board after the opponent plays elsewhere. Good ordering and deeper search can then be measured against the existing bot.</p>
+          <p class="note">This pseudocode summarizes the implemented Rust search. Search actions are moves; a local draw agreement requires both human players' consent.</p>
+          <p>The implementation keeps all legal moves, uses iterative deepening, and applies depth, node, and time budgets. Two global plies see our move and the opponent's reply. Three can see us return to the original board after the opponent plays elsewhere. It returns the last completed depth, or an ordered legal fallback if none completes.</p>
           <h3>Move ordering and candidate filtering are different</h3>
-          <p>Use Fairy-Stockfish's suggestions to try promising moves first. Keep the other legal moves available initially. If profiling later requires a top-K cutoff, make that an explicit approximation: discarded moves are not alpha-beta cutoffs, and the best global move may be among them.</p>
+          <p>The search orders the previous best move first, then uses cached Fairy-Stockfish suggestions, captures, and promotions. It retains every other legal move. If profiling later requires a top-K cutoff, that would be an additional approximation: discarded moves are not alpha-beta cutoffs, and the best global move may be among them.</p>
           <p>In particular, the top five local moves may all send the opponent to the same board. If candidate filtering becomes necessary, preserve destination diversity and immediate king captures. The bundled engine supports <code>MultiPV</code> for multiple local lines and <code>searchmoves</code> for restricting a search to a supplied move group. <a href="https://github.com/fairy-stockfish/fairy-stockfish.wasm/blob/b2e693ef1e111233ce3fb40685921708b3276ed6/src/ucioption.cpp">MultiPV source</a> · <a href="https://github.com/fairy-stockfish/fairy-stockfish.wasm/blob/b2e693ef1e111233ce3fb40685921708b3276ed6/src/uci.cpp">searchmoves source</a>.</p>
           <p>Local suggestions still assume alternating turns on that board. A move that looks bad under an immediate local reply can be good under routing. Ordering it late is recoverable through further search; removing it entirely prevents that discovery.</p>
         </section>
         <section id="evaluation">
-          <h2>5. Evaluate points, then access</h2>
+          <h2>5. Estimate the match result</h2>
           <p>Do not sum raw centipawn scores across boards. Being a queen ahead on one board still offers only one board win. A position evaluator needs to respect that scale.</p>
-          <pre><code>settled point difference
- sum of bounded local advantages on unfinished boards</code></pre>
-          <p>Each unfinished board can contribute a value between −1 and +1. A smooth transform such as <code>tanh(local_score / scale)</code> is a simple starting heuristic, not a calibrated probability. An actual match win or loss overrides every positional estimate.</p>
-          <p>Fairy-Stockfish scores are conditional estimates. A remote board does not automatically belong to the current global player next. Queries with White and Black to move can help distinguish positional strength from the value of getting access; they still cannot predict the routing sequence themselves.</p>
-          <p>The Rust search resolves the turns it actually explores. At the horizon, local estimates remain approximate. This is the main evaluation issue to measure after the basic search works.</p>
+          <pre><code>eval = P(match win) + ½ × P(match draw)</code></pre>
+          <p>The Rust evaluator combines settled points and estimates for unfinished boards using a dynamic program. Scores use half-point units: a board win adds 2, a draw adds 1, and a loss adds 0. Combinations producing the same point total are merged.</p>
+          <pre><code>dp[our_settled_half_points] = 1
+for each unfinished board:
+    next = empty distribution
+    for each score k with probability dp[k]:
+        next[k + 2] += dp[k] × p_win
+        next[k + 1] += dp[k] × p_draw
+        next[k]     += dp[k] × p_loss
+    dp = next</code></pre>
+          <p>With B boards, a final half-point total above B wins; B draws; below B loses. The calculation takes O(nB) time and O(B) memory for n unfinished boards. An actual terminal match is evaluated directly, and terminal wins/losses outrank all heuristic scores in search.</p>
+          <div class="finding"><p><strong>Why a third loss matters:</strong> after losing two of four boards, winning both remaining boards can only draw the match. If each has an independent 80% win estimate, the match value is ½ × 0.8 × 0.8 = <strong>0.32</strong>. Winning one raises it to 0.40; losing one ends the match at 0. No special third-loss penalty is needed.</p></div>
+          <p>The initial conversion uses <code>p_white = (1 + tanh(cp / 400)) / 2</code>, bounded to 0.001–0.999. Local capture predictions use the same bounds: a prediction is not an actual king capture. Ongoing boards initially have zero estimated draw probability, except boards frozen for both colors. Settled draws and draws found in search are exact; the DP supports nonzero estimated draw probabilities too.</p>
+          <p>The forced board uses the incoming player's conditional estimate. Other boards average estimates with White and Black to move. These are uncalibrated odds, and the DP assumes independent eventual outcomes. Rust resolves routing exactly within the explored horizon; the remaining coupling and the local estimates are still approximations.</p>
           <h3>Keep engine calls under control</h3>
           <ul>
             <li>Keep the engine process or worker alive across requests.</li>
@@ -200,7 +209,7 @@
           <ul>
             <li>Record White's match score, draw rate, game length, and final point margins.</li>
             <li>Measure free-choice frequency, repeated local moves, and local move-count imbalance.</li>
-            <li>Compare the existing local-only bot with progressively deeper global search.</li>
+            <li>Compare the local-only baseline with progressively deeper global search.</li>
             <li>Use varied seeds or randomized tie-breaking. One deterministic matchup from one fixed start repeats one game.</li>
             <li>Report uncertainty and treat paired games as related observations. Bot results characterize those policies, not perfect play.</li>
           </ul>
@@ -210,14 +219,14 @@
           <h2>7. Learning later</h2>
           <p>The first learning step could rank moves using the full macro state while keeping Fairy-Stockfish's local knowledge. Games from the alpha-beta bot would provide starting data. The learned model could improve ordering before being trusted to filter candidates.</p>
           <p>A bot trained entirely from scratch would need a policy/value model, self-play generation, search, and evaluation against previous versions—the broad AlphaZero approach. A shared board encoder could be combined with a model of routing and the other boards. Train toward match outcomes; an auxiliary point-margin target should not replace the objective of winning the match. <a href="https://arxiv.org/abs/1712.01815">AlphaZero paper</a>.</p>
-          <div class="finding"><p><strong>Recommended next implementation:</strong> Rust negamax with alpha-beta, all legal moves on 2 × 2, iterative deepening, cached Fairy-Stockfish estimates, and Fairy-assisted move ordering. Measure the bottleneck before adding candidate cutoffs or a learned model.</p></div>
+          <div class="finding"><p><strong>Next step:</strong> benchmark the implemented global bot against the local-only baseline, starting on 2 × 2. Measure strength, completed depth, and engine-call cost before adding candidate cutoffs or a learned model.</p></div>
         </section>
       </article>
       <aside aria-label="Contents">
         <a href="#fairness">1. Fairness</a><a href="#routing">2. Opening routes</a><a href="#strategy">3. Strategy</a><a href="#search">4. Minimax + alpha-beta</a><a href="#evaluation">5. Evaluation</a><a href="#testing">6. Testing</a><a href="#learning">7. Learning later</a>
       </aside>
     </div>
-    <footer>Analysis of the current king-capture rules, local en passant expiry, and half-point draws. This page proposes a bot; it does not claim that bot has been implemented or that balance has been measured. <a href="https://github.com/balbok0/nested-chess">Project source</a>.</footer>
+    <footer>Analysis of the current king-capture rules, local en passant expiry, and half-point draws. Rust global search and the dynamic evaluator are implemented; competitive balance has not been measured. <a href="https://github.com/balbok0/nested-chess">Project source</a>.</footer>
   </div>
   <script type="module">
     const branches = [{ name: 'A', values: [3, 5, 6] }, { name: 'B', values: [2, 9, 10] }, { name: 'C', values: [1, 4, 8] }];

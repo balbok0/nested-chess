@@ -1,8 +1,34 @@
 use nested_chess::Game;
+use nested_chess::search::{self, Evaluator, LocalAnalysis, SearchError, SearchLimits};
 use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::{JsFuture, future_to_promise};
 
 fn js_error(error: impl std::fmt::Display) -> JsValue {
     JsValue::from_str(&error.to_string())
+}
+
+struct JsEvaluator(js_sys::Function);
+
+impl Evaluator for JsEvaluator {
+    async fn evaluate(&mut self, fen: &str, chess960: bool) -> Result<LocalAnalysis, SearchError> {
+        let response = self
+            .0
+            .call2(
+                &JsValue::UNDEFINED,
+                &JsValue::from_str(fen),
+                &JsValue::from_bool(chess960),
+            )
+            .map_err(|error| SearchError::Evaluation(format!("{error:?}")))?;
+        let value = JsFuture::from(js_sys::Promise::resolve(&response))
+            .await
+            .map_err(|error| SearchError::Evaluation(format!("{error:?}")))?;
+        serde_json::from_str(
+            &value
+                .as_string()
+                .ok_or_else(|| SearchError::Evaluation("expected JSON local analysis".into()))?,
+        )
+        .map_err(|error| SearchError::Evaluation(error.to_string()))
+    }
 }
 
 #[wasm_bindgen]
@@ -17,6 +43,22 @@ pub struct NestedGame {
 
 #[wasm_bindgen]
 impl NestedGame {
+    pub fn best_move(
+        &self,
+        limits: &str,
+        evaluate: js_sys::Function,
+    ) -> Result<js_sys::Promise, JsValue> {
+        let game = self.game.clone();
+        let limits: SearchLimits = serde_json::from_str(limits).map_err(js_error)?;
+        Ok(future_to_promise(async move {
+            let result = search::best_move(&game, &mut JsEvaluator(evaluate), limits)
+                .await
+                .map_err(js_error)?;
+            Ok(JsValue::from_str(
+                &serde_json::to_string(&result).map_err(js_error)?,
+            ))
+        }))
+    }
     #[wasm_bindgen(constructor)]
     pub fn new(size: u8) -> Result<NestedGame, JsValue> {
         Ok(Self {

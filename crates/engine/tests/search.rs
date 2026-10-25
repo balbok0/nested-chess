@@ -80,6 +80,30 @@ fn settled_draws_shift_the_majority_threshold() {
 }
 
 #[test]
+fn a_settled_win_changes_the_value_of_the_last_uncertain_board() {
+    let mut game = Game::from_fens(
+        2,
+        Color::White,
+        &vec!["4k3/8/8/8/8/8/4R3/4K3 w - - 0 1".into(); 4],
+    )
+    .unwrap();
+    game.play(0, "e2e8").unwrap();
+    let actual = match_estimate(
+        &game,
+        &[
+            OutcomeEstimate::new(1.0, 0.0, 0.0).unwrap(),
+            OutcomeEstimate::new(0.0, 0.0, 1.0).unwrap(),
+            OutcomeEstimate::new(0.2, 0.3, 0.5).unwrap(),
+        ],
+    )
+    .unwrap();
+    close(actual.white, 0.5);
+    close(actual.draw, 0.5);
+    close(actual.black, 0.0);
+    close(actual.expected_score(Color::White), 0.75);
+}
+
+#[test]
 fn deterministic_predictions_work_on_every_grid() {
     for size in [2, 4, 8] {
         for (estimate, expected) in [
@@ -186,23 +210,28 @@ fn negamax_refuses_a_board_win_that_allows_the_third_loss() {
 
 #[test]
 fn negamax_takes_an_actual_match_win_without_local_estimation() {
-    let mut fens = vec!["4k3/8/8/8/8/8/4R3/4K3 w - - 100 1".into(); 4];
-    fens[0] = "4k3/8/8/8/8/8/4R3/4K3 w - - 0 1".into();
-    let game = Game::from_fens(2, Color::White, &fens).unwrap();
-    let result = oracle()
-        .search(
-            &game,
-            SearchLimits {
-                max_depth: 3,
-                max_nodes: 10000,
-                milliseconds: 1000,
-            },
-        )
-        .unwrap();
-    assert_eq!(result.best_move.board, 0);
-    assert_eq!(result.best_move.uci.to_string(), "e2e8");
-    assert_eq!(result.expected_score, Some(1.0));
-    assert_eq!(result.evaluations, 0);
+    for (color, fen, expected) in [
+        (Color::White, "4k3/8/8/8/8/8/4R3/4K3 w - - 0 1", "e2e8"),
+        (Color::Black, "4k3/4r3/8/8/8/8/8/4K3 b - - 0 1", "e7e1"),
+    ] {
+        let mut fens = vec![fen.replace("0 1", "100 1"); 4];
+        fens[0] = fen.into();
+        let game = Game::from_fens(2, color, &fens).unwrap();
+        let result = oracle()
+            .search(
+                &game,
+                SearchLimits {
+                    max_depth: 3,
+                    max_nodes: 10000,
+                    milliseconds: 1000,
+                },
+            )
+            .unwrap();
+        assert_eq!(result.best_move.board, 0);
+        assert_eq!(result.best_move.uci.to_string(), expected);
+        assert_eq!(result.expected_score, Some(1.0));
+        assert_eq!(result.evaluations, 0);
+    }
 }
 
 #[test]
@@ -226,4 +255,67 @@ fn a_node_budget_returns_a_legal_fallback_without_claiming_a_completed_depth() {
     assert_eq!(result.completed_depth, 0);
     assert_eq!(result.expected_score, None);
     assert_eq!(result.nodes, 1);
+}
+
+#[test]
+fn a_node_budget_retains_the_last_completed_iteration() {
+    let game = Game::new(2).unwrap();
+    let result = oracle()
+        .search(
+            &game,
+            SearchLimits {
+                max_depth: 3,
+                max_nodes: 81,
+                milliseconds: 10000,
+            },
+        )
+        .unwrap();
+    assert_eq!(result.completed_depth, 1);
+    assert_eq!(result.nodes, 81);
+    assert!(result.expected_score.is_some());
+    assert!(
+        game.legal_moves(result.best_move.board)
+            .unwrap()
+            .contains(&result.best_move.uci)
+    );
+}
+
+#[test]
+fn invalid_limits_are_rejected_without_changing_the_game() {
+    let game = Game::new(2).unwrap();
+    let before = game.save_json().unwrap();
+    let mut engine = oracle();
+    for limits in [
+        SearchLimits {
+            max_depth: 0,
+            max_nodes: 100,
+            milliseconds: 100,
+        },
+        SearchLimits {
+            max_depth: 65,
+            max_nodes: 100,
+            milliseconds: 100,
+        },
+        SearchLimits {
+            max_depth: 2,
+            max_nodes: 0,
+            milliseconds: 100,
+        },
+        SearchLimits {
+            max_depth: 2,
+            max_nodes: 100,
+            milliseconds: 0,
+        },
+        SearchLimits {
+            max_depth: 2,
+            max_nodes: 100,
+            milliseconds: 60001,
+        },
+    ] {
+        assert!(matches!(
+            engine.search(&game, limits),
+            Err(nested_chess::search::SearchError::InvalidLimits)
+        ));
+    }
+    assert_eq!(game.save_json().unwrap(), before);
 }
