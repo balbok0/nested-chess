@@ -1,7 +1,8 @@
 use crate::{
     auth::{Auth, ProviderView},
+    mobile::{APP_CALLBACK, MobileSession},
     model::*,
-    store::{Store, Subscription},
+    store::{Store, Subscription, hash},
 };
 use axum::{
     Json, Router,
@@ -195,6 +196,14 @@ async fn origin_check(State(app): State<Arc<App>>, request: Request<Body>, next:
 }
 
 pub fn router(app: Arc<App>, static_dir: PathBuf) -> Router {
+    let mobile = Router::new()
+        .route("/guest", post(mobile_guest))
+        .route("/auth/{provider}", post(mobile_login))
+        .route("/exchange", post(mobile_exchange))
+        .route("/games/{id}/ticket", post(mobile_ticket))
+        .route("/games/{id}/stream", get(mobile_stream))
+        .layer(middleware::from_fn(native_request))
+        .layer(DefaultBodyLimit::max(8192));
     let api = Router::new()
         .route(
             "/health",
@@ -215,7 +224,9 @@ pub fn router(app: Arc<App>, static_dir: PathBuf) -> Router {
         .layer(middleware::from_fn_with_state(app.clone(), origin_check))
         .layer(DefaultBodyLimit::max(8192));
     Router::new()
+        .nest("/api/v1/mobile", mobile)
         .nest("/api/v1", api)
+        .route("/auth/mobile/{provider}", get(mobile_browser))
         .route("/auth/{provider}", get(login))
         .route("/auth/{provider}/callback", get(callback))
         .fallback_service(ServeDir::new(static_dir))
@@ -397,9 +408,7 @@ async fn stream(
     let subscription = app
         .run(move |store| store.subscribe(&game_id, &user_id, now))
         .await?;
-    let token = session_token(&headers)
-        .ok_or(Error::Unauthorized)?
-        .to_owned();
+    let token = hash(session_token(&headers).ok_or(Error::Unauthorized)?);
     Ok(upgrade
         .max_message_size(8192)
         .max_frame_size(8192)
@@ -436,7 +445,7 @@ async fn connection(
             incoming=socket.recv()=>{if matches!(incoming,None|Some(Err(_))|Some(Ok(Message::Close(_)))){break;}},
             _=heartbeat.tick()=>{
                 let token=token.clone();let now=app.now();
-                if app.run(move|store|store.session(&token,now)).await.is_err(){break;}
+                if app.run(move|store|store.session_hash(&token,now)).await.is_err(){break;}
                 if socket.send(Message::Ping(Vec::new().into())).await.is_err(){break;}
             },
             update=updates.recv()=>{
@@ -483,6 +492,144 @@ async fn begin(
         Ok(([(header::SET_COOKIE, cookie)], Redirect::to(&redirect)).into_response())
     }
 }
+
+async fn native_request(request: Request<Body>, next: Next) -> Response {
+    if request.headers().contains_key(header::COOKIE) {
+        return Error::Forbidden("Use an app session for this endpoint.".into()).into_response();
+    }
+    let mut response = next.run(request).await;
+    response
+        .headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    response
+}
+
+async fn mobile_guest(
+    State(app): State<Arc<App>>,
+    headers: HeaderMap,
+) -> Result<Json<MobileSession>> {
+    if let Some(token) = session_token(&headers) {
+        return Ok(Json(MobileSession {
+            user: app.user(&headers).await?,
+            token: token.into(),
+        }));
+    }
+    let (user, token) = app.timed(move |store, now| store.guest(now)).await?;
+    Ok(Json(MobileSession { user, token }))
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MobileStart {
+    challenge: String,
+    state: String,
+    linking: bool,
+}
+async fn mobile_login(
+    State(app): State<Arc<App>>,
+    headers: HeaderMap,
+    Path(provider): Path<String>,
+    Json(body): Json<MobileStart>,
+) -> Result<Json<serde_json::Value>> {
+    if !app.auth.providers().iter().any(|p| p.id == provider) {
+        return Err(Error::Invalid("That login provider is unavailable.".into()));
+    }
+    let token = session_token(&headers).map(str::to_owned);
+    let name = provider.clone();
+    let ticket = app
+        .timed(move |store, now| {
+            store.request_mobile_login(
+                &name,
+                &body.challenge,
+                &body.state,
+                token.as_deref(),
+                body.linking,
+                now,
+            )
+        })
+        .await?;
+    let mut url = app
+        .auth
+        .public_url
+        .join(&format!("auth/mobile/{provider}"))
+        .unwrap();
+    url.query_pairs_mut().append_pair("ticket", &ticket);
+    Ok(Json(json!({"url":url})))
+}
+#[derive(Deserialize)]
+struct TicketQuery {
+    ticket: String,
+}
+async fn mobile_browser(
+    State(app): State<Arc<App>>,
+    Path(provider): Path<String>,
+    Query(query): Query<TicketQuery>,
+) -> Result<Response> {
+    let start = app.auth.begin(&provider)?;
+    let redirect = start.url.clone();
+    let cookie = session_cookie(&app, "nc_auth", &start.browser_token, 600);
+    app.timed(move |store, now| store.start_mobile_login(&query.ticket, &provider, &start, now))
+        .await?;
+    Ok((
+        [
+            (header::SET_COOKIE, cookie),
+            (header::CACHE_CONTROL, HeaderValue::from_static("no-store")),
+            (
+                header::REFERRER_POLICY,
+                HeaderValue::from_static("no-referrer"),
+            ),
+        ],
+        Redirect::to(&redirect),
+    )
+        .into_response())
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MobileExchange {
+    code: String,
+    verifier: String,
+}
+async fn mobile_exchange(
+    State(app): State<Arc<App>>,
+    Json(body): Json<MobileExchange>,
+) -> Result<Json<MobileSession>> {
+    Ok(Json(
+        app.timed(move |store, now| store.exchange_mobile_login(&body.code, &body.verifier, now))
+            .await?,
+    ))
+}
+async fn mobile_ticket(
+    State(app): State<Arc<App>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<Json<serde_json::Value>> {
+    let token = session_token(&headers)
+        .ok_or(Error::Unauthorized)?
+        .to_owned();
+    let ticket = app
+        .timed(move |store, now| store.stream_ticket(&id, &token, now))
+        .await?;
+    Ok(Json(json!({"ticket":ticket})))
+}
+async fn mobile_stream(
+    State(app): State<Arc<App>>,
+    Path(id): Path<String>,
+    Query(query): Query<TicketQuery>,
+    upgrade: WebSocketUpgrade,
+) -> Result<Response> {
+    let game = id.clone();
+    let (user, token, subscription) = app
+        .timed(move |store, now| {
+            let (user, token) = store.take_stream_ticket(&game, &query.ticket, now)?;
+            let subscription = store.subscribe(&game, &user.id, now)?;
+            Ok((user, token, subscription))
+        })
+        .await?;
+    Ok(upgrade
+        .max_message_size(8192)
+        .max_frame_size(8192)
+        .on_upgrade(move |socket| connection(socket, app, id, user.id, token, subscription)))
+}
 async fn login(
     State(app): State<Arc<App>>,
     headers: HeaderMap,
@@ -509,6 +656,11 @@ async fn callback(
     Path(provider): Path<String>,
     Query(query): Query<Callback>,
 ) -> Response {
+    let state = query.state.clone();
+    let mobile = match app.run(move |store| store.mobile_login(&state)).await {
+        Ok(mobile) => mobile,
+        Err(error) => return error.into_response(),
+    };
     let result = async {
         let browser = cookie(&headers, "nc_auth")
             .ok_or_else(|| Error::Forbidden("Sign-in expired.".into()))?
@@ -517,7 +669,19 @@ async fn callback(
         let flow = app
             .run(move |store| store.take_auth(&query.state, &browser, &provider, now))
             .await?;
-        if flow.linking && app.user(&headers).await?.id != flow.user_id.as_deref().unwrap_or("") {
+        if let Some(mobile) = &mobile {
+            if let Some(session) = &mobile.session_hash {
+                let session = session.clone();
+                let user = app
+                    .timed(move |store, now| store.session_hash(&session, now))
+                    .await?;
+                if Some(user.id.as_str()) != flow.user_id.as_deref() {
+                    return Err(Error::Unauthorized);
+                }
+            }
+        } else if flow.linking
+            && app.user(&headers).await?.id != flow.user_id.as_deref().unwrap_or("")
+        {
             return Err(Error::Forbidden("Sign-in account changed.".into()));
         }
         if query.error.is_some() {
@@ -533,19 +697,63 @@ async fn callback(
             )
             .await?;
         let old = session_token(&headers).map(str::to_owned);
-        let now = app.now();
-        app.run(move |store| {
+        let native = mobile.is_some();
+        app.timed(move |store, now| {
+            if native {
+                return Ok((store.identify(flow, identity, now)?, None));
+            }
             let result = store.finish_auth(flow, identity, now)?;
             if let Some(old) = old {
                 store.logout(&old)?;
             }
-            Ok(result)
+            Ok((result.0, Some(result.1)))
         })
         .await
     }
     .await;
+    if let Some(mobile) = mobile {
+        let (user, error) = match result {
+            Ok((user, _)) => (Some(user.id), None),
+            Err(error) => {
+                tracing::warn!(%error,"app sign-in did not complete");
+                (
+                    None,
+                    Some(match error {
+                        Error::GuestMatchesOpen => "guest_matches",
+                        Error::IdentityInUse => "identity_in_use",
+                        _ => "failed",
+                    }),
+                )
+            }
+        };
+        let code = match app
+            .timed(move |store, now| {
+                store.complete_mobile_login(&mobile.id, user.as_deref(), error, now)
+            })
+            .await
+        {
+            Ok(code) => code,
+            Err(error) => return error.into_response(),
+        };
+        let mut url = url::Url::parse(APP_CALLBACK).unwrap();
+        url.query_pairs_mut()
+            .append_pair("code", &code)
+            .append_pair("state", &mobile.state);
+        return (
+            [
+                (header::SET_COOKIE, session_cookie(&app, "nc_auth", "", 0)),
+                (header::CACHE_CONTROL, HeaderValue::from_static("no-store")),
+                (
+                    header::REFERRER_POLICY,
+                    HeaderValue::from_static("no-referrer"),
+                ),
+            ],
+            Redirect::to(url.as_str()),
+        )
+            .into_response();
+    }
     match result {
-        Ok((_, token)) => (
+        Ok((_, Some(token))) => (
             [
                 (
                     header::SET_COOKIE,
@@ -556,6 +764,7 @@ async fn callback(
             Redirect::to("/?online=1"),
         )
             .into_response(),
+        Ok((_, None)) => Error::Internal("Missing browser session.".into()).into_response(),
         Err(error) => {
             tracing::warn!(%error, "sign-in did not complete");
             let target = match error {

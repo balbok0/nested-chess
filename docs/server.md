@@ -118,6 +118,30 @@ or cloud-disk capacity guarantee.
 
 ## Verification
 
+### Native clients
+
+Native clients use Bearer sessions. `POST /api/v1/mobile/guest` returns
+`{user,token}` without setting a cookie. Native endpoints reject browser cookies.
+
+For sign-in, generate an app PKCE verifier and independent random state. Post
+`{challenge,state,linking}` to `/api/v1/mobile/auth/{provider}`, with the current
+Bearer session for guest upgrades/account linking. Open the returned same-server
+URL in the system browser. The server runs the existing provider flow and returns
+to `io.github.balbok0.nestedchess://auth?code=...&state=...`. Exchange the code and
+app verifier at `POST /api/v1/mobile/exchange`. The handoff expires after 60 seconds
+and can be exchanged once; the original app session must still be valid. No
+session token is put in a deep link. Provider callbacks remain the existing HTTPS
+web callbacks, so native apps do not need provider secrets or separate callbacks.
+
+Browser WebSockets retain cookie authentication. Native clients request a
+30-second, single-use ticket with `POST /api/v1/mobile/games/{id}/ticket`, then
+connect to `/api/v1/mobile/games/{id}/stream?ticket=...`. Tickets are match/session
+bound and do not outlive session revocation. Redact ticket and OAuth query strings
+in reverse-proxy access logs. Schema version 2 adds the native handoff/ticket
+tables to existing databases; it preserves account and match tables.
+
+### Checks
+
 ```sh
 cargo test -p nested-chess-server
 ```

@@ -78,4 +78,24 @@ CREATE TABLE IF NOT EXISTS rating_changes (
     PRIMARY KEY(game_id, user_id)
 );
 CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value INTEGER NOT NULL);
-PRAGMA user_version = 1;
+CREATE TABLE IF NOT EXISTS mobile_auth (
+    hash TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    challenge TEXT NOT NULL,
+    client_state TEXT NOT NULL,
+    user_id TEXT REFERENCES users(id),
+    session_hash TEXT,
+    linking INTEGER NOT NULL,
+    state_hash TEXT UNIQUE,
+    code_hash TEXT UNIQUE,
+    result_user TEXT REFERENCES users(id),
+    error TEXT,
+    expires_ms INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS stream_tickets (
+    hash TEXT PRIMARY KEY,
+    game_id TEXT NOT NULL REFERENCES games(id),
+    session_hash TEXT NOT NULL,
+    expires_ms INTEGER NOT NULL
+);
+PRAGMA user_version = 2;

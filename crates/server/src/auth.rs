@@ -339,6 +339,12 @@ impl Store {
         identity: Identity,
         now: i64,
     ) -> Result<(User, String)> {
+        let user = self.identify(flow, identity, now)?;
+        let token = self.new_session(&user.id, now)?;
+        Ok((user, token))
+    }
+
+    pub fn identify(&mut self, flow: AuthFlow, identity: Identity, now: i64) -> Result<User> {
         let existing: Option<String> = self
             .db
             .query_row(
@@ -390,6 +396,6 @@ impl Store {
         tx.execute("INSERT INTO identities(issuer,subject,user_id) VALUES(?1,?2,?3) ON CONFLICT(issuer,subject) DO NOTHING",params![identity.issuer,identity.subject,id])?;
         tx.execute("UPDATE users SET guest=0 WHERE id=?1", [&id])?;
         tx.commit()?;
-        Ok((self.user(&id)?, self.new_session(&id, now)?))
+        self.user(&id)
     }
 }

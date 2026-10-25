@@ -1,9 +1,11 @@
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use nested_chess::Color;
 use nested_chess_server::{
     auth::{Auth, AuthFlow, Identity},
     model::*,
     store::Store,
 };
+use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use tempfile::TempDir;
 use uuid::Uuid;
@@ -668,4 +670,166 @@ fn switching_accounts_cannot_strand_an_open_guest_match() {
     assert!(matches!(result, Err(Error::GuestMatchesOpen)));
     assert!(store.snapshot(&game.info.id, &guest.id, 1300).is_ok());
     assert!(store.user(&guest.id).unwrap().guest);
+}
+
+#[test]
+fn mobile_handoff_requires_its_app_verifier_and_can_only_be_exchanged_once() {
+    let (_dir, mut store) = database();
+    let (user, token) = store.guest(1000).unwrap();
+    let verifier = "a".repeat(43);
+    let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
+    let request = store
+        .request_mobile_login(
+            "github",
+            &challenge,
+            &"s".repeat(43),
+            Some(&token),
+            false,
+            1100,
+        )
+        .unwrap();
+    let auth = Auth::new(
+        "http://localhost:4180",
+        vec![("github".into(), "client".into(), "secret".into())],
+    )
+    .unwrap();
+    let start = auth.begin("github").unwrap();
+    store
+        .start_mobile_login(&request, "github", &start, 1200)
+        .unwrap();
+    let login = store.mobile_login(&start.state).unwrap().unwrap();
+    let code = store
+        .complete_mobile_login(&login.id, Some(&user.id), None, 1300)
+        .unwrap();
+    assert!(matches!(
+        store.exchange_mobile_login(&code, &"b".repeat(43), 1400),
+        Err(Error::Unauthorized)
+    ));
+    let session = store.exchange_mobile_login(&code, &verifier, 1400).unwrap();
+    assert_eq!(session.user.id, user.id);
+    assert_eq!(store.session(&session.token, 1401).unwrap().id, user.id);
+    assert!(matches!(
+        store.session(&token, 1401),
+        Err(Error::Unauthorized)
+    ));
+    assert!(matches!(
+        store.exchange_mobile_login(&code, &verifier, 1401),
+        Err(Error::Unauthorized)
+    ));
+}
+
+#[test]
+fn mobile_browser_start_is_provider_bound_and_single_use() {
+    let (_dir, mut store) = database();
+    let auth = Auth::new(
+        "http://localhost:4180",
+        vec![("github".into(), "client".into(), "secret".into())],
+    )
+    .unwrap();
+    let start = auth.begin("github").unwrap();
+    let request = store
+        .request_mobile_login(
+            "github",
+            &"c".repeat(43),
+            &"s".repeat(43),
+            None,
+            false,
+            1000,
+        )
+        .unwrap();
+    assert!(matches!(
+        store.start_mobile_login(&request, "google", &start, 1100),
+        Err(Error::Unauthorized)
+    ));
+    store
+        .start_mobile_login(&request, "github", &start, 1100)
+        .unwrap();
+    assert!(matches!(
+        store.start_mobile_login(&request, "github", &auth.begin("github").unwrap(), 1100),
+        Err(Error::Unauthorized)
+    ));
+}
+
+#[test]
+fn mobile_handoff_expires_and_logout_cancels_pending_sign_in() {
+    for logout in [false, true] {
+        let (_dir, mut store) = database();
+        let (user, token) = store.guest(1000).unwrap();
+        let verifier = "a".repeat(43);
+        let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
+        let request = store
+            .request_mobile_login(
+                "github",
+                &challenge,
+                &"s".repeat(43),
+                Some(&token),
+                false,
+                1000,
+            )
+            .unwrap();
+        let auth = Auth::new(
+            "http://localhost:4180",
+            vec![("github".into(), "client".into(), "secret".into())],
+        )
+        .unwrap();
+        let start = auth.begin("github").unwrap();
+        store
+            .start_mobile_login(&request, "github", &start, 1100)
+            .unwrap();
+        let login = store.mobile_login(&start.state).unwrap().unwrap();
+        let code = store
+            .complete_mobile_login(&login.id, Some(&user.id), None, 1200)
+            .unwrap();
+        if logout {
+            store.logout(&token).unwrap();
+        }
+        let now = if logout { 1300 } else { 61_200 };
+        assert!(matches!(
+            store.exchange_mobile_login(&code, &verifier, now),
+            Err(Error::Unauthorized)
+        ));
+    }
+}
+
+#[test]
+fn stream_tickets_are_match_bound_single_use_and_expire() {
+    let (_dir, mut store) = database();
+    let (user, token) = store.guest(1000).unwrap();
+    let a = store.create(&user.id, CreateGame::default(), 1000).unwrap();
+    let b = store.create(&user.id, CreateGame::default(), 1000).unwrap();
+    let ticket = store.stream_ticket(&a.info.id, &token, 1100).unwrap();
+    assert!(matches!(
+        store.take_stream_ticket(&b.info.id, &ticket, 1200),
+        Err(Error::Unauthorized)
+    ));
+    assert_eq!(
+        store
+            .take_stream_ticket(&a.info.id, &ticket, 1200)
+            .unwrap()
+            .0
+            .id,
+        user.id
+    );
+    assert!(matches!(
+        store.take_stream_ticket(&a.info.id, &ticket, 1200),
+        Err(Error::Unauthorized)
+    ));
+    let ticket = store.stream_ticket(&a.info.id, &token, 1100).unwrap();
+    assert!(matches!(
+        store.take_stream_ticket(&a.info.id, &ticket, 31_100),
+        Err(Error::Unauthorized)
+    ));
+}
+
+#[test]
+fn stream_tickets_do_not_outlive_their_session() {
+    let (_dir, mut store) = database();
+    let (user, token) = store.guest(1000).unwrap();
+    let game = store.create(&user.id, CreateGame::default(), 1000).unwrap();
+    let ticket = store.stream_ticket(&game.info.id, &token, 1100).unwrap();
+    store.logout(&token).unwrap();
+    assert!(matches!(
+        store.take_stream_ticket(&game.info.id, &ticket, 1200),
+        Err(Error::Unauthorized)
+    ));
 }

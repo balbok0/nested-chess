@@ -68,7 +68,7 @@ impl Store {
         })?;
         db.busy_timeout(Duration::from_secs(5))?;
         let version: i64 = db.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-        if version > 1 {
+        if version > 2 {
             return Err(Error::Internal(
                 "Database schema is newer than this server.".into(),
             ));
@@ -122,11 +122,15 @@ impl Store {
     }
 
     pub fn session(&self, token: &str, now: i64) -> Result<User> {
+        self.session_hash(&hash(token), now)
+    }
+
+    pub(crate) fn session_hash(&self, token_hash: &str, now: i64) -> Result<User> {
         let id: Option<String> = self
             .db
             .query_row(
                 "SELECT user_id FROM sessions WHERE hash=?1 AND expires_ms>?2",
-                params![hash(token), now],
+                params![token_hash, now],
                 |row| row.get(0),
             )
             .optional()?;
