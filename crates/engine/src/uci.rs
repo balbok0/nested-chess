@@ -1,4 +1,7 @@
 //! Native adapter for a single-board Fairy-Stockfish process.
+use crate::search::{
+    self, Evaluator, LocalAnalysis, LocalEvaluation, SearchError, SearchLimits, SearchResult,
+};
 use crate::{Error, Game, Move};
 use std::{
     io::{BufRead, BufReader, Write},
@@ -33,6 +36,14 @@ pub struct UciEngine {
 }
 
 impl UciEngine {
+    /// Choose a global board and move with Rust's budgeted negamax search.
+    pub fn search(
+        &mut self,
+        game: &Game,
+        limits: SearchLimits,
+    ) -> Result<SearchResult, SearchError> {
+        futures_executor::block_on(search::best_move(game, self, limits))
+    }
     /// Start Fairy-Stockfish with its nested.ini variant file.
     pub fn spawn(executable: &str, args: &[String], variant_path: &str) -> Result<Self, UciError> {
         let mut child = Command::new(executable)
@@ -145,6 +156,60 @@ impl UciEngine {
                 }
             }
         }
+    }
+}
+
+impl Evaluator for UciEngine {
+    async fn evaluate(&mut self, fen: &str, chess960: bool) -> Result<LocalAnalysis, SearchError> {
+        let result = (|| -> Result<LocalAnalysis, UciError> {
+            self.send("ucinewgame")?;
+            self.send(&format!("setoption name UCI_Chess960 value {chess960}"))?;
+            self.send("setoption name Skill Level value 20")?;
+            self.send("setoption name MultiPV value 1")?;
+            self.send("isready")?;
+            self.wait_for("readyok", Duration::from_secs(10))?;
+            self.send(&format!("position fen {fen}"))?;
+            self.send("go nodes 128")?;
+            let lines = self.wait_for("bestmove ", Duration::from_secs(10))?;
+            let white_turn = fen.split_whitespace().nth(1) == Some("w");
+            let sign = if white_turn { 1 } else { -1 };
+            let evaluation = lines
+                .iter()
+                .rev()
+                .find_map(|line| {
+                    if !line.starts_with("info ") {
+                        return None;
+                    }
+                    let words: Vec<_> = line.split_whitespace().collect();
+                    if words.contains(&"lowerbound") || words.contains(&"upperbound") {
+                        return None;
+                    }
+                    let score = words.iter().position(|word| *word == "score")?;
+                    let value = words.get(score + 2)?.parse::<i32>().ok()? * sign;
+                    match *words.get(score + 1)? {
+                        "cp" => Some(LocalEvaluation::Cp { value }),
+                        "mate" => Some(LocalEvaluation::Capture {
+                            winner: if value > 0 || (value == 0 && !white_turn) {
+                                crate::Color::White
+                            } else {
+                                crate::Color::Black
+                            },
+                        }),
+                        _ => None,
+                    }
+                })
+                .ok_or_else(|| UciError::InvalidResponse("no board evaluation".into()))?;
+            let best_move = lines
+                .last()
+                .and_then(|line| line.split_whitespace().nth(1))
+                .filter(|mv| !matches!(*mv, "0000" | "(none)"))
+                .map(str::to_owned);
+            Ok(LocalAnalysis {
+                evaluation,
+                best_move,
+            })
+        })();
+        result.map_err(|error| SearchError::Evaluation(error.to_string()))
     }
 }
 

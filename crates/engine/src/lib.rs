@@ -1,4 +1,5 @@
 mod board;
+pub mod search;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod uci;
 

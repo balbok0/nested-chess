@@ -8,6 +8,10 @@ license.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+web-time = "1.1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+futures-executor = "0.3"
 
 [[example]]
 name = "selfplay"
