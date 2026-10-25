@@ -19,7 +19,7 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 let game, state, viewing = 0, source = null, flipped = false, busy = false, opponent = null, generation = 0;
 let engineError = '';
 let botAnimations = [];
-let preferences = { theme: 'system', evaluations: false, animations: true, chess960: false };
+let preferences = { theme: 'system', evaluations: false, animations: true, chess960: false, chess960Independent: false };
 let analyzer = null, evaluationGeneration = 0, evaluationError = '';
 const evaluations = new Map();
 
@@ -46,6 +46,8 @@ function applyPreferences() {
   document.querySelector('meta[name="theme-color"]').content = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
   $('show-evaluations').checked = preferences.evaluations;
   $('chess960').checked = preferences.chess960;
+  $('chess960-layout').value = preferences.chess960Independent ? 'independent' : 'shared';
+  $('chess960-layout').disabled = !preferences.chess960;
   const animate = preferences.animations && !reducedMotion.matches;
   document.documentElement.dataset.animations = animate ? 'on' : 'off';
   $('animate-moves').checked = animate;
@@ -336,22 +338,30 @@ async function maybeBot() {
   }
 }
 
+function createGame(size) {
+  if (!preferences.chess960) return new NestedGame(size);
+  const randomStart = () => Math.floor(Math.random() * CHESS960_POSITIONS);
+  return preferences.chess960Independent
+    ? NestedGame.chess960_boards(size, Uint16Array.from({ length: size * size }, randomStart))
+    : NestedGame.chess960(size, randomStart());
+}
+
 function newGame(size) {
   resetOpponent(); clearError(); $('promotion').close(); $('draw-offer').close();
-  game.free(); game = preferences.chess960 ? NestedGame.chess960(size, Math.floor(Math.random() * CHESS960_POSITIONS)) : new NestedGame(size); viewing = 0;
+  game.free(); game = createGame(size); viewing = 0;
   acceptState(game.state());
 }
 
 async function boot() {
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
-    if (saved) preferences = { theme: THEMES.includes(saved.theme) ? saved.theme : 'system', evaluations: saved.evaluations === true, animations: saved.animations !== false, chess960: saved.chess960 === true };
+    if (saved) preferences = { theme: THEMES.includes(saved.theme) ? saved.theme : 'system', evaluations: saved.evaluations === true, animations: saved.animations !== false, chess960: saved.chess960 === true, chess960Independent: saved.chess960Independent === true };
   } catch {}
   applyPreferences();
   systemAppearance.addEventListener('change', () => { if (preferences.theme === 'system') applyPreferences(); });
   reducedMotion.addEventListener('change', applyPreferences);
   await init();
-  game = preferences.chess960 ? NestedGame.chess960(2, Math.floor(Math.random() * CHESS960_POSITIONS)) : new NestedGame(2);
+  game = createGame(2);
   LEVELS.forEach((level, index) => $('difficulty').add(new Option(level.label, index)));
   $('difficulty').value = '2';
   try {
@@ -397,7 +407,8 @@ async function boot() {
   });
   $('show-evaluations').onchange = () => { preferences.evaluations = $('show-evaluations').checked; savePreferences(); void refreshEvaluations(); };
   $('animate-moves').onchange = () => { preferences.animations = $('animate-moves').checked; applyPreferences(); savePreferences(); };
-  $('chess960').onchange = () => { preferences.chess960 = $('chess960').checked; savePreferences(); };
+  $('chess960').onchange = () => { preferences.chess960 = $('chess960').checked; applyPreferences(); savePreferences(); };
+  $('chess960-layout').onchange = () => { preferences.chess960Independent = $('chess960-layout').value === 'independent'; savePreferences(); };
   $('retry-evaluations').onclick = () => { void refreshEvaluations(); };
   $('promotion-cancel').onclick = () => $('promotion').close();
   $('export').onclick = () => {

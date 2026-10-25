@@ -80,3 +80,13 @@ def test_chess960_opponent_returns_a_legal_move(index):
 def test_chess960_castling_details_use_the_kings_actual_landing():
     game = nested_chess.Game.load(json.dumps({"version": 2, "size": 2, "first_player": "white", "initial_fens": ["4k3/8/8/8/8/8/8/6KR w H - 0 1"] * 4, "finish_rule": "majority", "events": []}))
     assert json.loads(game.move_details(0, "g1h1")) == {"destination": 6, "rook": {"from": 7, "to": 5}}
+
+
+def test_independent_chess960_starts_preserve_board_order():
+    game = nested_chess.Game.chess960_boards(2, [0, 518, 959, 123])
+    actual = json.loads(game.state())
+    assert len({board["fen"] for board in actual["boards"]}) == 4
+    assert actual["boards"][1]["fen"].startswith("rnbqkbnr/")
+    game.play(0, "a2a3")
+    assert nested_chess.Game.load(game.save()).state() == game.state()
+    assert json.loads(game.undo()) == actual

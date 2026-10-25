@@ -23,6 +23,12 @@ impl PyGame {
             .map_err(py_error)?,
         })
     }
+    #[staticmethod]
+    fn chess960_boards(size: u8, indices: Vec<u16>) -> PyResult<Self> {
+        Ok(Self {
+            game: Game::chess960_boards(size, &indices).map_err(py_error)?,
+        })
+    }
     fn move_details(&self, board: usize, uci: &str) -> PyResult<String> {
         serde_json::to_string(&self.game.move_details(board, uci).map_err(py_error)?)
             .map_err(py_error)

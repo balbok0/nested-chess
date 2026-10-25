@@ -184,3 +184,31 @@ fn saves_and_undo_preserve_the_start_and_castling_rights() {
     restored.undo().unwrap();
     assert_eq!(restored.state(), initial);
 }
+
+#[test]
+fn independent_starts_preserve_board_order_through_save_and_undo() {
+    for size in [2, 4, 8] {
+        let indices: Vec<_> = (0..u16::from(size).pow(2)).collect();
+        let mut game = Game::chess960_boards(size, &indices).unwrap();
+        let initial = game.state();
+        for (board, index) in initial.boards.iter().zip(&indices) {
+            assert_eq!(
+                board.fen,
+                Board::chess960(*index).unwrap().fen(Color::White)
+            );
+        }
+        game.play(0, "a2a3").unwrap();
+        let mut restored = Game::load_json(&game.save_json().unwrap()).unwrap();
+        assert_eq!(restored.state(), game.state());
+        restored.undo().unwrap();
+        assert_eq!(restored.state(), initial);
+    }
+}
+
+#[test]
+fn independent_starts_require_one_valid_index_per_board() {
+    for indices in [vec![], vec![0; 3], vec![0; 5], vec![960; 4]] {
+        assert!(Game::chess960_boards(2, &indices).is_err());
+    }
+    assert!(Game::chess960_boards(2, &[518; 4]).is_ok());
+}

@@ -192,6 +192,16 @@ impl Game {
         game.save.start_position = Some(index);
         Ok(game)
     }
+
+    /// Create a match with one Chess960 starting index per board, in board-ID order.
+    pub fn chess960_boards(size: u8, indices: &[u16]) -> Result<Self, Error> {
+        validate_size(size)?;
+        let fens = indices
+            .iter()
+            .map(|index| Ok(Board::chess960(*index)?.fen(Color::White)))
+            .collect::<Result<Vec<_>, Error>>()?;
+        Self::from_fens(size, Color::White, &fens)
+    }
     pub fn new(size: u8) -> Result<Self, Error> {
         validate_size(size)?;
         Self::from_fens(

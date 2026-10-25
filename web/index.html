@@ -66,7 +66,7 @@
     </div></fieldset>
     <p class="small-note">System uses Classic in light mode and Classic Dark in dark mode.</p>
     <div class="motion-settings"><label class="checkbox-label" for="animate-moves"><input id="animate-moves" type="checkbox" checked />Animate moves</label><p id="motion-note" class="small-note">Animate engine moves and changes to the evaluation bar.</p></div>
-    <div class="motion-settings"><label class="checkbox-label" for="chess960"><input id="chess960" type="checkbox" />Fischer Random (Chess960)</label><p class="small-note">Applies to new matches. All boards share one random starting arrangement. To castle in Chess960, select the king and then its rook.</p></div>
+    <div class="motion-settings"><label class="checkbox-label" for="chess960"><input id="chess960" type="checkbox" />Fischer Random (Chess960)</label><label for="chess960-layout">Starting arrangements</label><select id="chess960-layout"><option value="shared">Same on every board</option><option value="independent">Chess960ⁿ — independent per board</option></select><p class="small-note">Applies to new matches. Independent starts are drawn separately; repeats are possible. White and Black mirror each other on each board. To castle, select the king and then its rook.</p></div>
     <div class="evaluation-settings">
       <label class="checkbox-label" for="show-evaluations"><input id="show-evaluations" type="checkbox" />Show board evaluations</label>
       <p class="small-note">Positive scores favor White; negative scores favor Black. Scores are in pawn units, not win probabilities.</p>

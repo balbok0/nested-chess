@@ -80,3 +80,18 @@ test('Chess960 castling exposes the actual king and rook destinations', () => {
   assert.equal(state.boards[0].squares[5], 'R');
   game.free();
 });
+
+test('independent Chess960 starts retain their board order and save history', () => {
+  const game = NestedGame.chess960_boards(2, new Uint16Array([0, 518, 959, 123]));
+  const state = JSON.parse(game.state());
+  assert.equal(state.start_position, null);
+  assert.equal(state.chess960, true);
+  assert.equal(new Set(state.boards.map(board => board.fen)).size, 4);
+  assert.ok(state.boards[1].fen.startsWith('rnbqkbnr/'));
+  game.play(0, 'a2a3');
+  const restored = NestedGame.load(game.save());
+  assert.equal(restored.state(), game.state());
+  assert.deepEqual(JSON.parse(restored.undo()), state);
+  assert.throws(() => NestedGame.chess960_boards(2, new Uint16Array([0])));
+  game.free(); restored.free();
+});
