@@ -1,0 +1,7 @@
+{
+  "completed_games": 0,
+  "target_games": 4200,
+  "levels": ["Beginner", "Casual", "Club", "Strong", "Expert", "Maximum"],
+  "protocol": {},
+  "results": []
+}
