@@ -4,7 +4,7 @@ const headers = { 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Emb
 export default defineConfig({
   root: 'web',
   publicDir: 'vendor',
-  server: { headers },
+  server: { headers, proxy: { '/api': { target: 'http://localhost:4180', ws: true }, '/auth': { target: 'http://localhost:4180' } } },
   preview: { headers },
   build: {
     outDir: '../dist', emptyOutDir: true,

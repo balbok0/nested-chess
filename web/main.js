@@ -5,6 +5,8 @@ import init, { NestedGame, destination_board } from './pkg/nested_chess_wasm.js'
 import { LEVELS, Opponent } from './bot.js';
 import { describeEvaluation } from './evaluation.js';
 import { resolveTheme, THEMES } from './theme.js';
+import { LocalSession, RemoteSession } from './session.js';
+import { setupOnline, renderOnline } from './online.js';
 
 const $ = id => document.getElementById(id);
 const GLYPHS = { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚' };
@@ -17,6 +19,8 @@ const CHESS960_POSITIONS = 960;
 const systemAppearance = window.matchMedia('(prefers-color-scheme: dark)');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 let game, state, viewing = 0, source = null, flipped = false, busy = false, opponent = null, generation = 0;
+let localGame = null, localMode = 'bot', onlineControls;
+let localFlipped = false;
 let engineError = '';
 let botAnimations = [];
 let preferences = { theme: 'system', evaluations: false, animations: true, chess960: false, chess960Independent: false };
@@ -28,12 +32,13 @@ const squareName = square => `${String.fromCharCode(97 + square % 8)}${1 + Math.
 const squareIndex = name => (Number(name[1]) - 1) * 8 + name.charCodeAt(0) - 97;
 const boardName = id => `${String.fromCharCode(65 + id % state.size)}${1 + Math.floor(id / state.size)}`;
 const capitalize = value => value[0].toUpperCase() + value.slice(1);
-const humanTurn = () => $('mode').value === 'local' || state.turn === 'white';
+const humanTurn = () => game.kind === 'online' ? game.canPlay() : $('mode').value === 'local' || state.turn === 'white';
 const movesOnView = () => state.legal_boards.includes(viewing) ? JSON.parse(game.legal_moves(viewing)) : [];
 
 function showError(error) { $('error').textContent = String(error); $('error').hidden = false; }
 function clearError() { $('error').hidden = true; }
 function persist() {
+  if (game.kind === 'online') return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ save: game.save(), mode: $('mode').value, level: $('difficulty').value }));
     $('save-status').textContent = '';
@@ -41,13 +46,16 @@ function persist() {
 }
 
 function applyPreferences() {
+  const online = game?.kind === 'online';
   document.documentElement.dataset.theme = resolveTheme(preferences.theme, systemAppearance.matches);
   document.querySelector(`input[name="theme"][value="${preferences.theme}"]`).checked = true;
   document.querySelector('meta[name="theme-color"]').content = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
   $('show-evaluations').checked = preferences.evaluations;
   $('chess960').checked = preferences.chess960;
   $('chess960-layout').value = preferences.chess960Independent ? 'independent' : 'shared';
-  $('chess960-layout').disabled = !preferences.chess960;
+  $('chess960-layout').disabled = online || !preferences.chess960;
+  $('chess960').disabled = online;
+  $('show-evaluations').disabled = online;
   const animate = preferences.animations && !reducedMotion.matches;
   document.documentElement.dataset.animations = animate ? 'on' : 'off';
   $('animate-moves').checked = animate;
@@ -78,16 +86,17 @@ function evaluationFor(board) {
 }
 
 function updateEvaluations() {
+  const enabled = preferences.evaluations && game.kind !== 'online';
   document.querySelectorAll('.board-evaluation').forEach(element => {
-    element.hidden = !preferences.evaluations;
-    if (!preferences.evaluations) return;
+    element.hidden = !enabled;
+    if (!enabled) return;
     const description = evaluationFor(state.boards[Number(element.dataset.evaluation)]);
     element.textContent = state.size === 8 ? description.label.replace(' capture', ' cap') : description.label;
     element.title = description.title;
     element.setAttribute('aria-label', description.title);
   });
-  $('evaluation-bar').hidden = !preferences.evaluations;
-  if (preferences.evaluations) {
+  $('evaluation-bar').hidden = !enabled;
+  if (enabled) {
     const description = evaluationFor(state.boards[viewing]);
     $('focus-evaluation').textContent = description.barLabel;
     $('evaluation-bar').title = description.title;
@@ -98,9 +107,9 @@ function updateEvaluations() {
     $('evaluation-white').style.height = `${description.whitePercent ?? 0}%`;
   }
   const complete = state.boards.filter(board => board.outcome !== 'ongoing' || evaluations.get(board.id)?.fen === board.fen).length;
-  $('evaluation-status').textContent = !preferences.evaluations ? '' : evaluationError || (busy || ($('mode').value === 'bot' && state.turn === 'black') ? 'Waiting for the opponent’s move.' : complete === state.boards.length ? '' : `Evaluating boards: ${complete}/${state.boards.length}`);
+  $('evaluation-status').textContent = !enabled ? '' : evaluationError || (busy || ($('mode').value === 'bot' && state.turn === 'black') ? 'Waiting for the opponent’s move.' : complete === state.boards.length ? '' : `Evaluating boards: ${complete}/${state.boards.length}`);
   $('evaluation-status').hidden = !$('evaluation-status').textContent;
-  $('retry-evaluations').hidden = !preferences.evaluations || !evaluationError;
+  $('retry-evaluations').hidden = !enabled || !evaluationError;
 }
 
 async function refreshEvaluations() {
@@ -108,7 +117,7 @@ async function refreshEvaluations() {
   if (analyzer) analyzer.destroy();
   analyzer = null; evaluationError = '';
   updateEvaluations();
-  if (!preferences.evaluations || busy || ($('mode').value === 'bot' && state.turn === 'black')) return;
+  if (game.kind === 'online' || !preferences.evaluations || busy || ($('mode').value === 'bot' && state.turn === 'black')) return;
   const cache = new Map([...evaluations.values()].map(result => [result.fen, result.evaluation]));
   const boards = state.boards.toSorted((a, b) => Number(b.id === viewing) - Number(a.id === viewing));
   try {
@@ -271,6 +280,7 @@ function renderHistory(history, board) {
 }
 
 function render() {
+  const online = game.kind === 'online';
   const finished = state.outcome !== 'ongoing';
   $('en-passant-rule').textContent = state.en_passant_rule === 'global'
     ? 'This saved match uses the original en passant rule: capture on the next global turn or the opportunity expires. Start a new match for local expiry.'
@@ -283,13 +293,22 @@ function render() {
   $('board-count').textContent = `${state.boards.length} boards`;
   $('white-score').textContent = state.score.white; $('black-score').textContent = state.score.black;
   $('draws').textContent = `${state.score.draws} drawn`; $('remaining').textContent = `${state.score.remaining} unfinished`;
-  $('undo').disabled = state.history.length === 0;
+  if (online) {
+    if (game.info.status === 'waiting') { $('turn-label').textContent = 'Waiting for opponent'; $('turn-detail').textContent = 'Share the invitation link.'; }
+    if (game.info.status === 'paused') { $('turn-label').textContent = 'Match paused'; $('turn-detail').textContent = game.info[`ready_${game.seat}`] ? 'Waiting for opponent to resume.' : 'Both players must resume.'; }
+    if (game.info.status === 'cancelled') { $('turn-label').textContent = 'Invitation cancelled'; $('turn-detail').textContent = ''; }
+    if (finished && game.info.reason !== 'rules') $('turn-detail').textContent = `${state.outcome === 'white' ? 'Black' : 'White'} ${game.info.reason === 'timeout' ? 'ran out of time' : 'resigned'}.`;
+  }
+  $('undo').disabled = online || state.history.length === 0;
+  $('import').disabled = online;
+  $('new-game').textContent = online ? 'Online matches' : 'New match';
   $('offer-draw').hidden = $('mode').value !== 'local';
   $('offer-draw').disabled = finished || state.boards[viewing].outcome !== 'ongoing';
-  $('bot-settings').hidden = $('mode').value === 'local';
+  $('bot-settings').hidden = $('mode').value !== 'bot';
   $('retry-bot').hidden = !engineError || $('mode').value === 'local';
   $('engine-status').textContent = $('mode').value === 'local' ? 'Two players on this device.' : engineError || (busy ? 'Fairy-Stockfish is thinking…' : 'You: White · Fairy-Stockfish: Black');
-  $('grid-options').querySelectorAll('button').forEach(button => { button.classList.toggle('active', Number(button.dataset.size) === state.size); button.setAttribute('aria-pressed', String(Number(button.dataset.size) === state.size)); });
+  $('engine-status').hidden = online;
+  $('grid-options').querySelectorAll('button').forEach(button => { button.disabled = online; button.classList.toggle('active', Number(button.dataset.size) === state.size); button.setAttribute('aria-pressed', String(Number(button.dataset.size) === state.size)); });
   $('ply-count').textContent = `${state.ply} ${state.ply === 1 ? 'move' : 'moves'}`;
   const localMoves = state.boards[viewing].white_moves + state.boards[viewing].black_moves;
   $('local-history-title').textContent = `Local · ${boardName(viewing)}`;
@@ -298,6 +317,7 @@ function render() {
   renderHistory($('history'), null);
   renderHistory($('local-history'), viewing);
   renderMacro(); renderBoard(); clearRoute(); updateEvaluations();
+  renderOnline(game);
 }
 
 function clickSquare(square) {
@@ -324,9 +344,11 @@ function showPromotion(candidates) {
   $('promotion').showModal();
 }
 
-function play(move) {
-  try { acceptState(game.play(viewing, move)); void maybeBot(); }
-  catch (error) { showError(error); }
+async function play(move) {
+  const session = game;
+  if (session.kind === 'local') generation += 1;
+  try { const json = await session.play(viewing, move); if (game === session && json) { acceptState(json); void maybeBot(); } }
+  catch (error) { if (game === session) showError(error); }
 }
 
 async function maybeBot() {
@@ -354,17 +376,47 @@ async function maybeBot() {
 }
 
 function createGame(size) {
-  if (!preferences.chess960) return new NestedGame(size);
+  if (!preferences.chess960) return new LocalSession(new NestedGame(size));
   const randomStart = () => Math.floor(Math.random() * CHESS960_POSITIONS);
-  return preferences.chess960Independent
+  return new LocalSession(preferences.chess960Independent
     ? NestedGame.chess960_boards(size, Uint16Array.from({ length: size * size }, randomStart))
-    : NestedGame.chess960(size, randomStart());
+    : NestedGame.chess960(size, randomStart()));
 }
 
 function newGame(size) {
+  if (game.kind === 'online') { void onlineControls.show(); return; }
   resetOpponent(); clearError(); $('promotion').close(); $('draw-offer').close();
   game.free(); game = createGame(size); viewing = 0;
   acceptState(game.state());
+}
+
+function enterOnline(snapshot) {
+  const remote = new RemoteSession(snapshot, {
+    onchange: json => { if (game === remote) acceptState(json); },
+    onerror: error => { if (game === remote) showError(error); },
+  });
+  resetOpponent(); clearError();
+  if (game.kind === 'online') game.free();
+  else { localGame = game; localMode = $('mode').value; localFlipped = flipped; }
+  game = remote; $('mode').value = 'online'; viewing = 0; flipped = snapshot.seat === 'black';
+  sessionStorage.setItem('nested-online-match', snapshot.info.id);
+  setMatchURL(snapshot.info.id);
+  $('save-status').textContent = ''; applyPreferences(); acceptState(game.state());
+}
+
+function leaveOnline() {
+  if (game.kind !== 'online') return;
+  resetOpponent(); clearError(); game.free(); game = localGame; localGame = null; $('mode').value = localMode; viewing = 0; flipped = localFlipped;
+  sessionStorage.removeItem('nested-online-match');
+  setMatchURL(null);
+  applyPreferences(); acceptState(game.state()); void maybeBot();
+}
+
+function setMatchURL(id) {
+  const url = new URL(location.href);
+  if (id) url.searchParams.set('match', id); else url.searchParams.delete('match');
+  url.searchParams.delete('online'); url.searchParams.delete('auth_error');
+  history.replaceState(null, '', url);
 }
 
 async function boot() {
@@ -382,11 +434,13 @@ async function boot() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (saved) {
-      const restored = NestedGame.load(saved.save); game.free(); game = restored;
+      const restored = new LocalSession(NestedGame.load(saved.save)); game.free(); game = restored;
       if (['bot', 'local'].includes(saved.mode)) $('mode').value = saved.mode;
       if (LEVELS[Number(saved.level)]) $('difficulty').value = saved.level;
     }
   } catch { $('save-status').textContent = 'Previous save unavailable. Starting a new match.'; }
+  localMode = $('mode').value;
+  onlineControls = setupOnline({ enter: enterOnline, current: () => game, leave: leaveOnline, onerror: showError });
   acceptState(game.state());
   $('grid-options').querySelectorAll('button').forEach(button => { button.onclick = () => newGame(Number(button.dataset.size)); });
   $('new-game').onclick = () => newGame(state.size);
@@ -399,7 +453,13 @@ async function boot() {
       if ($('mode').value === 'bot' && undoMove && state.turn === 'black' && state.history.at(-1)?.kind === 'move') acceptState(game.undo());
     } catch (error) { showError(error); }
   };
-  $('mode').onchange = () => { resetOpponent(); clearError(); render(); persist(); void refreshEvaluations(); void maybeBot(); };
+  $('mode').onchange = () => {
+    const mode = $('mode').value;
+    if (mode === 'online') { if (game.kind !== 'online') { $('mode').value = localMode; void onlineControls.show(); } return; }
+    localMode = mode;
+    if (game.kind === 'online') { leaveOnline(); return; }
+    resetOpponent(); clearError(); render(); persist(); void refreshEvaluations(); void maybeBot();
+  };
   $('difficulty').onchange = () => { resetOpponent(); clearError(); persist(); void maybeBot(); };
   $('retry-bot').onclick = () => { resetOpponent(); clearError(); void maybeBot(); };
   $('rules-open').onclick = () => $('rules').showModal();
@@ -434,12 +494,16 @@ async function boot() {
   $('import-file').onchange = async event => {
     const file = event.target.files[0]; if (!file) return;
     try {
-      const loaded = NestedGame.load(await file.text());
+      const session = game, text = await file.text(); if (game !== session) return;
+      const loaded = new LocalSession(NestedGame.load(text));
       resetOpponent(); clearError(); game.free(); game = loaded; viewing = 0;
       acceptState(game.state()); void maybeBot();
     } catch (error) { showError(`Could not import match: ${error}`); }
     event.target.value = '';
   };
+  setInterval(() => { if (game.kind === 'online') renderOnline(game); }, 200);
+  const restoreGeneration = generation;
+  void onlineControls.restore(() => generation === restoreGeneration).catch(showError);
   void maybeBot();
 }
 boot().catch(error => { $('turn-label').textContent = 'Could not load the game'; showError(error); });

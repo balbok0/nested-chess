@@ -18,6 +18,10 @@ Signing in to a new provider account upgrades the guest account, retaining its
 matches. Signing in to an existing account switches accounts once open guest
 matches have been finished or cancelled.
 
+For frontend hot reload, run the backend with `PUBLIC_URL=http://localhost:4178`,
+then run `npm run dev -- --port 4178` in another terminal. Vite proxies API and
+login requests to port 4180. The browser origin and `PUBLIC_URL` must match.
+
 | Variable | Default / meaning |
 | --- | --- |
 | `LISTEN_ADDR` | `127.0.0.1:4180` |
@@ -101,10 +105,14 @@ WebSocket messages are `{kind:"snapshot", snapshot:...}` and
 engine `state`, and replay `save`. An event contains `seq`, `action`, and `info`.
 Clients ignore already-applied sequences and resync on gaps. The server sends a
 new snapshot if a subscriber falls behind. During normal play, move events carry
-no full history. The same API is intended for web and mobile clients.
+no full history. The same API is intended for web and mobile clients; see
+[mobile integration](mobile.md).
 
 The first server uses one SQLite writer with serialized commands on a bounded
 blocking pool. Its per-match broadcast channels preserve commit order. This
+process holds an exclusive database lease; a second server using the same file
+is rejected before it can change running matches. Keep the adjacent `.lock` file
+in place; the operating system releases the lease when the process exits. This
 keeps the initial deployment small; the native capacity trial is not a network
 or cloud-disk capacity guarantee.
 

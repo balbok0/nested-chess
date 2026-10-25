@@ -2,7 +2,12 @@ use crate::model::*;
 use nested_chess::{Color, Game, Outcome};
 use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
-use std::{collections::HashMap, path::Path, time::Duration};
+use std::{
+    collections::HashMap,
+    fs::{File, OpenOptions, TryLockError},
+    path::Path,
+    time::Duration,
+};
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
@@ -10,6 +15,7 @@ pub struct Store {
     pub(crate) db: Connection,
     games: HashMap<String, Game>,
     topics: HashMap<String, broadcast::Sender<MatchEvent>>,
+    _lease: File,
 }
 
 pub struct Subscription {
@@ -40,6 +46,26 @@ fn color_name(value: Color) -> &'static str {
 impl Store {
     pub fn open(path: &Path, now: i64) -> Result<Self> {
         let db = Connection::open(path)?;
+        let mut lock_path = path
+            .canonicalize()
+            .map_err(|error| Error::Internal(format!("Could not resolve database path: {error}")))?
+            .into_os_string();
+        lock_path.push(".lock");
+        let lease = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(lock_path)
+            .map_err(|error| Error::Internal(format!("Could not open database lease: {error}")))?;
+        lease.try_lock().map_err(|error| match error {
+            TryLockError::WouldBlock => {
+                Error::Conflict("This database is already open by another server.".into())
+            }
+            TryLockError::Error(error) => {
+                Error::Internal(format!("Could not lock database lease: {error}"))
+            }
+        })?;
         db.busy_timeout(Duration::from_secs(5))?;
         let version: i64 = db.query_row("PRAGMA user_version", [], |row| row.get(0))?;
         if version > 1 {
@@ -52,6 +78,7 @@ impl Store {
             db,
             games: HashMap::new(),
             topics: HashMap::new(),
+            _lease: lease,
         };
         let heartbeat: Option<i64> = store
             .db
@@ -125,7 +152,7 @@ impl Store {
         let id = Uuid::new_v4().to_string();
         self.insert_user(
             &id,
-            &format!("Guest_{}", &Uuid::new_v4().simple().to_string()[..8]),
+            &format!("Guest_{}", &Uuid::new_v4().simple().to_string()[..12]),
             true,
             now,
         )?;

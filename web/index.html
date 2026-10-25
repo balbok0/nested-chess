@@ -15,7 +15,7 @@
 <body>
   <header class="masthead">
     <h1><a href="%BASE_URL%">Nested chess</a></h1>
-    <nav aria-label="Game controls"><button id="rules-open" class="text-button">Rules</button><button id="settings-open" class="text-button">Settings</button></nav>
+    <nav aria-label="Game controls"><button id="online-open-button" class="text-button">Online</button><button id="rules-open" class="text-button">Rules</button><button id="settings-open" class="text-button">Settings</button></nav>
   </header>
   <main>
     <section class="matchbar" aria-label="Match controls">
@@ -44,8 +44,15 @@
         <div class="board-tools"><button id="offer-draw" class="text-button" hidden>Offer draw</button><button id="undo" class="text-button">Undo</button><span id="local-counts">White: 0 moves · Black: 0 moves</span><button id="flip" class="text-button">Flip board</button></div>
       </section>
       <aside class="sidebar">
+        <div id="online-match" hidden>
+          <div class="online-player"><span>White · <strong id="online-white"></strong></span><output id="online-clock-white" hidden></output></div>
+          <div class="online-player"><span>Black · <strong id="online-black"></strong></span><output id="online-clock-black" hidden></output></div>
+          <p id="online-connection" class="small-note" role="status"></p>
+          <div id="online-share" hidden><label for="online-link">Invite link</label><div class="online-link-row"><input id="online-link" readonly /><button id="online-copy" class="text-button">Copy</button></div></div>
+          <div class="online-actions"><button id="online-resume" class="outline-button" hidden>Resume match</button><button id="online-resign" class="text-button">Resign</button><button id="online-leave" class="text-button">Back to local</button></div>
+        </div>
         <div class="section-heading"><h2>Opponent</h2></div>
-        <label class="sr-only" for="mode">Opponent</label><select id="mode"><option value="bot">Fairy-Stockfish</option><option value="local">Local two-player</option></select>
+        <label class="sr-only" for="mode">Opponent</label><select id="mode"><option value="bot">Fairy-Stockfish</option><option value="local">Local two-player</option><option value="online">Online player</option></select>
         <div id="bot-settings"><label for="difficulty">Difficulty</label><select id="difficulty"></select><p class="small-note">Skill presets; no calibrated Elo.</p></div>
         <p id="engine-status" class="engine-status" role="status">You play White.</p><button id="retry-bot" class="text-button" hidden>Retry opponent</button>
         <div class="history-section">
@@ -96,6 +103,22 @@
     <p class="small-note">This browser app is GPLv3; the independent Rust engine is MIT. No warranty. <a href="https://github.com/balbok0/nested-chess/blob/main/LICENSE" target="_blank" rel="noreferrer">App license</a> · <a href="https://github.com/balbok0/nested-chess/blob/main/LICENSING.md" target="_blank" rel="noreferrer">Licensing details</a> · <a href="https://github.com/balbok0/nested-chess" target="_blank" rel="noreferrer">App source</a> · <a href="https://github.com/fairy-stockfish/fairy-stockfish.wasm/tree/b2e693ef1e111233ce3fb40685921708b3276ed6" target="_blank" rel="noreferrer">Fairy-Stockfish source</a></p>
   </dialog>
   <dialog id="draw-offer" aria-labelledby="draw-offer-title"><h2 id="draw-offer-title">Draw board?</h2><p id="draw-offer-detail" class="small-note"></p><div class="draw-actions"><button id="accept-draw" class="outline-button">Accept draw</button><button id="decline-draw" class="text-button">Decline</button></div></dialog>
+  <dialog id="online" aria-labelledby="online-title">
+    <div class="dialog-heading"><h2 id="online-title">Online play</h2><button id="online-close" class="dialog-close" aria-label="Close online play">×</button></div>
+    <div class="online-account-row"><strong id="online-account"></strong><button id="online-logout" class="text-button" hidden>Sign out</button></div>
+    <div id="online-providers" class="online-actions"></div><p id="online-signin-note" class="small-note"></p>
+    <form id="online-profile" class="online-link-row" hidden><label class="sr-only" for="online-handle">Username</label><input id="online-handle" minlength="3" maxlength="24" pattern="[A-Za-z0-9_]+" required /><button class="text-button">Save username</button></form>
+    <div id="online-error" class="error" role="alert" hidden></div>
+    <section id="online-open-section" class="online-section" hidden><h3>Open matches</h3><div id="online-open"></div></section>
+    <form id="online-create" class="online-section"><h3>Create invitation</h3><div class="online-fields">
+      <label for="online-size">Boards<select id="online-size"><option value="2">2 × 2</option><option value="4">4 × 4</option><option value="8">8 × 8</option></select></label>
+      <label for="online-layout">Start<select id="online-layout"><option value="classical">Classical</option><option value="chess960">Chess960</option><option value="independent960">Chess960ⁿ</option></select></label>
+      <label for="online-clock">Clock<select id="online-clock"><option value="none">No clock</option><option value="15+10">15 + 10</option><option value="10+5">10 + 5</option><option value="30+0">30 + 0</option></select></label>
+    </div><label class="checkbox-label"><input id="online-rated" type="checkbox" />Rated · classical 2×2, 15+10</label><div class="online-actions"><button class="outline-button">Create invitation</button><button id="online-queue" type="button" class="text-button">Find rated opponent</button></div></form>
+    <form id="online-join" class="online-section"><label for="online-invite">Join an invitation</label><div class="online-link-row"><input id="online-invite" placeholder="Invite link or match ID" required /><button class="outline-button">Join</button></div></form>
+    <details id="online-history-section" class="online-section"><summary>Match history</summary><div id="online-history"></div><button id="online-history-more" class="text-button" hidden>More matches</button></details>
+  </dialog>
+  <dialog id="online-confirm" aria-labelledby="online-confirm-title"><h2 id="online-confirm-title">Resign this match?</h2><div class="online-actions"><button id="online-confirm-yes" class="outline-button">Confirm</button><button id="online-confirm-cancel" class="text-button">Keep playing</button></div></dialog>
   <dialog id="promotion" aria-labelledby="promotion-title"><h2 id="promotion-title">Promote pawn</h2><div id="promotion-options"></div><button id="promotion-cancel" class="text-button">Cancel</button></dialog>
   <script type="module" src="/main.js"></script>
 </body>

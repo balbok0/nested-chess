@@ -6,6 +6,17 @@ use std::{env, path::PathBuf};
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let args: Vec<_> = env::args().skip(1).collect();
+    match args.as_slice() {
+        [] => {}
+        [flag] if flag == "--help" || flag == "-h" => {
+            println!(
+                "Nested chess online server\n\nUsage: nested-chess-server\n\nEnvironment:\n  LISTEN_ADDR       127.0.0.1:4180\n  PUBLIC_URL        http://localhost:4180\n  DATABASE_PATH     nested-chess.sqlite\n  STATIC_DIR        dist\n  GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET\n  GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET\n  MICROSOFT_CLIENT_ID / MICROSOFT_CLIENT_SECRET\n\nSee docs/server.md for provider setup and API details."
+            );
+            return Ok(());
+        }
+        _ => return Err(Error::Invalid("Unknown arguments. Use --help.".into())),
+    }
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -36,11 +47,11 @@ async fn main() -> Result<()> {
             }
         }
     }
-    let app = App::new(&database, &public_url, credentials)?;
-    app.start_clock();
     let listener = tokio::net::TcpListener::bind(&address)
         .await
         .map_err(|error| Error::Internal(format!("Could not listen on {address}: {error}")))?;
+    let app = App::new(&database, &public_url, credentials)?;
+    app.start_clock();
     tracing::info!(%address,"server listening");
     let signal_app = app.clone();
     tokio::spawn(async move {

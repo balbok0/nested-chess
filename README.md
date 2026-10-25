@@ -6,6 +6,25 @@ global Rust negamax opponent using Fairy-Stockfish for local analysis.
 
 [Play on GitHub Pages](https://balbok0.github.io/nested-chess/).
 
+## Online play
+
+The Rust server adds invitations, live multiplayer, persistent guest/account
+sessions, match history, clocks, and whole-match Elo. Google, GitHub, and Microsoft
+login require provider credentials. Guests can play unrated invitations immediately.
+Local and browser-bot games continue to run on the device.
+
+```sh
+npm ci
+npm run build
+npm run server
+```
+
+Open <http://localhost:4180>, choose **Online**, create an invitation, and send its
+link to the other player. The server defaults to a persistent `nested-chess.sqlite`
+file in the repository root. See [server setup and API](docs/server.md) for login
+configuration, storage, clocks, deployment, and the protocol shared with mobile.
+The GitHub Pages demo remains client-side; it does not host the multiplayer API.
+
 ## Play locally
 
 Requires Rust, Node.js 22+, npm, and GNU tar for source packaging.

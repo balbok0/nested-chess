@@ -310,6 +310,26 @@ fn completed_moves_charge_the_global_clock_and_add_increment() {
 }
 
 #[test]
+fn a_second_database_owner_cannot_pause_a_running_match() {
+    let (dir, mut store) = database();
+    let p = pair(
+        &mut store,
+        CreateGame {
+            clock: Some(TimeControl::default()),
+            ..Default::default()
+        },
+    );
+    assert!(matches!(
+        Store::open(&dir.path().join("app.sqlite"), 2000),
+        Err(Error::Conflict(_))
+    ));
+    let info = store.info(&p.id, 2000).unwrap();
+    assert_eq!(info.status, "active");
+    assert_eq!(info.seq, 1);
+    assert_eq!(info.running_since_ms, Some(1000));
+}
+
+#[test]
 fn a_restart_pauses_clocked_games_until_both_players_resume() {
     let (dir, mut store) = database();
     let p = pair(
@@ -406,6 +426,54 @@ fn guests_cannot_enter_rated_matchmaking() {
 }
 
 #[test]
+fn a_rules_draw_records_one_half_point_match_result() {
+    let (_dir, mut store) = database();
+    let p = pair(
+        &mut store,
+        CreateGame {
+            rated: true,
+            clock: Some(TimeControl::default()),
+            ..Default::default()
+        },
+    );
+    let moves = [
+        (0, "b1a3"),
+        (0, "b8a6"),
+        (2, "b1a3"),
+        (0, "a6b8"),
+        (2, "a3b1"),
+        (0, "b8a6"),
+        (2, "b1a3"),
+        (0, "a6b8"),
+        (2, "a3b1"),
+    ];
+    for (index, (board, uci)) in moves.into_iter().enumerate() {
+        let user = if index % 2 == 0 { &p.white } else { &p.black };
+        store
+            .command(
+                &p.id,
+                user,
+                command(
+                    index as u32 + 1,
+                    Action::Move {
+                        board,
+                        uci: uci.into(),
+                    },
+                ),
+                1100 + index as i64,
+            )
+            .unwrap();
+    }
+    let result = store.snapshot(&p.id, &p.white, 1200).unwrap();
+    assert_eq!(result.info.result.as_deref(), Some("draw"));
+    assert_eq!(result.info.reason.as_deref(), Some("rules"));
+    assert_eq!(result.state.score.white, 2.0);
+    assert_eq!(result.state.score.black, 2.0);
+    assert_eq!(store.user(&p.white).unwrap().rating, 1500.0);
+    assert_eq!(store.user(&p.white).unwrap().rated_games, 1);
+}
+
+#[test]
 fn authentication_state_is_bound_to_the_browser_and_consumed_once() {
     let (_dir, mut store) = database();
     let auth = Auth::new(
@@ -432,4 +500,172 @@ fn authentication_state_is_bound_to_the_browser_and_consumed_once() {
             .take_auth(&start.state, &start.browser_token, "google", 1100)
             .is_err()
     );
+}
+
+#[test]
+fn rated_queue_pairs_registered_players_and_resumes_the_same_match() {
+    let (_dir, mut store) = database();
+    let a = registered(&mut store);
+    let b = registered(&mut store);
+    let waiting = store.queue(&a.id, 1100).unwrap();
+    assert_eq!(waiting.info.status, "waiting");
+    let joined = store.queue(&b.id, 1200).unwrap();
+    assert_eq!(joined.info.id, waiting.info.id);
+    assert_eq!(joined.info.status, "active");
+    assert!(joined.info.rated);
+    assert_eq!(joined.info.white_ms, Some(900_000));
+    assert_eq!(joined.info.increment_ms, 10_000);
+    assert_eq!(store.queue(&a.id, 1300).unwrap().info.id, joined.info.id);
+}
+
+#[test]
+fn provider_sign_in_upgrades_the_existing_guest_account() {
+    let (_dir, mut store) = database();
+    let guest = store.guest(1000).unwrap().0;
+    let created = store
+        .create(&guest.id, CreateGame::default(), 1100)
+        .unwrap();
+    let user = store
+        .finish_auth(
+            AuthFlow {
+                provider: "github".into(),
+                verifier: String::new(),
+                nonce: String::new(),
+                user_id: Some(guest.id.clone()),
+                linking: false,
+            },
+            Identity {
+                issuer: "github".into(),
+                subject: "12345".into(),
+                name: "new_player".into(),
+            },
+            1200,
+        )
+        .unwrap()
+        .0;
+    assert_eq!(user.id, guest.id);
+    assert!(!user.guest);
+    assert_eq!(
+        store
+            .snapshot(&created.info.id, &user.id, 1300)
+            .unwrap()
+            .info
+            .id,
+        created.info.id
+    );
+}
+
+#[test]
+fn an_identity_cannot_be_linked_to_two_accounts() {
+    let (_dir, mut store) = database();
+    let owner = store
+        .finish_auth(
+            AuthFlow {
+                provider: "github".into(),
+                verifier: String::new(),
+                nonce: String::new(),
+                user_id: None,
+                linking: false,
+            },
+            Identity {
+                issuer: "github".into(),
+                subject: "12345".into(),
+                name: "owner".into(),
+            },
+            1000,
+        )
+        .unwrap()
+        .0;
+    let other = store.guest(1100).unwrap().0;
+    let result = store.finish_auth(
+        AuthFlow {
+            provider: "github".into(),
+            verifier: String::new(),
+            nonce: String::new(),
+            user_id: Some(other.id.clone()),
+            linking: true,
+        },
+        Identity {
+            issuer: "github".into(),
+            subject: "12345".into(),
+            name: "owner".into(),
+        },
+        1200,
+    );
+    assert!(matches!(result, Err(Error::IdentityInUse)));
+    assert!(store.user(&other.id).unwrap().guest);
+    assert!(!store.user(&owner.id).unwrap().guest);
+}
+
+#[test]
+fn each_provider_uses_a_web_callback_and_pkce() {
+    for (provider, host) in [
+        ("google", "accounts.google.com"),
+        ("github", "github.com"),
+        ("microsoft", "login.microsoftonline.com"),
+    ] {
+        let auth = Auth::new(
+            "http://localhost:4180",
+            vec![(provider.into(), "client".into(), "secret".into())],
+        )
+        .unwrap();
+        let start = auth.begin(provider).unwrap();
+        let url = url::Url::parse(&start.url).unwrap();
+        assert_eq!(url.host_str(), Some(host));
+        let query = url
+            .query_pairs()
+            .collect::<std::collections::HashMap<_, _>>();
+        assert_eq!(
+            query.get("code_challenge_method").map(|v| v.as_ref()),
+            Some("S256")
+        );
+        assert_eq!(
+            query.get("redirect_uri").unwrap(),
+            &format!("http://localhost:4180/auth/{provider}/callback")
+        );
+    }
+}
+
+#[test]
+fn switching_accounts_cannot_strand_an_open_guest_match() {
+    let (_dir, mut store) = database();
+    store
+        .finish_auth(
+            AuthFlow {
+                provider: "github".into(),
+                verifier: String::new(),
+                nonce: String::new(),
+                user_id: None,
+                linking: false,
+            },
+            Identity {
+                issuer: "github".into(),
+                subject: "registered_owner".into(),
+                name: "owner".into(),
+            },
+            1000,
+        )
+        .unwrap();
+    let guest = store.guest(1100).unwrap().0;
+    let game = store
+        .create(&guest.id, CreateGame::default(), 1100)
+        .unwrap();
+    let result = store.finish_auth(
+        AuthFlow {
+            provider: "github".into(),
+            verifier: String::new(),
+            nonce: String::new(),
+            user_id: Some(guest.id.clone()),
+            linking: false,
+        },
+        Identity {
+            issuer: "github".into(),
+            subject: "registered_owner".into(),
+            name: "owner".into(),
+        },
+        1200,
+    );
+    assert!(matches!(result, Err(Error::GuestMatchesOpen)));
+    assert!(store.snapshot(&game.info.id, &guest.id, 1300).is_ok());
+    assert!(store.user(&guest.id).unwrap().guest);
 }

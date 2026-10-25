@@ -8,3 +8,7 @@ __pycache__/
 *.so
 /.playwright-mcp/
 /.pytest_cache/
+/*.sqlite
+/*.sqlite-wal
+/*.sqlite-shm
+/*.sqlite.lock

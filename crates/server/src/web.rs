@@ -40,6 +40,7 @@ impl App {
         public_url: &str,
         credentials: Vec<(String, String, String)>,
     ) -> Result<Arc<Self>> {
+        let auth = Auth::new(public_url, credentials)?;
         let epoch_ms = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|_| Error::Internal("System clock is invalid.".into()))?
@@ -47,7 +48,7 @@ impl App {
         Ok(Arc::new(Self {
             store: Arc::new(Mutex::new(Store::open(database, epoch_ms)?)),
             permits: Arc::new(Semaphore::new(64)),
-            auth: Auth::new(public_url, credentials)?,
+            auth,
             epoch_ms,
             started: Instant::now(),
             shutdown: watch::channel(false).0,
@@ -55,6 +56,15 @@ impl App {
     }
     pub fn now(&self) -> i64 {
         self.epoch_ms + self.started.elapsed().as_millis() as i64
+    }
+    pub async fn timed<T: Send + 'static>(
+        &self,
+        f: impl FnOnce(&mut Store, i64) -> Result<T> + Send + 'static,
+    ) -> Result<T> {
+        let epoch = self.epoch_ms;
+        let started = self.started;
+        self.run(move |store| f(store, epoch + started.elapsed().as_millis() as i64))
+            .await
     }
     pub async fn run<T: Send + 'static>(
         &self,
@@ -91,8 +101,7 @@ impl App {
         }
     }
     pub async fn stop(&self) -> Result<()> {
-        let now = self.now();
-        self.run(move |store| store.tick(now)).await?;
+        self.timed(move |store, now| store.tick(now)).await?;
         let _ = self.shutdown.send(true);
         Ok(())
     }
@@ -105,7 +114,7 @@ impl App {
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(1));
             loop {
-                tokio::select! {_=stopped.changed()=>break,_=interval.tick()=>{let now=app.now();if let Err(error)=app.run(move|store|store.tick(now)).await{tracing::error!(%error,"clock update failed");}}}
+                tokio::select! {_=stopped.changed()=>break,_=interval.tick()=>{if let Err(error)=app.timed(move|store,now|store.tick(now)).await{tracing::error!(%error,"clock update failed");}}}
             }
         });
     }
@@ -117,7 +126,9 @@ impl IntoResponse for Error {
             Error::Unauthorized => StatusCode::UNAUTHORIZED,
             Error::Forbidden(_) => StatusCode::FORBIDDEN,
             Error::NotFound => StatusCode::NOT_FOUND,
-            Error::Conflict(_) => StatusCode::CONFLICT,
+            Error::Conflict(_) | Error::GuestMatchesOpen | Error::IdentityInUse => {
+                StatusCode::CONFLICT
+            }
             Error::Invalid(_) | Error::Engine(_) => StatusCode::BAD_REQUEST,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
@@ -298,9 +309,8 @@ async fn create(
     Json(spec): Json<CreateGame>,
 ) -> Result<Json<Snapshot>> {
     let user = app.user(&headers).await?;
-    let now = app.now();
     Ok(Json(
-        app.run(move |store| store.create(&user.id, spec, now))
+        app.timed(move |store, now| store.create(&user.id, spec, now))
             .await?,
     ))
 }
@@ -310,9 +320,9 @@ async fn join(
     Path(id): Path<String>,
 ) -> Result<Json<Snapshot>> {
     let user = app.user(&headers).await?;
-    let now = app.now();
     Ok(Json(
-        app.run(move |store| store.join(&id, &user.id, now)).await?,
+        app.timed(move |store, now| store.join(&id, &user.id, now))
+            .await?,
     ))
 }
 async fn snapshot(
@@ -334,9 +344,8 @@ async fn command(
     Json(command): Json<Command>,
 ) -> Result<Json<MatchEvent>> {
     let user = app.user(&headers).await?;
-    let now = app.now();
     Ok(Json(
-        app.run(move |store| store.command(&id, &user.id, command, now))
+        app.timed(move |store, now| store.command(&id, &user.id, command, now))
             .await?,
     ))
 }
@@ -353,9 +362,9 @@ async fn open_games(
 }
 async fn queue(State(app): State<Arc<App>>, headers: HeaderMap) -> Result<Json<Snapshot>> {
     let user = app.user(&headers).await?;
-    let now = app.now();
     Ok(Json(
-        app.run(move |store| store.queue(&user.id, now)).await?,
+        app.timed(move |store, now| store.queue(&user.id, now))
+            .await?,
     ))
 }
 #[derive(Deserialize)]
@@ -547,10 +556,18 @@ async fn callback(
             Redirect::to("/?online=1"),
         )
             .into_response(),
-        Err(_) => (
-            [(header::SET_COOKIE, session_cookie(&app, "nc_auth", "", 0))],
-            Redirect::to("/?online=1&auth_error=1"),
-        )
-            .into_response(),
+        Err(error) => {
+            tracing::warn!(%error, "sign-in did not complete");
+            let target = match error {
+                Error::GuestMatchesOpen => "/?online=1&auth_error=guest_matches",
+                Error::IdentityInUse => "/?online=1&auth_error=identity_in_use",
+                _ => "/?online=1&auth_error=1",
+            };
+            (
+                [(header::SET_COOKIE, session_cookie(&app, "nc_auth", "", 0))],
+                Redirect::to(target),
+            )
+                .into_response()
+        }
     }
 }

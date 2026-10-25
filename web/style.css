@@ -264,6 +264,24 @@ dialog li { font-size: 13px; line-height: 1.65; margin: 13px 0; }
 #promotion-options button { font-family: Georgia, 'DejaVu Sans', serif; font-size: 42px; width: 23%; padding: 10px; border: 1px solid var(--border); background: var(--control); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 [hidden] { display: none !important; }
+.online-section { border-top: 1px solid var(--border); margin-top: 20px; padding-top: 16px; }
+.online-section h3 { font-size: 14px; margin: 0 0 12px; }
+.online-actions, .online-account-row, .online-link-row, .online-game-row, .online-player { display: flex; align-items: center; gap: 12px; }
+.online-actions { flex-wrap: wrap; margin: 12px 0; }
+.online-account-row, .online-game-row, .online-player { justify-content: space-between; }
+.online-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.online-fields label { display: grid; gap: 6px; font-size: 12px; }
+.online-link-row input { min-width: 0; width: 100%; border: 1px solid var(--border); background: var(--control); color: var(--text); padding: 8px; }
+.online-game-row { width: 100%; border: 0; border-bottom: 1px solid var(--border); background: transparent; padding: 10px 0; text-align: left; font-size: 12px; }
+button.online-game-row:hover { background: var(--hover); }
+.online-player { margin-bottom: 10px; font-size: 12px; }
+.online-player > span, .online-game-row > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.online-player output { font-variant-numeric: tabular-nums; font-size: 19px; padding: 4px 8px; border: 1px solid var(--border); }
+.online-player output.running { background: var(--hover); border-color: currentColor; }
+#online-match { border-bottom: 1px solid var(--border); margin-bottom: 20px; padding-bottom: 10px; }
+#online-share > label { font-size: 12px; }
+#online-history { margin-top: 10px; }
+#online .error { margin-top: 14px; }
 @media (min-width: 1500px) { .piece { font-size: 56px; } }
 @media (max-width: 1080px) {
   .workspace { grid-template-columns: minmax(200px, .8fr) minmax(340px, 1.5fr); gap: 24px; }

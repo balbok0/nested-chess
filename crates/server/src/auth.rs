@@ -354,17 +354,13 @@ impl Store {
                 && self.user(current)?.guest
                 && !self.open_games(current, now)?.is_empty()
             {
-                return Err(Error::Conflict(
-                    "Finish your guest matches before switching accounts.".into(),
-                ));
+                return Err(Error::GuestMatchesOpen);
             }
         }
         let id = if flow.linking {
             let user = flow.user_id.ok_or(Error::Unauthorized)?;
             if existing.as_ref().is_some_and(|other| other != &user) {
-                return Err(Error::Conflict(
-                    "That login already belongs to another account.".into(),
-                ));
+                return Err(Error::IdentityInUse);
             }
             user
         } else if let Some(id) = existing {
@@ -380,12 +376,12 @@ impl Store {
                 .name
                 .chars()
                 .filter(char::is_ascii_alphanumeric)
-                .take(12)
+                .take(10)
                 .collect();
             let handle = format!(
                 "{}_{}",
                 if base.is_empty() { "Player" } else { &base },
-                &Uuid::new_v4().simple().to_string()[..6]
+                &Uuid::new_v4().simple().to_string()[..12]
             );
             self.insert_user(&id, &handle, false, now)?;
             id

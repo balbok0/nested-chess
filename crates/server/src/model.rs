@@ -164,6 +164,10 @@ pub enum Error {
     NotFound,
     #[error("{0}")]
     Conflict(String),
+    #[error("Finish your guest matches before switching accounts.")]
+    GuestMatchesOpen,
+    #[error("That login already belongs to another account.")]
+    IdentityInUse,
     #[error("Database error: {0}")]
     Database(#[from] rusqlite::Error),
     #[error("Invalid saved match: {0}")]
