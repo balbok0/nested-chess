@@ -78,7 +78,6 @@ function evaluationFor(board) {
 }
 
 function updateEvaluations() {
-  document.querySelectorAll('.move-count').forEach(element => { element.hidden = preferences.evaluations; });
   document.querySelectorAll('.board-evaluation').forEach(element => {
     element.hidden = !preferences.evaluations;
     if (!preferences.evaluations) return;
@@ -182,15 +181,15 @@ function renderMacro() {
       const button = document.createElement('button');
       button.className = `macro-cell ${state.legal_boards.includes(id) ? 'playable' : ''} ${state.forced_board === id ? 'forced' : ''} ${viewing === id ? 'viewing' : ''} ${board.outcome !== 'ongoing' ? 'closed' : ''}`;
       button.dataset.board = id;
-      button.setAttribute('aria-label', `View board ${boardName(id)}, ${board.outcome === 'ongoing' ? state.legal_boards.includes(id) ? 'playable' : 'waiting' : board.outcome === 'draw' ? 'drawn' : `${board.outcome} won`}`);
+      button.setAttribute('aria-label', `View board ${boardName(id)}, ${board.outcome === 'ongoing' ? state.legal_boards.includes(id) ? 'playable' : 'waiting' : board.outcome === 'draw' ? 'drawn' : `${board.outcome} won`}, White: ${board.white_moves} moves, Black: ${board.black_moves} moves`);
       button.setAttribute('aria-pressed', String(viewing === id));
-      const outcome = board.outcome === 'ongoing' ? `${board.white_moves}/${board.black_moves}` : board.outcome === 'draw' ? '½' : board.outcome === 'white' ? 'W' : 'B';
+      const outcome = board.outcome === 'ongoing' ? '' : board.outcome === 'draw' ? '½' : board.outcome === 'white' ? 'W' : 'B';
       let tiny = '';
       if (state.size < 8) for (let row = 7; row >= 0; row--) for (let column = 0; column < 8; column++) {
         const piece = board.squares[row * 8 + column];
         tiny += `<span class="tiny-square ${(row + column) % 2 === 0 ? 'dark' : ''} ${piece !== '.' ? `${colorOf(piece)}-piece` : ''}">${GLYPHS[piece.toLowerCase()] ?? ''}</span>`;
       }
-      button.innerHTML = `<div class="macro-cell-header"><b>${boardName(id)}</b><span class="board-evaluation" data-evaluation="${id}" hidden></span><span class="move-count">${outcome}</span></div><div class="tiny-board" aria-hidden="true">${tiny}</div>`;
+      button.innerHTML = `<div class="macro-cell-header"><b>${boardName(id)}</b><span class="board-evaluation" data-evaluation="${id}" hidden></span><span class="board-outcome">${outcome}</span></div><div class="tiny-board" aria-hidden="true">${tiny}</div><div class="move-count" aria-label="White: ${board.white_moves} moves; Black: ${board.black_moves} moves"><span><i class="move-color white" aria-hidden="true"></i>${board.white_moves}</span><span><i class="move-color black" aria-hidden="true"></i>${board.black_moves}</span></div>`;
       button.onclick = () => { viewing = id; source = null; render(); };
       grid.append(button);
     }
@@ -250,6 +249,27 @@ function clearRoute() {
   $('route-detail').textContent = source === null ? 'Select a piece to preview the route.' : 'Point to a marked square to preview the next board.';
 }
 
+function renderHistory(history, board) {
+  history.replaceChildren();
+  const first = state.ply % 2 === 0 ? state.turn : state.turn === 'white' ? 'black' : 'white';
+  let globalNumber = 0, displayedNumber = 0;
+  for (const action of state.history) {
+    const color = globalNumber % 2 === 0 ? first : first === 'white' ? 'black' : 'white';
+    if (action.kind === 'move') globalNumber += 1;
+    if (board !== null && action.board !== board) continue;
+    const item = document.createElement('li');
+    if (action.kind === 'draw') {
+      item.innerHTML = `<span>½</span><b>Draw agreed</b><span>${boardName(action.board)}</span>`;
+    } else {
+      displayedNumber += 1;
+      item.innerHTML = `<span>${displayedNumber}</span><i class="move-color ${color}" aria-label="${capitalize(color)}"></i><b>${action.uci.slice(0, 2)}–${action.uci.slice(2)}</b><span>${boardName(action.board)}</span>`;
+    }
+    history.append(item);
+  }
+  if (!history.children.length) history.innerHTML = `<li class="empty-history">${board === null ? 'No moves yet.' : 'No moves on this board yet.'}</li>`;
+  history.scrollTop = history.scrollHeight;
+}
+
 function render() {
   const finished = state.outcome !== 'ongoing';
   $('en-passant-rule').textContent = state.en_passant_rule === 'global'
@@ -271,22 +291,12 @@ function render() {
   $('engine-status').textContent = $('mode').value === 'local' ? 'Two players on this device.' : engineError || (busy ? 'Fairy-Stockfish is thinking…' : 'You: White · Fairy-Stockfish: Black');
   $('grid-options').querySelectorAll('button').forEach(button => { button.classList.toggle('active', Number(button.dataset.size) === state.size); button.setAttribute('aria-pressed', String(Number(button.dataset.size) === state.size)); });
   $('ply-count').textContent = `${state.ply} ${state.ply === 1 ? 'move' : 'moves'}`;
-  const history = $('history'); history.replaceChildren();
-  if (!state.history.length) history.innerHTML = '<li class="empty-history">No moves yet.</li>';
-  const first = state.ply % 2 === 0 ? state.turn : state.turn === 'white' ? 'black' : 'white';
-  let moveNumber = 0;
-  state.history.forEach(action => {
-    const item = document.createElement('li');
-    if (action.kind === 'draw') {
-      item.innerHTML = `<span>½</span><b>Draw agreed</b><span>${boardName(action.board)}</span>`;
-    } else {
-      const color = moveNumber % 2 === 0 ? first : first === 'white' ? 'black' : 'white';
-      moveNumber += 1;
-      item.innerHTML = `<span>${moveNumber}</span><i class="move-color ${color}"></i><b>${action.uci.slice(0, 2)}–${action.uci.slice(2)}</b><span>${boardName(action.board)}</span>`;
-    }
-    history.append(item);
-  });
-  history.scrollTop = history.scrollHeight;
+  const localMoves = state.boards[viewing].white_moves + state.boards[viewing].black_moves;
+  $('local-history-title').textContent = `Local · ${boardName(viewing)}`;
+  $('local-ply-count').textContent = `${localMoves} ${localMoves === 1 ? 'move' : 'moves'}`;
+  $('local-history').setAttribute('aria-label', `Moves on board ${boardName(viewing)}`);
+  renderHistory($('history'), null);
+  renderHistory($('local-history'), viewing);
   renderMacro(); renderBoard(); clearRoute(); updateEvaluations();
 }
 
