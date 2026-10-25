@@ -251,6 +251,9 @@ function clearRoute() {
 
 function render() {
   const finished = state.outcome !== 'ongoing';
+  $('en-passant-rule').textContent = state.en_passant_rule === 'global'
+    ? 'This saved match uses the original en passant rule: capture on the next global turn or the opportunity expires. Start a new match for local expiry.'
+    : 'En passant is available on the next move on that board. Moves elsewhere leave it available; the next local move by either color uses it or clears it.';
   $('turn-disc').classList.toggle('black', state.turn === 'black');
   $('turn-label').textContent = finished ? state.outcome === 'draw' ? 'Match drawn' : `${capitalize(state.outcome)} wins the match` : `${capitalize(state.turn)} to move${busy ? ' · thinking' : ''}`;
   $('turn-detail').textContent = finished ? `${state.score.white} – ${state.score.black} points` : state.forced_board === null ? 'Free choice of any playable board' : `Routed to board ${boardName(state.forced_board)}`;

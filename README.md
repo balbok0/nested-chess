@@ -90,8 +90,9 @@ backend, accounts, or external inference service is needed.
   promotions apply. Castling requires retained rights, the original king and
   rook, and an empty path; attacked squares do not prevent it. The king's landing
   square determines the route when castling.
-- En passant is available only on the immediately following **global** turn,
-  on the board of the double step. Moving elsewhere expires it.
+- En passant is available on the next **local** move after a pawn's double step.
+  Moves on other boards leave it available. The next move on that board, by either
+  color, must use the capture or let it expire.
 - If the destination is finished or has no moves for the incoming player, that
   player chooses any unfinished board where they can move. A board with no moves
   for one color stays open for the other color.
@@ -132,8 +133,8 @@ actions, including all repetition history. Undo replays that log.
 
 `Game::from_fens` supports analysis positions. Provide one FEN per macro board;
 each initial board must contain exactly one king of each color. FEN side fields
-do not control local turns. At most one board may have a valid en passant target,
-which must be capturable by the initial global player. Finished boards are restored
+do not control local turns. Multiple boards can have pending en passant targets,
+including targets for the color that is not currently moving. Finished boards are restored
 by replay, not by importing kingless starting positions.
 
 `Game::chess960(size, index)` creates a shared Chess960 start. The binding equivalents
@@ -182,6 +183,9 @@ reconstruct a match. `piece_planes()` returns binary plane values.
 Version-2 saves record moves and draw agreements in one event history. Version-1
 saves still load and retain their original finish-at-all-boards rule, including
 games whose history continued past a majority; new matches use early completion.
+Version-3 saves record the en passant expiry rule. Existing version-1/2 matches
+retain global expiry for replay and undo; new matches use local expiry. Start a new
+match to use the updated rule.
 
 For a native Fairy-Stockfish binary, use
 `Opponent("/path/to/fairy-stockfish", [], "/absolute/path/to/variants/nested.ini")`.

@@ -95,3 +95,28 @@ test('independent Chess960 starts retain their board order and save history', ()
   assert.throws(() => NestedGame.chess960_boards(2, new Uint16Array([0])));
   game.free(); restored.free();
 });
+
+test('local en passant survives routing away and returns after undo', () => {
+  const fens = Array(4).fill('3rk3/8/8/8/8/8/8/4K3 w - - 0 1');
+  fens[0] = '4k3/3p4/8/4P3/8/8/8/4K3 b - - 0 1';
+  const game = NestedGame.load(JSON.stringify({version:3,size:2,first_player:'black',initial_fens:fens,finish_rule:'majority',en_passant_rule:'local',events:[]}));
+  for (const [board, move] of [[0,'d7d5'],[2,'e1f1'],[1,'d8d4']]) game.play(board,move);
+  assert.ok(JSON.parse(game.legal_moves(0)).includes('e5d6'));
+  const before = game.state();
+  const state = JSON.parse(game.play(0,'e5d6'));
+  assert.equal(state.boards[0].squares[35], '.');
+  assert.equal(state.boards[0].squares[43], 'P');
+  const restored = NestedGame.load(game.save());
+  assert.equal(restored.state(),game.state());
+  assert.equal(restored.undo(),before);
+  game.free(); restored.free();
+});
+
+test('new games save the local en passant rule explicitly', () => {
+  const game = new NestedGame(2);
+  assert.equal(JSON.parse(game.state()).en_passant_rule, 'local');
+  const save = JSON.parse(game.save());
+  assert.equal(save.version, 3);
+  assert.equal(save.en_passant_rule, 'local');
+  game.free();
+});

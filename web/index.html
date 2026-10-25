@@ -86,8 +86,9 @@
       <li><strong>Scoring.</strong> A win earns 1 point; a draw earns ½ point for each player. The match ends when one score exceeds half the total boards, or all boards finish. Equal final scores draw the match.</li>
       <li><strong>Agreed draws.</strong> In local two-player mode, offer a draw on the viewed board and let the other player accept or decline. Acceptance closes that board without using a turn.</li>
     </ol>
-    <p class="small-note">En passant is available only on the next global turn, on that same board. A board draws after 100 local moves without a pawn move or capture. Threefold repetition of the entire nested position draws unfinished boards; so does having no move anywhere.</p>
-    <p class="small-note">En passant example: after Black plays d7–d5, a White pawn on e5 may capture on d6, removing the pawn on d5. Routing must allow White to play on that board immediately; otherwise the opportunity expires.</p>
+    <p id="en-passant-rule" class="small-note">En passant is available on the next move on that board. Moves elsewhere leave it available; the next local move by either color uses it or clears it.</p>
+    <p class="small-note">A board draws after 100 local moves without a pawn move or capture. Threefold repetition of the entire nested position draws unfinished boards; so does having no move anywhere.</p>
+    <p class="small-note">En passant example: after Black plays d7–d5, a White pawn on e5 may capture on d6, removing the pawn on d5.</p>
     <p class="small-note">Fischer Random (Chess960) changes the starting arrangement for new matches. Select the king, then its rook to castle. The king finishes on c/g and the rook on d/f; routing follows the king’s final square. Castling requires clear paths and retained rights, but ignores attacks.</p>
     <img class="rules-demo rules-demo-animated" src="/rules.gif" alt="Four moves showing how landing squares route the opponent and allow Black to move twice on board B1 before White moves there." width="1100" height="850" loading="lazy" />
     <img class="rules-demo rules-demo-still" src="/rules-still.png" alt="Board B1 has zero White moves and two Black moves; White is required to play on A2." width="1100" height="850" loading="lazy" />

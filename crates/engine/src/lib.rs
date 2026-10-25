@@ -9,7 +9,7 @@ pub use board::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-const SAVE_VERSION: u8 = 2;
+const SAVE_VERSION: u8 = 3;
 const REPETITION_LIMIT: u8 = 3;
 const DRAW_POINTS: f32 = 0.5;
 
@@ -108,6 +108,7 @@ pub struct State {
     pub history: Vec<Action>,
     pub chess960: bool,
     pub start_position: Option<u16>,
+    pub en_passant_rule: EnPassantRule,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -121,6 +122,16 @@ struct Save {
     events: Vec<Action>,
     #[serde(default)]
     start_position: Option<u16>,
+    #[serde(default)]
+    en_passant_rule: EnPassantRule,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EnPassantRule {
+    #[default]
+    Global,
+    Local,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -222,21 +233,6 @@ impl Game {
             .iter()
             .map(|fen| Board::from_fen(fen))
             .collect::<Result<Vec<_>, _>>()?;
-        if boards
-            .iter()
-            .filter(|board| board.en_passant.is_some())
-            .count()
-            > 1
-        {
-            return Err(Error::InvalidFen);
-        }
-        if boards.iter().any(|board| {
-            board.en_passant.is_some_and(|square| {
-                square / BOARD_WIDTH != if turn == Color::White { 5 } else { 2 }
-            })
-        }) {
-            return Err(Error::InvalidFen);
-        }
         let outcomes = boards.iter().map(Board::outcome).collect();
         let mut game = Self {
             size,
@@ -255,6 +251,7 @@ impl Game {
                 finish_rule: FinishRule::Majority,
                 events: Vec::new(),
                 start_position: None,
+                en_passant_rule: EnPassantRule::Local,
             },
         };
         game.resolve_turn();
@@ -313,9 +310,11 @@ impl Game {
         }
         let destination = self.boards[id].move_details(self.turn, mv).destination;
         self.boards[id].apply(self.turn, mv);
-        for (other, board) in self.boards.iter_mut().enumerate() {
-            if other != id {
-                board.en_passant = None;
+        if self.save.en_passant_rule == EnPassantRule::Global {
+            for (other, board) in self.boards.iter_mut().enumerate() {
+                if other != id {
+                    board.en_passant = None;
+                }
             }
         }
         self.outcomes[id] = self.boards[id].outcome();
@@ -483,6 +482,7 @@ impl Game {
             history: self.save.events.clone(),
             chess960: self.boards.iter().any(Board::is_chess960),
             start_position: self.save.start_position,
+            en_passant_rule: self.save.en_passant_rule,
         }
     }
 
@@ -525,14 +525,16 @@ impl Game {
                         })
                         .collect(),
                     start_position: None,
+                    en_passant_rule: EnPassantRule::Global,
                 }
             }
-            Some(2) => serde_json::from_value(value)
+            Some(2 | 3) => serde_json::from_value(value)
                 .map_err(|error| Error::InvalidSave(error.to_string()))?,
             _ => return Err(Error::InvalidSave("unsupported version".into())),
         };
         let mut game = Self::from_fens(save.size, save.first_player, &save.initial_fens)?;
         game.save.finish_rule = save.finish_rule;
+        game.save.en_passant_rule = save.en_passant_rule;
         if save
             .start_position
             .is_some_and(|index| index >= CHESS960_POSITIONS)

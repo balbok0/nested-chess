@@ -323,19 +323,108 @@ fn en_passant_captures_the_double_stepped_pawn() {
 }
 
 #[test]
-fn en_passant_expires_after_the_next_global_move_on_another_board() {
-    let mut fens = vec![Board::default().fen(Color::White); 4];
-    fens[0] = "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1".into();
-    let mut game = Game::from_fens(2, Color::White, &fens).unwrap();
-    game.play(1, "e2e4").unwrap();
+fn en_passant_survives_moves_on_other_boards_and_can_be_captured_later() {
+    let mut fens = vec!["3rk3/8/8/8/8/8/8/4K3 w - - 0 1".into(); 4];
+    fens[0] = "4k3/3p4/8/4P3/8/8/8/4K3 b - - 0 1".into();
+    let mut game = Game::from_fens(2, Color::Black, &fens).unwrap();
+    for (board, mv) in [(0, "d7d5"), (2, "e1f1"), (1, "d8d4")] {
+        game.play(board, mv).unwrap();
+    }
+    let before_capture = game.state();
+    game.play(0, "e5d6").unwrap();
     assert_eq!(
+        game.board(0).unwrap().piece_at(parse_square("d5").unwrap()),
+        None
+    );
+    assert_eq!(
+        game.board(0).unwrap().piece_at(parse_square("d6").unwrap()),
+        Some(Piece {
+            color: Color::White,
+            role: Role::Pawn
+        })
+    );
+    let mut restored = Game::load_json(&game.save_json().unwrap()).unwrap();
+    assert_eq!(restored.state(), game.state());
+    restored.undo().unwrap();
+    assert_eq!(restored.state(), before_capture);
+}
+
+#[test]
+fn the_next_local_move_by_either_color_expires_en_passant() {
+    for (color, mv) in [(Color::White, "e1f1"), (Color::Black, "e8f8")] {
+        let mut fens = vec![Board::default().fen(color); 4];
+        fens[0] = "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1".into();
+        let mut game = Game::from_fens(2, color, &fens).unwrap();
+        game.play(0, mv).unwrap();
+        assert!(
+            !game
+                .board(0)
+                .unwrap()
+                .legal_moves(Color::White)
+                .iter()
+                .any(|mv| mv.to_string() == "e5d6")
+        );
+        assert_eq!(
+            game.board(0)
+                .unwrap()
+                .fen(Color::White)
+                .split_whitespace()
+                .nth(3),
+            Some("-")
+        );
+    }
+}
+
+#[test]
+fn several_boards_can_retain_en_passant_for_different_colors() {
+    let fens = [
+        "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1".into(),
+        "4k3/8/8/8/3Pp3/8/8/4K3 b - d3 0 1".into(),
+        Board::default().fen(Color::White),
+        Board::default().fen(Color::White),
+    ];
+    let mut game = Game::from_fens(2, Color::White, &fens).unwrap();
+    game.play(2, "e2e4").unwrap();
+    assert!(
+        game.legal_moves(1)
+            .unwrap()
+            .iter()
+            .any(|mv| mv.to_string() == "e4d3")
+    );
+    assert!(
         game.board(0)
             .unwrap()
-            .fen(Color::White)
-            .split_whitespace()
-            .nth(3),
-        Some("-")
+            .legal_moves(Color::White)
+            .iter()
+            .any(|mv| mv.to_string() == "e5d6")
     );
+}
+
+#[test]
+fn legacy_saves_keep_global_en_passant_expiry_after_resaving() {
+    for version in [1, 2] {
+        let mut fens = vec![Board::default().fen(Color::White); 4];
+        fens[0] = "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1".into();
+        let mut save = serde_json::json!({"version":version,"size":2,"first_player":"white","initial_fens":fens});
+        if version == 1 {
+            save["moves"] = serde_json::json!([]);
+        } else {
+            save["finish_rule"] = serde_json::json!("majority");
+            save["events"] = serde_json::json!([]);
+        }
+        let game = Game::load_json(&save.to_string()).unwrap();
+        let mut restored = Game::load_json(&game.save_json().unwrap()).unwrap();
+        restored.play(1, "e2e4").unwrap();
+        assert_eq!(
+            restored
+                .board(0)
+                .unwrap()
+                .fen(Color::White)
+                .split_whitespace()
+                .nth(3),
+            Some("-")
+        );
+    }
 }
 
 #[test]
