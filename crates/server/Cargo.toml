@@ -1,0 +1,30 @@
+[package]
+name = "nested-chess-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+nested-chess.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+axum = { version = "0.8", features = ["ws"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal", "time"] }
+tower-http = { version = "0.6", features = ["fs", "set-header", "trace"] }
+rusqlite = { version = "0.41", features = ["bundled"] }
+uuid = { version = "1", features = ["v4"] }
+sha2 = "0.10"
+hex = "0.4"
+url = "2"
+oauth2 = "5"
+openidconnect = "4"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+base64 = "0.22"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+tokio-tungstenite = "0.28"
+tempfile = "3"
+futures-util = { version = "0.3", features = ["sink"] }
