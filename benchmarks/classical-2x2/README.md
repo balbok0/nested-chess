@@ -32,6 +32,9 @@ The initial timing pilot used 10 workers. The matrix pilot used 32, which
 saturated CPU. The scored batch uses 24 workers. Five-second resource samples
 record system CPU/memory and summed RSS for the runner and its descendants.
 Summed RSS includes shared pages and is not unique physical memory consumption.
+The host also ran other workloads, including a single-thread native capacity
+experiment during part of the scored run. Wall-clock search completion and
+strength results are conditional on this shared-host load.
 
 ## Statistics
 

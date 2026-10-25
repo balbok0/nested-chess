@@ -58,6 +58,7 @@
     <h2>Global vs local</h2>
     <p id="headline"></p>
     <p id="search-cost" class="muted"></p>
+    <p id="other-results"></p>
     <p class="muted">Rows are global difficulty; columns are local difficulty. Cells show win rate, 95% bounds, and W–D–L. Select a cell for match score and search costs. Only global ≤ local pairings are tested.</p>
     <div id="global-matrix" class="table-wrap"></div>
     <div id="global-detail" class="detail" aria-live="polite" hidden></div>
@@ -80,6 +81,7 @@
     <h2>Method</h2>
     <p>Win rate is wins ÷ games. Match score is (wins + ½ draws) ÷ games; above 50% means outscoring the opponent. Intervals treat a color-swapped pair as one observation and use conservative 95% bounds. Draws remain separate from wins.</p>
     <p id="openings"></p>
+    <p>The 420 pilots produced 840 within-policy/color game-pair comparisons. Median local sequence similarity was 9.8%, allowing board relabeling and global interleaving; the closest pair was 50.9% similar. This measures move overlap, not strategic diversity. <a href="https://github.com/balbok0/nested-chess/blob/main/benchmarks/classical-2x2/diversity.json">Pilot comparisons</a>.</p>
     <p>No evaluation-based adjudication or move-limit draws. Games finish under the engine's king-capture, majority, no-progress, and repetition rules.</p>
     <details>
       <summary>Budgets, resources, and data</summary>
@@ -100,6 +102,7 @@
     <div class="formula">eval = P(match win) + ½ P(match draw)</div>
     <p>A dynamic program combines settled points with estimated outcomes for unfinished boards. It accumulates half-point totals, then evaluates the majority threshold. A third board loss on a four-board grid is an exact match loss, regardless of local advantages elsewhere.</p>
     <p>Local centipawn scores use a bounded tanh heuristic. Unfinished boards initially have no estimated draw mass except frozen boards; actual draws are exact. Outcomes are assumed independent beyond the search horizon. These are uncalibrated estimates.</p>
+    <p>The first improvement to test is retaining the best evaluated root move when depth one is interrupted. The current fallback discards that partial work. Higher presets also failed to improve strength consistently, so completing more search alone does not establish a better bot.</p>
     <p><a href="https://github.com/balbok0/nested-chess/blob/main/crates/engine/src/search.rs">Search implementation</a></p>
   </section>
   <footer>Classical starts only. Difficulty names are presets, not calibrated Elo ratings.</footer>
@@ -157,6 +160,10 @@
     const baseline = rows.find(row => row.family === 'local' && row.a_level === 1 && row.b_level === 3);
     $('search-cost').textContent = `${percent(flagship.a_metrics.fallback_moves / flagship.a_metrics.moves)} of Casual global moves completed no search depth. These results measure the current implementation under its time budgets.${baseline ? ` The matching Casual-local baseline scored ${percent(baseline.score_rate)} (${bounds(baseline.score_ci95)}).` : ''}`;
   } else $('headline').textContent = 'The benchmark is running. Results appear after both colors of a pair finish.';
+  const strong = rows.find(row => row.family === 'global' && row.a_level === 3 && row.b_level === 5);
+  const strongBaseline = rows.find(row => row.family === 'local' && row.a_level === 3 && row.b_level === 5);
+  const maximum = rows.find(row => row.family === 'global' && row.a_level === 5 && row.b_level === 5);
+  if (strong && strongBaseline && maximum) $('other-results').textContent = `Strong global vs Maximum local scored ${percent(strong.score_rate)} (${bounds(strong.score_ci95)}, 95% bounds), with ${strong.wins} wins, ${strong.draws} draws, and ${strong.losses} losses; its local-only baseline scored ${percent(strongBaseline.score_rate)}. Maximum global vs Maximum local scored ${percent(maximum.score_rate)}. The Strong result does not establish an advantage over its opponent.`;
   const conditions = data.protocol?.conditions ?? [];
   $('openings').textContent = `${conditions.filter(row => row.forced_openings).length} of ${conditions.length} pairings required forced openings after a 10-game determinism check. Each final pair shares a position with colors swapped. Pilots are excluded from the scored sample.`;
   if (data.protocol?.global_presets) $('budgets').innerHTML = `<table><thead><tr><th>Preset</th><th>Global depth cap</th><th>Global ms</th><th>Leaf nodes</th><th>Local skill</th><th>Local ms</th></tr></thead><tbody>${data.levels.map((level,i) => { const g=data.protocol.global_presets[i],l=data.protocol.local_presets[i]; return `<tr><th>${level}</th><td>${g.depth}</td><td>${g.milliseconds}</td><td>${g.analysis_nodes}</td><td>${l.skill}</td><td>${l.milliseconds}</td></tr>`; }).join('')}</tbody></table>`;

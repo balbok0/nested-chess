@@ -119,7 +119,9 @@ def write_report(directory: Path, output: Path, archive: Path | None) -> None:
     records = read_records(directory / "results.jsonl")
     protocol = json.loads((directory / "protocol.json").read_text())
     summary = {"protocol": protocol, "levels": LEVELS, "completed_games": len(records), "target_games": 4200, "results": summarize(records)}
-    telemetry = [row for row in read_records(directory / "resources.jsonl") if row["utc"] >= protocol["started_utc"]]
+    finished = protocol.get("finished_utc")
+    resources = [row for row in read_records(directory / "resources.jsonl") if finished is None or row["utc"] <= finished]
+    telemetry = [row for row in resources if row["utc"] >= protocol["started_utc"]]
     if telemetry:
         summary["resources"] = {
             "samples": len(telemetry),
@@ -140,7 +142,8 @@ def write_report(directory: Path, output: Path, archive: Path | None) -> None:
                 for game in sorted(games, key=lambda row: row["job"]["id"]):
                     stream.write(f"{json.dumps(game, separators=(',', ':'))}\n".encode())
         with gzip.GzipFile(filename=str(archive / "resources.jsonl.gz"), mode="wb", mtime=0) as stream:
-            stream.write((directory / "resources.jsonl").read_bytes())
+            for sample in resources:
+                stream.write(f"{json.dumps(sample)}\n".encode())
         with gzip.GzipFile(filename=str(archive / "pilot.jsonl.gz"), mode="wb", mtime=0) as stream:
             stream.write((directory / "pilot-results.jsonl").read_bytes())
 

@@ -1,0 +1,2886 @@
+{
+  "protocol": {
+    "grid": 2,
+    "start": "classical",
+    "workers": 24,
+    "games_per_pairing": 100,
+    "colors_per_pairing": 50,
+    "pilot_games": 420,
+    "pilot_workers": 32,
+    "timing_pilot_workers": 10,
+    "pilot_policy": "Five games per color; force a two-ply classical opening only if each color's five complete traces are identical. All pilots are excluded from the final 100.",
+    "global_presets": [
+      {
+        "depth": 1,
+        "milliseconds": 300,
+        "analysis_nodes": 32
+      },
+      {
+        "depth": 2,
+        "milliseconds": 600,
+        "analysis_nodes": 64
+      },
+      {
+        "depth": 3,
+        "milliseconds": 1000,
+        "analysis_nodes": 128
+      },
+      {
+        "depth": 4,
+        "milliseconds": 1600,
+        "analysis_nodes": 128
+      },
+      {
+        "depth": 5,
+        "milliseconds": 2400,
+        "analysis_nodes": 256
+      },
+      {
+        "depth": 6,
+        "milliseconds": 4000,
+        "analysis_nodes": 256
+      }
+    ],
+    "local_presets": [
+      {
+        "skill": 0,
+        "milliseconds": 60
+      },
+      {
+        "skill": 2,
+        "milliseconds": 100
+      },
+      {
+        "skill": 5,
+        "milliseconds": 180
+      },
+      {
+        "skill": 10,
+        "milliseconds": 300
+      },
+      {
+        "skill": 15,
+        "milliseconds": 500
+      },
+      {
+        "skill": 20,
+        "milliseconds": 900
+      }
+    ],
+    "global_node_budget": 100000,
+    "local_board_policy": "legal_boards[global_ply % legal_boards.len()]",
+    "conditions": [
+      {
+        "family": "global",
+        "a_level": 0,
+        "b_level": 0,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "global",
+        "a_level": 0,
+        "b_level": 1,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "global",
+        "a_level": 0,
+        "b_level": 2,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "global",
+        "a_level": 0,
+        "b_level": 3,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "global",
+        "a_level": 0,
+        "b_level": 4,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "global",
+        "a_level": 0,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "global",
+        "a_level": 1,
+        "b_level": 1,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "global",
+        "a_level": 1,
+        "b_level": 2,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "global",
+        "a_level": 1,
+        "b_level": 3,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "global",
+        "a_level": 1,
+        "b_level": 4,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "global",
+        "a_level": 1,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "global",
+        "a_level": 2,
+        "b_level": 2,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "global",
+        "a_level": 2,
+        "b_level": 3,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "global",
+        "a_level": 2,
+        "b_level": 4,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "global",
+        "a_level": 2,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "global",
+        "a_level": 3,
+        "b_level": 3,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "global",
+        "a_level": 3,
+        "b_level": 4,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "global",
+        "a_level": 3,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "global",
+        "a_level": 4,
+        "b_level": 4,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "global",
+        "a_level": 4,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "global",
+        "a_level": 5,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 0,
+        "b_level": 0,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 0,
+        "b_level": 1,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 0,
+        "b_level": 2,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 0,
+        "b_level": 3,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 0,
+        "b_level": 4,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 0,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 1,
+        "b_level": 1,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 1,
+        "b_level": 2,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 1,
+        "b_level": 3,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 1,
+        "b_level": 4,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 1,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 2,
+        "b_level": 2,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 2,
+        "b_level": 3,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 2,
+        "b_level": 4,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 2,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 3,
+        "b_level": 3,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 3,
+        "b_level": 4,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 3,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 4,
+        "b_level": 4,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 4,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "family": "local",
+        "a_level": 5,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      }
+    ],
+    "opening_pool": {
+      "seed": 20261025,
+      "plies": 2,
+      "openings": [
+        [
+          {
+            "board": 1,
+            "uci": "b1a3"
+          },
+          {
+            "board": 0,
+            "uci": "c7c5"
+          }
+        ],
+        [
+          {
+            "board": 0,
+            "uci": "b2b3"
+          },
+          {
+            "board": 0,
+            "uci": "g8f6"
+          }
+        ],
+        [
+          {
+            "board": 0,
+            "uci": "g1f3"
+          },
+          {
+            "board": 1,
+            "uci": "a7a5"
+          }
+        ],
+        [
+          {
+            "board": 0,
+            "uci": "b2b3"
+          },
+          {
+            "board": 0,
+            "uci": "g8h6"
+          }
+        ],
+        [
+          {
+            "board": 0,
+            "uci": "b1c3"
+          },
+          {
+            "board": 0,
+            "uci": "b7b6"
+          }
+        ],
+        [
+          {
+            "board": 1,
+            "uci": "b2b3"
+          },
+          {
+            "board": 0,
+            "uci": "a7a5"
+          }
+        ],
+        [
+          {
+            "board": 0,
+            "uci": "b1a3"
+          },
+          {
+            "board": 0,
+            "uci": "b8a6"
+          }
+        ],
+        [
+          {
+            "board": 3,
+            "uci": "b2b3"
+          },
+          {
+            "board": 0,
+            "uci": "d7d5"
+          }
+        ],
+        [
+          {
+            "board": 3,
+            "uci": "b1c3"
+          },
+          {
+            "board": 0,
+            "uci": "c7c6"
+          }
+        ],
+        [
+          {
+            "board": 3,
+            "uci": "b2b3"
+          },
+          {
+            "board": 0,
+            "uci": "g7g6"
+          }
+        ],
+        [
+          {
+            "board": 2,
+            "uci": "d2d3"
+          },
+          {
+            "board": 0,
+            "uci": "e7e5"
+          }
+        ],
+        [
+          {
+            "board": 3,
+            "uci": "d2d3"
+          },
+          {
+            "board": 0,
+            "uci": "a7a5"
+          }
+        ],
+        [
+          {
+            "board": 3,
+            "uci": "h2h3"
+          },
+          {
+            "board": 1,
+            "uci": "d7d6"
+          }
+        ],
+        [
+          {
+            "board": 3,
+            "uci": "g2g4"
+          },
+          {
+            "board": 1,
+            "uci": "f7f5"
+          }
+        ],
+        [
+          {
+            "board": 3,
+            "uci": "e2e3"
+          },
+          {
+            "board": 1,
+            "uci": "g8h6"
+          }
+        ],
+        [
+          {
+            "board": 2,
+            "uci": "b2b3"
+          },
+          {
+            "board": 0,
+            "uci": "d7d5"
+          }
+        ],
+        [
+          {
+            "board": 0,
+            "uci": "c2c4"
+          },
+          {
+            "board": 0,
+            "uci": "g7g5"
+          }
+        ],
+        [
+          {
+            "board": 1,
+            "uci": "d2d4"
+          },
+          {
+            "board": 0,
+            "uci": "g7g6"
+          }
+        ],
+        [
+          {
+            "board": 0,
+            "uci": "b1c3"
+          },
+          {
+            "board": 0,
+            "uci": "h7h6"
+          }
+        ],
+        [
+          {
+            "board": 1,
+            "uci": "c2c3"
+          },
+          {
+            "board": 0,
+            "uci": "b7b6"
+          }
+        ],
+        [
+          {
+            "board": 0,
+            "uci": "h2h4"
+          },
+          {
+            "board": 1,
+            "uci": "h7h6"
+          }
+        ],
+        [
+          {
+            "board": 1,
+            "uci": "g1h3"
+          },
+          {
+            "board": 1,
+            "uci": "g8h6"
+          }
+        ],
+        [
+          {
+            "board": 0,
+            "uci": "b2b4"
+          },
+          {
+            "board": 0,
+            "uci": "b7b6"
+          }
+        ],
+        [
+          {
+            "board": 1,
+            "uci": "g1f3"
+          },
+          {
+            "board": 1,
+            "uci": "g8f6"
+          }
+        ],
+        [
+          {
+            "board": 2,
+            "uci": "b1a3"
+          },
+          {
+            "board": 0,
+            "uci": "h7h5"
+          }
+        ],
+        [
+          {
+            "board": 3,
+            "uci": "h2h4"
+          },
+          {
+            "board": 1,
+            "uci": "b7b5"
+          }
+        ],
+        [
+          {
+            "board": 2,
+            "uci": "g1f3"
+          },
+          {
+            "board": 1,
+            "uci": "g7g5"
+          }
+        ],
+        [
+          {
+            "board": 1,
+            "uci": "c2c3"
+          },
+          {
+            "board": 0,
+            "uci": "d7d6"
+          }
+        ],
+        [
+          {
+            "board": 3,
+            "uci": "e2e3"
+          },
+          {
+            "board": 1,
+            "uci": "g7g5"
+          }
+        ],
+        [
+          {
+            "board": 3,
+            "uci": "b2b3"
+          },
+          {
+            "board": 0,
+            "uci": "h7h6"
+          }
+        ],
+        [
+          {
+            "board": 1,
+            "uci": "c2c4"
+          },
+          {
+            "board": 0,
+            "uci": "f7f6"
+          }
+        ],
+        [
+          {
+            "board": 2,
+            "uci": "g2g3"
+          },
+          {
+            "board": 1,
+            "uci": "d7d6"
+          }
+        ],
+        [
+          {
+            "board": 2,
+            "uci": "d2d3"
+          },
+          {
+            "board": 0,
+            "uci": "a7a5"
+          }
+        ],
+        [
+          {
+            "board": 3,
+            "uci": "f2f4"
+          },
+          {
+            "board": 1,
+            "uci": "c7c5"
+          }
+        ],
+        [
+          {
+            "board": 0,
+            "uci": "b2b3"
+          },
+          {
+            "board": 0,
+            "uci": "d7d6"
+          }
+        ],
+        [
+          {
+            "board": 3,
+            "uci": "c2c4"
+          },
+          {
+            "board": 0,
+            "uci": "e7e6"
+          }
+        ],
+        [
+          {
+            "board": 1,
+            "uci": "g1f3"
+          },
+          {
+            "board": 1,
+            "uci": "d7d5"
+          }
+        ],
+        [
+          {
+            "board": 2,
+            "uci": "f2f3"
+          },
+          {
+            "board": 1,
+            "uci": "g8h6"
+          }
+        ],
+        [
+          {
+            "board": 3,
+            "uci": "h2h3"
+          },
+          {
+            "board": 1,
+            "uci": "e7e6"
+          }
+        ],
+        [
+          {
+            "board": 0,
+            "uci": "f2f3"
+          },
+          {
+            "board": 1,
+            "uci": "h7h5"
+          }
+        ],
+        [
+          {
+            "board": 0,
+            "uci": "g2g4"
+          },
+          {
+            "board": 1,
+            "uci": "g7g6"
+          }
+        ],
+        [
+          {
+            "board": 0,
+            "uci": "f2f3"
+          },
+          {
+            "board": 1,
+            "uci": "d7d5"
+          }
+        ],
+        [
+          {
+            "board": 2,
+            "uci": "f2f4"
+          },
+          {
+            "board": 1,
+            "uci": "b7b5"
+          }
+        ],
+        [
+          {
+            "board": 0,
+            "uci": "c2c4"
+          },
+          {
+            "board": 0,
+            "uci": "b7b5"
+          }
+        ],
+        [
+          {
+            "board": 2,
+            "uci": "b1c3"
+          },
+          {
+            "board": 0,
+            "uci": "h7h6"
+          }
+        ],
+        [
+          {
+            "board": 2,
+            "uci": "b1c3"
+          },
+          {
+            "board": 0,
+            "uci": "a7a6"
+          }
+        ],
+        [
+          {
+            "board": 0,
+            "uci": "f2f4"
+          },
+          {
+            "board": 1,
+            "uci": "g8f6"
+          }
+        ],
+        [
+          {
+            "board": 3,
+            "uci": "e2e4"
+          },
+          {
+            "board": 1,
+            "uci": "g8h6"
+          }
+        ],
+        [
+          {
+            "board": 1,
+            "uci": "c2c4"
+          },
+          {
+            "board": 0,
+            "uci": "g8h6"
+          }
+        ],
+        [
+          {
+            "board": 1,
+            "uci": "b1c3"
+          },
+          {
+            "board": 0,
+            "uci": "g7g5"
+          }
+        ]
+      ]
+    },
+    "search_revision": "56ab470",
+    "benchmark_revision": "aded78adc4b55f90e8aa68a0c23f0acc345d92aa",
+    "binary_sha256": "f8c3581e25974678f3a8cc0c5fdda26d132e678ccdffed500ab9ab2e7952c79b",
+    "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "started_utc": "2026-10-25T16:21:56Z",
+    "build_profile": "release",
+    "logical_cpus": 32,
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "node": "v24.19.0",
+    "fairy_stockfish": {
+      "npm_version": "1.1.12",
+      "source_revision": "b2e693ef1e111233ce3fb40685921708b3276ed6",
+      "threads": 1,
+      "nnue": false
+    },
+    "interval": "95% simultaneous Bonferroni-Clopper-Pearson bounds on the paired-outcome distribution, optimized over the probability bounds; one sample unit is a color-swapped pair.",
+    "finished_utc": "2026-10-25T20:20:32Z"
+  },
+  "levels": [
+    "Beginner",
+    "Casual",
+    "Club",
+    "Strong",
+    "Expert",
+    "Maximum"
+  ],
+  "completed_games": 4200,
+  "target_games": 4200,
+  "results": [
+    {
+      "family": "global",
+      "a_level": 0,
+      "b_level": 0,
+      "games": 100,
+      "pairs": 50,
+      "wins": 2,
+      "draws": 14,
+      "losses": 84,
+      "win_rate": 0.02,
+      "score_rate": 0.09,
+      "win_ci95": {
+        "low": 0.0013619273294863616,
+        "high": 0.1264811879324649
+      },
+      "score_ci95": {
+        "low": 0.03899834563816619,
+        "high": 0.29401286975880747
+      },
+      "white": {
+        "games": 50,
+        "score": 1.0
+      },
+      "black": {
+        "games": 50,
+        "score": 8.0
+      },
+      "mean_plies": 125.44,
+      "a_metrics": {
+        "moves": 6249,
+        "elapsed_ms": 1892953.174651,
+        "engine_calls": 174194,
+        "search_nodes": 91299,
+        "cutoffs": 2,
+        "cache_hits": 243375,
+        "completed_depth_sum": 414,
+        "fallback_moves": 5835
+      },
+      "b_metrics": {
+        "moves": 6295,
+        "elapsed_ms": 503254.978817,
+        "engine_calls": 6295
+      }
+    },
+    {
+      "family": "global",
+      "a_level": 0,
+      "b_level": 1,
+      "games": 100,
+      "pairs": 50,
+      "wins": 4,
+      "draws": 26,
+      "losses": 70,
+      "win_rate": 0.04,
+      "score_rate": 0.17,
+      "win_ci95": {
+        "low": 0.007979182186560439,
+        "high": 0.15530590359427876
+      },
+      "score_ci95": {
+        "low": 0.10302810806385981,
+        "high": 0.3782750628913682
+      },
+      "white": {
+        "games": 50,
+        "score": 3.5
+      },
+      "black": {
+        "games": 50,
+        "score": 13.5
+      },
+      "mean_plies": 136.08,
+      "a_metrics": {
+        "moves": 6782,
+        "elapsed_ms": 2063860.113785,
+        "engine_calls": 171604,
+        "search_nodes": 89299,
+        "cutoffs": 3,
+        "cache_hits": 229982,
+        "completed_depth_sum": 325,
+        "fallback_moves": 6457
+      },
+      "b_metrics": {
+        "moves": 6826,
+        "elapsed_ms": 827589.372236,
+        "engine_calls": 6826
+      }
+    },
+    {
+      "family": "global",
+      "a_level": 0,
+      "b_level": 2,
+      "games": 100,
+      "pairs": 50,
+      "wins": 4,
+      "draws": 18,
+      "losses": 78,
+      "win_rate": 0.04,
+      "score_rate": 0.13,
+      "win_ci95": {
+        "low": 0.007979182186560439,
+        "high": 0.15530590359427876
+      },
+      "score_ci95": {
+        "low": 0.060656535650129996,
+        "high": 0.3432544715794581
+      },
+      "white": {
+        "games": 50,
+        "score": 3.5
+      },
+      "black": {
+        "games": 50,
+        "score": 9.5
+      },
+      "mean_plies": 134.55,
+      "a_metrics": {
+        "moves": 6705,
+        "elapsed_ms": 2043670.2885820002,
+        "engine_calls": 162170,
+        "search_nodes": 84444,
+        "cutoffs": 3,
+        "cache_hits": 214342,
+        "completed_depth_sum": 294,
+        "fallback_moves": 6411
+      },
+      "b_metrics": {
+        "moves": 6750,
+        "elapsed_ms": 1364245.618627,
+        "engine_calls": 6750
+      }
+    },
+    {
+      "family": "global",
+      "a_level": 0,
+      "b_level": 3,
+      "games": 100,
+      "pairs": 50,
+      "wins": 0,
+      "draws": 15,
+      "losses": 85,
+      "win_rate": 0.0,
+      "score_rate": 0.075,
+      "win_ci95": {
+        "low": 0.0,
+        "high": 0.09130868947017845
+      },
+      "score_ci95": {
+        "low": 0.03044193161490078,
+        "high": 0.2761261204485973
+      },
+      "white": {
+        "games": 50,
+        "score": 3.5
+      },
+      "black": {
+        "games": 50,
+        "score": 4.0
+      },
+      "mean_plies": 121.31,
+      "a_metrics": {
+        "moves": 6041,
+        "elapsed_ms": 1850312.198989,
+        "engine_calls": 138536,
+        "search_nodes": 72049,
+        "cutoffs": 0,
+        "cache_hits": 183299,
+        "completed_depth_sum": 213,
+        "fallback_moves": 5828
+      },
+      "b_metrics": {
+        "moves": 6090,
+        "elapsed_ms": 1960980.586302,
+        "engine_calls": 6090
+      }
+    },
+    {
+      "family": "global",
+      "a_level": 0,
+      "b_level": 4,
+      "games": 100,
+      "pairs": 50,
+      "wins": 0,
+      "draws": 17,
+      "losses": 83,
+      "win_rate": 0.0,
+      "score_rate": 0.085,
+      "win_ci95": {
+        "low": 0.0,
+        "high": 0.09130868947017845
+      },
+      "score_ci95": {
+        "low": 0.04112117373956422,
+        "high": 0.28822586826599567
+      },
+      "white": {
+        "games": 50,
+        "score": 3.5
+      },
+      "black": {
+        "games": 50,
+        "score": 5.0
+      },
+      "mean_plies": 111.02,
+      "a_metrics": {
+        "moves": 5527,
+        "elapsed_ms": 1699314.463085,
+        "engine_calls": 117740,
+        "search_nodes": 61371,
+        "cutoffs": 0,
+        "cache_hits": 151105,
+        "completed_depth_sum": 114,
+        "fallback_moves": 5413
+      },
+      "b_metrics": {
+        "moves": 5575,
+        "elapsed_ms": 2878254.344449,
+        "engine_calls": 5575
+      }
+    },
+    {
+      "family": "global",
+      "a_level": 0,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 0,
+      "draws": 2,
+      "losses": 98,
+      "win_rate": 0.0,
+      "score_rate": 0.01,
+      "win_ci95": {
+        "low": 0.0,
+        "high": 0.09130868947017845
+      },
+      "score_ci95": {
+        "low": 0.0005221812117459168,
+        "high": 0.15346822818904896
+      },
+      "white": {
+        "games": 50,
+        "score": 0.5
+      },
+      "black": {
+        "games": 50,
+        "score": 0.5
+      },
+      "mean_plies": 106.67,
+      "a_metrics": {
+        "moves": 5309,
+        "elapsed_ms": 1639912.683184,
+        "engine_calls": 101728,
+        "search_nodes": 52318,
+        "cutoffs": 0,
+        "cache_hits": 125004,
+        "completed_depth_sum": 41,
+        "fallback_moves": 5268
+      },
+      "b_metrics": {
+        "moves": 5358,
+        "elapsed_ms": 4673916.411168,
+        "engine_calls": 5358
+      }
+    },
+    {
+      "family": "global",
+      "a_level": 1,
+      "b_level": 1,
+      "games": 100,
+      "pairs": 50,
+      "wins": 7,
+      "draws": 38,
+      "losses": 55,
+      "win_rate": 0.07,
+      "score_rate": 0.26,
+      "win_ci95": {
+        "low": 0.02337804660582652,
+        "high": 0.19394175045835804
+      },
+      "score_ci95": {
+        "low": 0.17459120789271385,
+        "high": 0.4483275729066313
+      },
+      "white": {
+        "games": 50,
+        "score": 4.0
+      },
+      "black": {
+        "games": 50,
+        "score": 22.0
+      },
+      "mean_plies": 113.9,
+      "a_metrics": {
+        "moves": 5675,
+        "elapsed_ms": 3449826.079444,
+        "engine_calls": 226545,
+        "search_nodes": 123419,
+        "cutoffs": 258,
+        "cache_hits": 353535,
+        "completed_depth_sum": 1081,
+        "fallback_moves": 4607
+      },
+      "b_metrics": {
+        "moves": 5715,
+        "elapsed_ms": 729003.248067,
+        "engine_calls": 5715
+      }
+    },
+    {
+      "family": "global",
+      "a_level": 1,
+      "b_level": 2,
+      "games": 100,
+      "pairs": 50,
+      "wins": 7,
+      "draws": 34,
+      "losses": 59,
+      "win_rate": 0.07,
+      "score_rate": 0.24,
+      "win_ci95": {
+        "low": 0.02337804660582652,
+        "high": 0.19394175045835804
+      },
+      "score_ci95": {
+        "low": 0.15469945004370192,
+        "high": 0.437244358805964
+      },
+      "white": {
+        "games": 50,
+        "score": 4.0
+      },
+      "black": {
+        "games": 50,
+        "score": 20.0
+      },
+      "mean_plies": 112.05,
+      "a_metrics": {
+        "moves": 5582,
+        "elapsed_ms": 3396126.495605,
+        "engine_calls": 210096,
+        "search_nodes": 113871,
+        "cutoffs": 263,
+        "cache_hits": 326258,
+        "completed_depth_sum": 877,
+        "fallback_moves": 4718
+      },
+      "b_metrics": {
+        "moves": 5623,
+        "elapsed_ms": 1174281.255781,
+        "engine_calls": 5623
+      }
+    },
+    {
+      "family": "global",
+      "a_level": 1,
+      "b_level": 3,
+      "games": 100,
+      "pairs": 50,
+      "wins": 5,
+      "draws": 19,
+      "losses": 76,
+      "win_rate": 0.05,
+      "score_rate": 0.145,
+      "win_ci95": {
+        "low": 0.012575071883593174,
+        "high": 0.1686456256079365
+      },
+      "score_ci95": {
+        "low": 0.07995227929448254,
+        "high": 0.35552609975302457
+      },
+      "white": {
+        "games": 50,
+        "score": 1.5
+      },
+      "black": {
+        "games": 50,
+        "score": 13.0
+      },
+      "mean_plies": 101.3,
+      "a_metrics": {
+        "moves": 5043,
+        "elapsed_ms": 3069417.21372,
+        "engine_calls": 181113,
+        "search_nodes": 97917,
+        "cutoffs": 376,
+        "cache_hits": 289566,
+        "completed_depth_sum": 753,
+        "fallback_moves": 4305
+      },
+      "b_metrics": {
+        "moves": 5087,
+        "elapsed_ms": 1674067.364192,
+        "engine_calls": 5087
+      }
+    },
+    {
+      "family": "global",
+      "a_level": 1,
+      "b_level": 4,
+      "games": 100,
+      "pairs": 50,
+      "wins": 1,
+      "draws": 25,
+      "losses": 74,
+      "win_rate": 0.01,
+      "score_rate": 0.135,
+      "win_ci95": {
+        "low": 8.367549433556731e-05,
+        "high": 0.11026212766793832
+      },
+      "score_ci95": {
+        "low": 0.07447300995123773,
+        "high": 0.3465370145240684
+      },
+      "white": {
+        "games": 50,
+        "score": 2.5
+      },
+      "black": {
+        "games": 50,
+        "score": 11.0
+      },
+      "mean_plies": 98.36,
+      "a_metrics": {
+        "moves": 4894,
+        "elapsed_ms": 2985792.5698579997,
+        "engine_calls": 164428,
+        "search_nodes": 88682,
+        "cutoffs": 194,
+        "cache_hits": 257861,
+        "completed_depth_sum": 598,
+        "fallback_moves": 4301
+      },
+      "b_metrics": {
+        "moves": 4942,
+        "elapsed_ms": 2597899.623687,
+        "engine_calls": 4942
+      }
+    },
+    {
+      "family": "global",
+      "a_level": 1,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 0,
+      "draws": 11,
+      "losses": 89,
+      "win_rate": 0.0,
+      "score_rate": 0.055,
+      "win_ci95": {
+        "low": 0.0,
+        "high": 0.09130868947017845
+      },
+      "score_ci95": {
+        "low": 0.022964573633898526,
+        "high": 0.25162001367762105
+      },
+      "white": {
+        "games": 50,
+        "score": 0.5
+      },
+      "black": {
+        "games": 50,
+        "score": 5.0
+      },
+      "mean_plies": 92.5,
+      "a_metrics": {
+        "moves": 4600,
+        "elapsed_ms": 2809220.511476,
+        "engine_calls": 146036,
+        "search_nodes": 78857,
+        "cutoffs": 286,
+        "cache_hits": 222069,
+        "completed_depth_sum": 468,
+        "fallback_moves": 4146
+      },
+      "b_metrics": {
+        "moves": 4650,
+        "elapsed_ms": 4060658.228296,
+        "engine_calls": 4650
+      }
+    },
+    {
+      "family": "global",
+      "a_level": 2,
+      "b_level": 2,
+      "games": 100,
+      "pairs": 50,
+      "wins": 11,
+      "draws": 34,
+      "losses": 55,
+      "win_rate": 0.11,
+      "score_rate": 0.28,
+      "win_ci95": {
+        "low": 0.04242493101572357,
+        "high": 0.24839041327578443
+      },
+      "score_ci95": {
+        "low": 0.16133165902892954,
+        "high": 0.49055329346216703
+      },
+      "white": {
+        "games": 50,
+        "score": 9.5
+      },
+      "black": {
+        "games": 50,
+        "score": 18.5
+      },
+      "mean_plies": 103.27,
+      "a_metrics": {
+        "moves": 5143,
+        "elapsed_ms": 5190393.797627,
+        "engine_calls": 257555,
+        "search_nodes": 144761,
+        "cutoffs": 749,
+        "cache_hits": 415834,
+        "completed_depth_sum": 1759,
+        "fallback_moves": 3410
+      },
+      "b_metrics": {
+        "moves": 5184,
+        "elapsed_ms": 1103100.921055,
+        "engine_calls": 5184
+      }
+    },
+    {
+      "family": "global",
+      "a_level": 2,
+      "b_level": 3,
+      "games": 100,
+      "pairs": 50,
+      "wins": 6,
+      "draws": 39,
+      "losses": 55,
+      "win_rate": 0.06,
+      "score_rate": 0.255,
+      "win_ci95": {
+        "low": 0.017746904456422893,
+        "high": 0.1814936730409591
+      },
+      "score_ci95": {
+        "low": 0.15506370243933637,
+        "high": 0.4576847168204246
+      },
+      "white": {
+        "games": 50,
+        "score": 10.0
+      },
+      "black": {
+        "games": 50,
+        "score": 15.5
+      },
+      "mean_plies": 94.6,
+      "a_metrics": {
+        "moves": 4709,
+        "elapsed_ms": 4756056.890613,
+        "engine_calls": 234491,
+        "search_nodes": 132593,
+        "cutoffs": 1219,
+        "cache_hits": 372015,
+        "completed_depth_sum": 1676,
+        "fallback_moves": 3065
+      },
+      "b_metrics": {
+        "moves": 4751,
+        "elapsed_ms": 1579342.865695,
+        "engine_calls": 4751
+      }
+    },
+    {
+      "family": "global",
+      "a_level": 2,
+      "b_level": 4,
+      "games": 100,
+      "pairs": 50,
+      "wins": 2,
+      "draws": 30,
+      "losses": 68,
+      "win_rate": 0.02,
+      "score_rate": 0.17,
+      "win_ci95": {
+        "low": 0.0013619273294863616,
+        "high": 0.1264811879324649
+      },
+      "score_ci95": {
+        "low": 0.10302810806385981,
+        "high": 0.3782750628913682
+      },
+      "white": {
+        "games": 50,
+        "score": 7.0
+      },
+      "black": {
+        "games": 50,
+        "score": 10.0
+      },
+      "mean_plies": 97.88,
+      "a_metrics": {
+        "moves": 4871,
+        "elapsed_ms": 4921069.799474999,
+        "engine_calls": 244752,
+        "search_nodes": 138738,
+        "cutoffs": 1495,
+        "cache_hits": 365936,
+        "completed_depth_sum": 1738,
+        "fallback_moves": 3181
+      },
+      "b_metrics": {
+        "moves": 4917,
+        "elapsed_ms": 2600900.2161439997,
+        "engine_calls": 4917
+      }
+    },
+    {
+      "family": "global",
+      "a_level": 2,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 0,
+      "draws": 25,
+      "losses": 75,
+      "win_rate": 0.0,
+      "score_rate": 0.125,
+      "win_ci95": {
+        "low": 0.0,
+        "high": 0.09130868947017845
+      },
+      "score_ci95": {
+        "low": 0.07442288704547588,
+        "high": 0.32710749393091354
+      },
+      "white": {
+        "games": 50,
+        "score": 2.0
+      },
+      "black": {
+        "games": 50,
+        "score": 10.5
+      },
+      "mean_plies": 90.09,
+      "a_metrics": {
+        "moves": 4481,
+        "elapsed_ms": 4527119.097852,
+        "engine_calls": 228570,
+        "search_nodes": 129603,
+        "cutoffs": 1394,
+        "cache_hits": 329573,
+        "completed_depth_sum": 1666,
+        "fallback_moves": 2858
+      },
+      "b_metrics": {
+        "moves": 4528,
+        "elapsed_ms": 3993178.459702,
+        "engine_calls": 4528
+      }
+    },
+    {
+      "family": "global",
+      "a_level": 3,
+      "b_level": 3,
+      "games": 100,
+      "pairs": 50,
+      "wins": 28,
+      "draws": 37,
+      "losses": 35,
+      "win_rate": 0.28,
+      "score_rate": 0.465,
+      "win_ci95": {
+        "low": 0.17409972051580558,
+        "high": 0.42637225474871326
+      },
+      "score_ci95": {
+        "low": 0.2947611544179699,
+        "high": 0.6441917308365844
+      },
+      "white": {
+        "games": 50,
+        "score": 20.5
+      },
+      "black": {
+        "games": 50,
+        "score": 26.0
+      },
+      "mean_plies": 122.14,
+      "a_metrics": {
+        "moves": 6097,
+        "elapsed_ms": 9735548.427126,
+        "engine_calls": 611762,
+        "search_nodes": 386440,
+        "cutoffs": 18918,
+        "cache_hits": 762486,
+        "completed_depth_sum": 5429,
+        "fallback_moves": 1182
+      },
+      "b_metrics": {
+        "moves": 6117,
+        "elapsed_ms": 2001762.677864,
+        "engine_calls": 6117
+      }
+    },
+    {
+      "family": "global",
+      "a_level": 3,
+      "b_level": 4,
+      "games": 100,
+      "pairs": 50,
+      "wins": 20,
+      "draws": 44,
+      "losses": 36,
+      "win_rate": 0.2,
+      "score_rate": 0.42,
+      "win_ci95": {
+        "low": 0.10407918788252789,
+        "high": 0.35015656916956606
+      },
+      "score_ci95": {
+        "low": 0.26435353061631167,
+        "high": 0.605046786220806
+      },
+      "white": {
+        "games": 50,
+        "score": 15.5
+      },
+      "black": {
+        "games": 50,
+        "score": 26.5
+      },
+      "mean_plies": 116.55,
+      "a_metrics": {
+        "moves": 5813,
+        "elapsed_ms": 9278234.17293,
+        "engine_calls": 595099,
+        "search_nodes": 380198,
+        "cutoffs": 18957,
+        "cache_hits": 782305,
+        "completed_depth_sum": 5352,
+        "fallback_moves": 1023
+      },
+      "b_metrics": {
+        "moves": 5842,
+        "elapsed_ms": 3059174.683686,
+        "engine_calls": 5842
+      }
+    },
+    {
+      "family": "global",
+      "a_level": 3,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 31,
+      "draws": 34,
+      "losses": 35,
+      "win_rate": 0.31,
+      "score_rate": 0.48,
+      "win_ci95": {
+        "low": 0.19004848603187802,
+        "high": 0.4641481649634668
+      },
+      "score_ci95": {
+        "low": 0.2808970383573669,
+        "high": 0.6837686329247
+      },
+      "white": {
+        "games": 50,
+        "score": 21.0
+      },
+      "black": {
+        "games": 50,
+        "score": 27.0
+      },
+      "mean_plies": 83.66,
+      "a_metrics": {
+        "moves": 4172,
+        "elapsed_ms": 6656874.328328,
+        "engine_calls": 408278,
+        "search_nodes": 252647,
+        "cutoffs": 8375,
+        "cache_hits": 599449,
+        "completed_depth_sum": 3689,
+        "fallback_moves": 718
+      },
+      "b_metrics": {
+        "moves": 4194,
+        "elapsed_ms": 3722462.41183,
+        "engine_calls": 4194
+      }
+    },
+    {
+      "family": "global",
+      "a_level": 4,
+      "b_level": 4,
+      "games": 100,
+      "pairs": 50,
+      "wins": 15,
+      "draws": 29,
+      "losses": 56,
+      "win_rate": 0.15,
+      "score_rate": 0.295,
+      "win_ci95": {
+        "low": 0.06496183970996473,
+        "high": 0.2979975480647816
+      },
+      "score_ci95": {
+        "low": 0.1702169837480127,
+        "high": 0.5054453500896282
+      },
+      "white": {
+        "games": 50,
+        "score": 12.5
+      },
+      "black": {
+        "games": 50,
+        "score": 17.0
+      },
+      "mean_plies": 145.89,
+      "a_metrics": {
+        "moves": 7279,
+        "elapsed_ms": 17463570.047107,
+        "engine_calls": 1143578,
+        "search_nodes": 832393,
+        "cutoffs": 65243,
+        "cache_hits": 2436469,
+        "completed_depth_sum": 8653,
+        "fallback_moves": 222
+      },
+      "b_metrics": {
+        "moves": 7310,
+        "elapsed_ms": 3807184.605055,
+        "engine_calls": 7310
+      }
+    },
+    {
+      "family": "global",
+      "a_level": 4,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 10,
+      "draws": 28,
+      "losses": 62,
+      "win_rate": 0.1,
+      "score_rate": 0.24,
+      "win_ci95": {
+        "low": 0.042341255521388024,
+        "high": 0.22943697507802469
+      },
+      "score_ci95": {
+        "low": 0.13358694473295743,
+        "high": 0.4498872880876192
+      },
+      "white": {
+        "games": 50,
+        "score": 11.5
+      },
+      "black": {
+        "games": 50,
+        "score": 12.5
+      },
+      "mean_plies": 129.67,
+      "a_metrics": {
+        "moves": 6464,
+        "elapsed_ms": 15511855.295819,
+        "engine_calls": 1045369,
+        "search_nodes": 742965,
+        "cutoffs": 52368,
+        "cache_hits": 2211586,
+        "completed_depth_sum": 7437,
+        "fallback_moves": 213
+      },
+      "b_metrics": {
+        "moves": 6503,
+        "elapsed_ms": 5760650.531457,
+        "engine_calls": 6503
+      }
+    },
+    {
+      "family": "global",
+      "a_level": 5,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 6,
+      "draws": 25,
+      "losses": 69,
+      "win_rate": 0.06,
+      "score_rate": 0.185,
+      "win_ci95": {
+        "low": 0.017746904456422893,
+        "high": 0.1814936730409591
+      },
+      "score_ci95": {
+        "low": 0.10155823666970999,
+        "high": 0.39617594980335036
+      },
+      "white": {
+        "games": 50,
+        "score": 9.5
+      },
+      "black": {
+        "games": 50,
+        "score": 9.0
+      },
+      "mean_plies": 143.67,
+      "a_metrics": {
+        "moves": 7165,
+        "elapsed_ms": 28561883.079033002,
+        "engine_calls": 2013643,
+        "search_nodes": 2139435,
+        "cutoffs": 221278,
+        "cache_hits": 7929311,
+        "completed_depth_sum": 11738,
+        "fallback_moves": 74
+      },
+      "b_metrics": {
+        "moves": 7202,
+        "elapsed_ms": 6314819.004593,
+        "engine_calls": 7202
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 0,
+      "b_level": 0,
+      "games": 100,
+      "pairs": 50,
+      "wins": 24,
+      "draws": 53,
+      "losses": 23,
+      "win_rate": 0.24,
+      "score_rate": 0.505,
+      "win_ci95": {
+        "low": 0.12046416500946441,
+        "high": 0.4051690542780602
+      },
+      "score_ci95": {
+        "low": 0.31307204427371627,
+        "high": 0.6955264365199257
+      },
+      "white": {
+        "games": 50,
+        "score": 24.5
+      },
+      "black": {
+        "games": 50,
+        "score": 26.0
+      },
+      "mean_plies": 183.98,
+      "a_metrics": {
+        "moves": 9200,
+        "elapsed_ms": 840727.592797,
+        "engine_calls": 9200,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 9198,
+        "elapsed_ms": 834379.974374,
+        "engine_calls": 9198
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 0,
+      "b_level": 1,
+      "games": 100,
+      "pairs": 50,
+      "wins": 28,
+      "draws": 45,
+      "losses": 27,
+      "win_rate": 0.28,
+      "score_rate": 0.505,
+      "win_ci95": {
+        "low": 0.15442736817469235,
+        "high": 0.44431125939430965
+      },
+      "score_ci95": {
+        "low": 0.31847736232209933,
+        "high": 0.6891764739079207
+      },
+      "white": {
+        "games": 50,
+        "score": 27.0
+      },
+      "black": {
+        "games": 50,
+        "score": 23.5
+      },
+      "mean_plies": 191.06,
+      "a_metrics": {
+        "moves": 9547,
+        "elapsed_ms": 864809.670515,
+        "engine_calls": 9547,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 9559,
+        "elapsed_ms": 1240260.59522,
+        "engine_calls": 9559
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 0,
+      "b_level": 2,
+      "games": 100,
+      "pairs": 50,
+      "wins": 14,
+      "draws": 41,
+      "losses": 45,
+      "win_rate": 0.14,
+      "score_rate": 0.345,
+      "win_ci95": {
+        "low": 0.0533498352352195,
+        "high": 0.2907938521468054
+      },
+      "score_ci95": {
+        "low": 0.2021747509173179,
+        "high": 0.5521232991757941
+      },
+      "white": {
+        "games": 50,
+        "score": 15.5
+      },
+      "black": {
+        "games": 50,
+        "score": 19.0
+      },
+      "mean_plies": 169.62,
+      "a_metrics": {
+        "moves": 8466,
+        "elapsed_ms": 761050.819407,
+        "engine_calls": 8466,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 8496,
+        "elapsed_ms": 1766176.036068,
+        "engine_calls": 8496
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 0,
+      "b_level": 3,
+      "games": 100,
+      "pairs": 50,
+      "wins": 12,
+      "draws": 32,
+      "losses": 56,
+      "win_rate": 0.12,
+      "score_rate": 0.28,
+      "win_ci95": {
+        "low": 0.049292185508455315,
+        "high": 0.25972370254408295
+      },
+      "score_ci95": {
+        "low": 0.15573769452099906,
+        "high": 0.4931904439522709
+      },
+      "white": {
+        "games": 50,
+        "score": 13.0
+      },
+      "black": {
+        "games": 50,
+        "score": 15.0
+      },
+      "mean_plies": 152.49,
+      "a_metrics": {
+        "moves": 7608,
+        "elapsed_ms": 670147.545502,
+        "engine_calls": 7608,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 7641,
+        "elapsed_ms": 2483017.33204,
+        "engine_calls": 7641
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 0,
+      "b_level": 4,
+      "games": 100,
+      "pairs": 50,
+      "wins": 2,
+      "draws": 36,
+      "losses": 62,
+      "win_rate": 0.02,
+      "score_rate": 0.2,
+      "win_ci95": {
+        "low": 0.0013619273294863616,
+        "high": 0.1264811879324649
+      },
+      "score_ci95": {
+        "low": 0.11785344818305349,
+        "high": 0.4090718776035656
+      },
+      "white": {
+        "games": 50,
+        "score": 11.5
+      },
+      "black": {
+        "games": 50,
+        "score": 8.5
+      },
+      "mean_plies": 146.56,
+      "a_metrics": {
+        "moves": 7307,
+        "elapsed_ms": 631338.760616,
+        "engine_calls": 7307,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 7349,
+        "elapsed_ms": 3781556.777629,
+        "engine_calls": 7349
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 0,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 3,
+      "draws": 30,
+      "losses": 67,
+      "win_rate": 0.03,
+      "score_rate": 0.18,
+      "win_ci95": {
+        "low": 0.0041413252210997925,
+        "high": 0.14133227727066083
+      },
+      "score_ci95": {
+        "low": 0.09720888659804716,
+        "high": 0.3964712730282073
+      },
+      "white": {
+        "games": 50,
+        "score": 9.0
+      },
+      "black": {
+        "games": 50,
+        "score": 9.0
+      },
+      "mean_plies": 135.87,
+      "a_metrics": {
+        "moves": 6772,
+        "elapsed_ms": 569105.818345,
+        "engine_calls": 6772,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 6815,
+        "elapsed_ms": 5975673.385625,
+        "engine_calls": 6815
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 1,
+      "b_level": 1,
+      "games": 100,
+      "pairs": 50,
+      "wins": 31,
+      "draws": 42,
+      "losses": 27,
+      "win_rate": 0.31,
+      "score_rate": 0.52,
+      "win_ci95": {
+        "low": 0.20247725474242761,
+        "high": 0.4528392734127718
+      },
+      "score_ci95": {
+        "low": 0.3479485029239393,
+        "high": 0.6880970567736102
+      },
+      "white": {
+        "games": 50,
+        "score": 22.0
+      },
+      "black": {
+        "games": 50,
+        "score": 30.0
+      },
+      "mean_plies": 188.63,
+      "a_metrics": {
+        "moves": 9431,
+        "elapsed_ms": 1168815.937443,
+        "engine_calls": 9431,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 9432,
+        "elapsed_ms": 1167684.381227,
+        "engine_calls": 9432
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 1,
+      "b_level": 2,
+      "games": 100,
+      "pairs": 50,
+      "wins": 14,
+      "draws": 39,
+      "losses": 47,
+      "win_rate": 0.14,
+      "score_rate": 0.335,
+      "win_ci95": {
+        "low": 0.057663208221462314,
+        "high": 0.2870665674718389
+      },
+      "score_ci95": {
+        "low": 0.19120128723792149,
+        "high": 0.5450515150661717
+      },
+      "white": {
+        "games": 50,
+        "score": 12.5
+      },
+      "black": {
+        "games": 50,
+        "score": 21.0
+      },
+      "mean_plies": 186.73,
+      "a_metrics": {
+        "moves": 9327,
+        "elapsed_ms": 1145120.608543,
+        "engine_calls": 9327,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 9346,
+        "elapsed_ms": 1883263.3545990002,
+        "engine_calls": 9346
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 1,
+      "b_level": 3,
+      "games": 100,
+      "pairs": 50,
+      "wins": 1,
+      "draws": 28,
+      "losses": 71,
+      "win_rate": 0.01,
+      "score_rate": 0.15,
+      "win_ci95": {
+        "low": 8.367549433556731e-05,
+        "high": 0.11026212766793832
+      },
+      "score_ci95": {
+        "low": 0.0806458495214524,
+        "high": 0.3660004002391897
+      },
+      "white": {
+        "games": 50,
+        "score": 6.5
+      },
+      "black": {
+        "games": 50,
+        "score": 8.5
+      },
+      "mean_plies": 161.13,
+      "a_metrics": {
+        "moves": 8037,
+        "elapsed_ms": 978165.5075470001,
+        "engine_calls": 8037,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 8076,
+        "elapsed_ms": 2560520.072257,
+        "engine_calls": 8076
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 1,
+      "b_level": 4,
+      "games": 100,
+      "pairs": 50,
+      "wins": 3,
+      "draws": 28,
+      "losses": 69,
+      "win_rate": 0.03,
+      "score_rate": 0.17,
+      "win_ci95": {
+        "low": 0.0041413252210997925,
+        "high": 0.14133227727066083
+      },
+      "score_ci95": {
+        "low": 0.10573654968170679,
+        "high": 0.37627976509466077
+      },
+      "white": {
+        "games": 50,
+        "score": 7.0
+      },
+      "black": {
+        "games": 50,
+        "score": 10.0
+      },
+      "mean_plies": 149.48,
+      "a_metrics": {
+        "moves": 7455,
+        "elapsed_ms": 896174.612022,
+        "engine_calls": 7455,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 7493,
+        "elapsed_ms": 3790874.006614,
+        "engine_calls": 7493
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 1,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 2,
+      "draws": 14,
+      "losses": 84,
+      "win_rate": 0.02,
+      "score_rate": 0.09,
+      "win_ci95": {
+        "low": 0.0013619273294863616,
+        "high": 0.1264811879324649
+      },
+      "score_ci95": {
+        "low": 0.03899834563816619,
+        "high": 0.29401286975880747
+      },
+      "white": {
+        "games": 50,
+        "score": 1.5
+      },
+      "black": {
+        "games": 50,
+        "score": 7.5
+      },
+      "mean_plies": 142.92,
+      "a_metrics": {
+        "moves": 7124,
+        "elapsed_ms": 849995.975711,
+        "engine_calls": 7124,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 7168,
+        "elapsed_ms": 6231308.457726,
+        "engine_calls": 7168
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 2,
+      "b_level": 2,
+      "games": 100,
+      "pairs": 50,
+      "wins": 24,
+      "draws": 43,
+      "losses": 33,
+      "win_rate": 0.24,
+      "score_rate": 0.455,
+      "win_ci95": {
+        "low": 0.12740633608188828,
+        "high": 0.39881860561015303
+      },
+      "score_ci95": {
+        "low": 0.2742125966498338,
+        "high": 0.64814034911042
+      },
+      "white": {
+        "games": 50,
+        "score": 21.5
+      },
+      "black": {
+        "games": 50,
+        "score": 24.0
+      },
+      "mean_plies": 197.11,
+      "a_metrics": {
+        "moves": 9854,
+        "elapsed_ms": 1941335.644363,
+        "engine_calls": 9854,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 9857,
+        "elapsed_ms": 1943148.786473,
+        "engine_calls": 9857
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 2,
+      "b_level": 3,
+      "games": 100,
+      "pairs": 50,
+      "wins": 3,
+      "draws": 23,
+      "losses": 74,
+      "win_rate": 0.03,
+      "score_rate": 0.145,
+      "win_ci95": {
+        "low": 0.0014456028238219142,
+        "high": 0.14543462613022468
+      },
+      "score_ci95": {
+        "low": 0.06915953176275942,
+        "high": 0.3643975460732073
+      },
+      "white": {
+        "games": 50,
+        "score": 5.0
+      },
+      "black": {
+        "games": 50,
+        "score": 9.5
+      },
+      "mean_plies": 170.04,
+      "a_metrics": {
+        "moves": 8484,
+        "elapsed_ms": 1666780.730191,
+        "engine_calls": 8484,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 8520,
+        "elapsed_ms": 2672078.764906,
+        "engine_calls": 8520
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 2,
+      "b_level": 4,
+      "games": 100,
+      "pairs": 50,
+      "wins": 4,
+      "draws": 32,
+      "losses": 64,
+      "win_rate": 0.04,
+      "score_rate": 0.2,
+      "win_ci95": {
+        "low": 0.007979182186560439,
+        "high": 0.15530590359427876
+      },
+      "score_ci95": {
+        "low": 0.12016633579381698,
+        "high": 0.40829406301347954
+      },
+      "white": {
+        "games": 50,
+        "score": 7.0
+      },
+      "black": {
+        "games": 50,
+        "score": 13.0
+      },
+      "mean_plies": 169.05,
+      "a_metrics": {
+        "moves": 8432,
+        "elapsed_ms": 1652419.313191,
+        "engine_calls": 8432,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 8473,
+        "elapsed_ms": 4270911.757963,
+        "engine_calls": 8473
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 2,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 1,
+      "draws": 21,
+      "losses": 78,
+      "win_rate": 0.01,
+      "score_rate": 0.115,
+      "win_ci95": {
+        "low": 8.367549433556731e-05,
+        "high": 0.11026212766793832
+      },
+      "score_ci95": {
+        "low": 0.05647504113250704,
+        "high": 0.3237563313609775
+      },
+      "white": {
+        "games": 50,
+        "score": 3.5
+      },
+      "black": {
+        "games": 50,
+        "score": 8.0
+      },
+      "mean_plies": 155.41,
+      "a_metrics": {
+        "moves": 7751,
+        "elapsed_ms": 1537817.97521,
+        "engine_calls": 7751,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 7790,
+        "elapsed_ms": 6817369.093274,
+        "engine_calls": 7790
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 3,
+      "b_level": 3,
+      "games": 100,
+      "pairs": 50,
+      "wins": 24,
+      "draws": 48,
+      "losses": 28,
+      "win_rate": 0.24,
+      "score_rate": 0.48,
+      "win_ci95": {
+        "low": 0.12740633608188828,
+        "high": 0.39881860561015303
+      },
+      "score_ci95": {
+        "low": 0.29568537156537067,
+        "high": 0.6678956096479427
+      },
+      "white": {
+        "games": 50,
+        "score": 22.0
+      },
+      "black": {
+        "games": 50,
+        "score": 26.0
+      },
+      "mean_plies": 182.46,
+      "a_metrics": {
+        "moves": 9123,
+        "elapsed_ms": 2834746.57072,
+        "engine_calls": 9123,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 9123,
+        "elapsed_ms": 2840118.668395,
+        "engine_calls": 9123
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 3,
+      "b_level": 4,
+      "games": 100,
+      "pairs": 50,
+      "wins": 22,
+      "draws": 49,
+      "losses": 29,
+      "win_rate": 0.22,
+      "score_rate": 0.465,
+      "win_ci95": {
+        "low": 0.12807124527893937,
+        "high": 0.3634924555199078
+      },
+      "score_ci95": {
+        "low": 0.31914484563160345,
+        "high": 0.617870923575458
+      },
+      "white": {
+        "games": 50,
+        "score": 16.0
+      },
+      "black": {
+        "games": 50,
+        "score": 30.5
+      },
+      "mean_plies": 180.49,
+      "a_metrics": {
+        "moves": 9019,
+        "elapsed_ms": 2835159.925353,
+        "engine_calls": 9019,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 9030,
+        "elapsed_ms": 4577106.10926,
+        "engine_calls": 9030
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 3,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 8,
+      "draws": 47,
+      "losses": 45,
+      "win_rate": 0.08,
+      "score_rate": 0.315,
+      "win_ci95": {
+        "low": 0.02938930050533118,
+        "high": 0.20605307886761606
+      },
+      "score_ci95": {
+        "low": 0.19875960342505672,
+        "high": 0.5075566984502221
+      },
+      "white": {
+        "games": 50,
+        "score": 12.5
+      },
+      "black": {
+        "games": 50,
+        "score": 19.0
+      },
+      "mean_plies": 168.75,
+      "a_metrics": {
+        "moves": 8428,
+        "elapsed_ms": 2688666.726975,
+        "engine_calls": 8428,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 8447,
+        "elapsed_ms": 7405385.481078,
+        "engine_calls": 8447
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 4,
+      "b_level": 4,
+      "games": 100,
+      "pairs": 50,
+      "wins": 19,
+      "draws": 59,
+      "losses": 22,
+      "win_rate": 0.19,
+      "score_rate": 0.485,
+      "win_ci95": {
+        "low": 0.09593860711446646,
+        "high": 0.3400294352464498
+      },
+      "score_ci95": {
+        "low": 0.3306193399974492,
+        "high": 0.6419629436294949
+      },
+      "white": {
+        "games": 50,
+        "score": 19.5
+      },
+      "black": {
+        "games": 50,
+        "score": 29.0
+      },
+      "mean_plies": 173.61,
+      "a_metrics": {
+        "moves": 8678,
+        "elapsed_ms": 4399265.545705,
+        "engine_calls": 8678,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 8683,
+        "elapsed_ms": 4389440.107866,
+        "engine_calls": 8683
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 4,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 7,
+      "draws": 47,
+      "losses": 46,
+      "win_rate": 0.07,
+      "score_rate": 0.305,
+      "win_ci95": {
+        "low": 0.02337804660582652,
+        "high": 0.19394175045835804
+      },
+      "score_ci95": {
+        "low": 0.20796296503562267,
+        "high": 0.4886369257343106
+      },
+      "white": {
+        "games": 50,
+        "score": 10.0
+      },
+      "black": {
+        "games": 50,
+        "score": 20.5
+      },
+      "mean_plies": 163.11,
+      "a_metrics": {
+        "moves": 8145,
+        "elapsed_ms": 4209088.064909,
+        "engine_calls": 8145,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 8166,
+        "elapsed_ms": 7196309.679617,
+        "engine_calls": 8166
+      }
+    },
+    {
+      "family": "local",
+      "a_level": 5,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 20,
+      "draws": 58,
+      "losses": 22,
+      "win_rate": 0.2,
+      "score_rate": 0.49,
+      "win_ci95": {
+        "low": 0.11108606418638459,
+        "high": 0.3439242814090064
+      },
+      "score_ci95": {
+        "low": 0.34603593992340065,
+        "high": 0.6360024622282427
+      },
+      "white": {
+        "games": 50,
+        "score": 17.5
+      },
+      "black": {
+        "games": 50,
+        "score": 31.5
+      },
+      "mean_plies": 181.82,
+      "a_metrics": {
+        "moves": 9090,
+        "elapsed_ms": 8154262.775440999,
+        "engine_calls": 9090,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 0
+      },
+      "b_metrics": {
+        "moves": 9092,
+        "elapsed_ms": 8159272.984194,
+        "engine_calls": 9092
+      }
+    }
+  ],
+  "resources": {
+    "samples": 2656,
+    "peak_system_cpu_percent": 99.7,
+    "mean_system_cpu_percent": 91.859375,
+    "peak_system_memory_percent": 33.5,
+    "peak_benchmark_rss_bytes": 16204443648
+  }
+}
