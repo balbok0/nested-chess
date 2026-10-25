@@ -99,7 +99,8 @@ function updateEvaluations() {
     $('evaluation-white').style.height = `${description.whitePercent ?? 0}%`;
   }
   const complete = state.boards.filter(board => board.outcome !== 'ongoing' || evaluations.get(board.id)?.fen === board.fen).length;
-  $('evaluation-status').textContent = !preferences.evaluations ? 'Off' : evaluationError || (busy || ($('mode').value === 'bot' && state.turn === 'black') ? 'Waiting for the opponent’s move.' : complete === state.boards.length ? 'Evaluations up to date.' : `Evaluating boards: ${complete}/${state.boards.length}`);
+  $('evaluation-status').textContent = !preferences.evaluations ? '' : evaluationError || (busy || ($('mode').value === 'bot' && state.turn === 'black') ? 'Waiting for the opponent’s move.' : complete === state.boards.length ? '' : `Evaluating boards: ${complete}/${state.boards.length}`);
+  $('evaluation-status').hidden = !$('evaluation-status').textContent;
   $('retry-evaluations').hidden = !preferences.evaluations || !evaluationError;
 }
 
