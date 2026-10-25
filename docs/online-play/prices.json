@@ -1,0 +1,65 @@
+{
+  "checked_utc": "2026-10-25T18:33:55.622661+00:00",
+  "currency": "USD",
+  "monthly_hours": 730,
+  "aws": {
+    "source": "https://aws.amazon.com/lightsail/pricing/",
+    "region": "US",
+    "linux_public_ipv4_4gb_monthly": 24,
+    "disk_gb_included": 80,
+    "transfer_tb_included": 4,
+    "snapshot_gb_month": 0.05
+  },
+  "gcp": {
+    "source": "https://cloud.google.com/products/compute/pricing/general-purpose",
+    "region": "us-central1",
+    "machine": "e2-medium",
+    "vcpu_shared": 2,
+    "memory_gib": 4,
+    "hourly": 0.03350571,
+    "page_sha256": "1d8965ee52258b3dc549880aa1873cfc5a5a5970a7aa1020bed883da82920912",
+    "disk_source": "https://cloud.google.com/compute/disks-image-pricing",
+    "balanced_gib_hour": 0.000136986,
+    "network_source": "https://cloud.google.com/vpc/network-pricing",
+    "ipv4_hourly": 0.005,
+    "standard_free_gib": 200,
+    "standard_next_tier_gib": 0.085,
+    "premium_free_gib": 1,
+    "premium_next_tier_gib": 0.12
+  },
+  "azure": {
+    "source": "https://prices.azure.com/api/retail/prices?%24filter=serviceName+eq+%27Virtual+Machines%27+and+armRegionName+eq+%27eastus%27+and+armSkuName+eq+%27Standard_B2als_v2%27",
+    "selected_meter": {
+      "currencyCode": "USD",
+      "tierMinimumUnits": 0.0,
+      "retailPrice": 0.0376,
+      "unitPrice": 0.0376,
+      "armRegionName": "eastus",
+      "location": "US East",
+      "effectiveStartDate": "2023-09-01T00:00:00Z",
+      "meterId": "99b2bb11-49bf-52b4-bcb7-d7c818cbb8c1",
+      "meterName": "B2als v2",
+      "productId": "DZH318Z0K9JH",
+      "skuId": "DZH318Z0K9JH/01JQ",
+      "productName": "Virtual Machines Basv2 Series",
+      "skuName": "B2als v2",
+      "serviceName": "Virtual Machines",
+      "serviceId": "DZH313Z7MMC8",
+      "serviceFamily": "Compute",
+      "unitOfMeasure": "1 Hour",
+      "type": "Consumption",
+      "isPrimaryMeterRegion": true,
+      "armSkuName": "Standard_B2als_v2"
+    },
+    "bandwidth_source": "https://azure.microsoft.com/en-us/pricing/details/bandwidth/",
+    "free_egress_decimal_gb": 100,
+    "next_tier_egress_gb": 0.087
+  },
+  "allowances_not_vendor_quotes": {
+    "backup_and_domain_monthly": 6,
+    "azure_disk_and_ip_monthly": 9,
+    "wire_overhead_fraction": 0.2,
+    "extra_asset_reconnect_keepalive_decimal_gb": 20,
+    "stored_bytes_per_move": 256
+  }
+}
