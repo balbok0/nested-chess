@@ -77,7 +77,7 @@
       <div id="budgets" class="table-wrap"></div>
       <p id="resources"></p>
       <p>Time budgets are unchanged from the presets. Global search uses all legal moves and a 100,000-node cap. The local baseline chooses a free board using <code>legal_boards[global_ply % count]</code>. Each game uses fresh engine processes.</p>
-      <p>Confidence bounds use Bonferroni-adjusted Clopper–Pearson intervals for the paired-outcome distribution. They account for pairing and remain nonzero at 0% or 100% observed wins. They describe these engine runs, not optimal play or Elo. <a href="https://itl.nist.gov/div898/handbook/prc/section2/prc241.htm">Binomial interval reference</a>.</p>
+      <p>Confidence bounds use Bonferroni-adjusted Clopper–Pearson intervals for the paired-outcome distribution. They account for pairing and remain nonzero at 0% or 100% observed wins. Bounds are per pairing, not jointly corrected across the matrix. They describe these engine runs, not optimal play or Elo. <a href="https://itl.nist.gov/div898/handbook/prc/section2/prc241.htm">Binomial interval reference</a>.</p>
       <p><a href="https://github.com/balbok0/nested-chess/tree/main/benchmarks/classical-2x2">Games, protocol, telemetry, and summary</a> · <a href="https://github.com/balbok0/nested-chess/blob/main/crates/engine/examples/benchmark.rs">Runner</a></p>
     </details>
   </section>

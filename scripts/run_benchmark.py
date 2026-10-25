@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import os
 import platform
 import subprocess
 import time
@@ -67,9 +68,15 @@ def prepare_final(directory: Path, workers: int, pilot_workers: int) -> None:
         "search_revision": "56ab470", "benchmark_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
         "binary_sha256": hashlib.sha256(Path("target/release/examples/benchmark").read_bytes()).hexdigest(),
         "platform": platform.platform(), "cpu": platform.processor(), "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "build_profile": "release", "logical_cpus": os.cpu_count(),
+        "rustc": subprocess.check_output(["rustc", "--version"], text=True).strip(),
+        "node": subprocess.check_output(["node", "--version"], text=True).strip(),
+        "fairy_stockfish": {"npm_version": "1.1.12", "source_revision": "b2e693ef1e111233ce3fb40685921708b3276ed6", "threads": 1, "nnue": False},
         "interval": "95% simultaneous Bonferroni-Clopper-Pearson bounds on the paired-outcome distribution, optimized over the probability bounds; one sample unit is a color-swapped pair.",
     }
     (directory / "jobs.json").write_text(f"{json.dumps(jobs)}\n")
+    if Path("/proc/cpuinfo").exists():
+        protocol["cpu"] = next(line.split(":", 1)[1].strip() for line in Path("/proc/cpuinfo").read_text().splitlines() if line.startswith("model name"))
     (directory / "protocol.json").write_text(f"{json.dumps(protocol, indent=2)}\n")
     (directory / "results.jsonl").touch(exist_ok=False)
 
