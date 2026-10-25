@@ -26,7 +26,10 @@ lets you choose a fixed Classic, Classic Dark, Light, or Dark theme; an explicit
 choice overrides the system preference and is preserved across reloads. The optional
 **Show board evaluations** setting displays Fairy-Stockfish scores on each board
 and the selected board. Positive scores favor White; negative scores favor Black,
-in pawn units. Forced king-capture predictions have separate labels. Evaluations
+in pawn units. The selected board has a vertical bar with White at the bottom and
+Black at the top, independent of board orientation. The bar uses a nonlinear
+visual scale, not a win probability; pending or unavailable scores are not shown
+as an equal position. Forced king-capture predictions have separate labels. Evaluations
 ignore routing and assume alternating local turns. They use full engine skill,
 independently of the opponent difficulty, and run one position at a time. Identical
 positions share a result, and stale searches are canceled when the position changes.

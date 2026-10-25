@@ -1,3 +1,6 @@
+const BAR_SCALE_CP = 400;
+const BAR_MIN_PERCENT = 2;
+
 export function parseEvaluation(lines, turn) {
   if (!['white', 'black'].includes(turn)) throw new TypeError('Evaluation turn must be white or black.');
   for (const line of lines.toReversed()) {
@@ -15,9 +18,19 @@ export function parseEvaluation(lines, turn) {
 
 export function describeEvaluation(evaluation) {
   if (evaluation.kind === 'capture') {
-    return { label: `${evaluation.winner === 'white' ? 'W' : 'B'} capture`, title: `The local search predicts ${evaluation.winner === 'white' ? 'White' : 'Black'} can force a king capture. Routing may change this.` };
+    return {
+      label: `${evaluation.winner === 'white' ? 'W' : 'B'} capture`,
+      title: `The local search predicts ${evaluation.winner === 'white' ? 'White' : 'Black'} can force a king capture. Routing may change this.`,
+      barLabel: evaluation.winner === 'white' ? 'W' : 'B',
+      whitePercent: evaluation.winner === 'white' ? 100 : 0,
+    };
   }
   const pawns = Math.abs(evaluation.value) < 5 ? 0 : evaluation.value / 100;
   const label = `${pawns > 0 ? '+' : ''}${pawns.toFixed(1)}`;
-  return { label, title: `Local evaluation: ${label} pawn units from White’s perspective. Routing is not considered.` };
+  return {
+    label,
+    title: `Local evaluation: ${label} pawn units from White’s perspective. Routing is not considered.`,
+    barLabel: label,
+    whitePercent: Math.max(BAR_MIN_PERCENT, Math.min(100 - BAR_MIN_PERCENT, Math.round(50 + 50 * Math.tanh(evaluation.value / BAR_SCALE_CP)))),
+  };
 }

@@ -45,10 +45,19 @@ function savePreferences() {
 }
 
 function evaluationFor(board) {
-  if (board.outcome !== 'ongoing') return { label: board.outcome === 'draw' ? 'Draw' : `${capitalize(board.outcome)} won`, title: 'Board result' };
+  if (board.outcome !== 'ongoing') {
+    const label = board.outcome === 'draw' ? 'Draw' : `${capitalize(board.outcome)} won`;
+    return {
+      label, title: label,
+      barLabel: board.outcome === 'draw' ? '½' : board.outcome === 'white' ? 'W' : 'B',
+      whitePercent: board.outcome === 'draw' ? 50 : board.outcome === 'white' ? 100 : 0,
+    };
+  }
   const result = evaluations.get(board.id);
-  if (result?.fen !== board.fen && evaluationError) return { label: '—', title: evaluationError };
-  return result?.fen === board.fen ? describeEvaluation(result.evaluation) : { label: '…', title: 'Evaluation pending' };
+  if (result?.fen === board.fen) return describeEvaluation(result.evaluation);
+  return evaluationError
+    ? { label: '—', title: evaluationError, barLabel: '—', whitePercent: null }
+    : { label: '…', title: 'Evaluation pending', barLabel: '…', whitePercent: null };
 }
 
 function updateEvaluations() {
@@ -61,12 +70,16 @@ function updateEvaluations() {
     element.title = description.title;
     element.setAttribute('aria-label', description.title);
   });
-  $('focus-evaluation').hidden = !preferences.evaluations;
+  $('evaluation-bar').hidden = !preferences.evaluations;
   if (preferences.evaluations) {
     const description = evaluationFor(state.boards[viewing]);
-    $('focus-evaluation').textContent = description.label;
-    $('focus-evaluation').title = description.title;
-    $('focus-evaluation').setAttribute('aria-label', description.title);
+    $('focus-evaluation').textContent = description.barLabel;
+    $('evaluation-bar').title = description.title;
+    $('evaluation-bar').setAttribute('aria-label', description.title);
+    $('evaluation-bar').dataset.ready = String(description.whitePercent !== null);
+    $('evaluation-bar').dataset.side = description.whitePercent === null ? 'pending' : description.whitePercent < 50 ? 'black' : 'white';
+    $('evaluation-white').hidden = description.whitePercent === null;
+    $('evaluation-white').style.height = `${description.whitePercent ?? 0}%`;
   }
   const complete = state.boards.filter(board => board.outcome !== 'ongoing' || evaluations.get(board.id)?.fen === board.fen).length;
   $('evaluation-status').textContent = !preferences.evaluations ? 'Off' : evaluationError || (busy || ($('mode').value === 'bot' && state.turn === 'black') ? 'Waiting for the opponent’s move.' : complete === state.boards.length ? 'Evaluations up to date.' : `Evaluating boards: ${complete}/${state.boards.length}`);

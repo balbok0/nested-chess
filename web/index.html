@@ -29,8 +29,14 @@
         <div class="scorecard"><div class="section-heading"><h2>Boards won</h2></div><div class="score-values"><div><span>White</span><strong id="white-score">0</strong></div><span class="score-divider">–</span><div><span>Black</span><strong id="black-score">0</strong></div></div><div class="score-foot"><span id="draws">0 drawn</span><span id="remaining">4 unfinished</span></div></div>
       </aside>
       <section class="focus">
-        <div class="focus-heading"><h2 id="focus-title">Board A1</h2><div class="focus-status"><output id="focus-evaluation" class="evaluation" aria-label="Board evaluation" hidden></output><span id="board-status" class="status-tag">Playable</span></div></div>
-        <div class="board-frame"><div id="rank-labels" class="rank-labels" aria-hidden="true"></div><div id="chessboard" class="chessboard" aria-label="Selected chess board"></div><div class="file-labels" aria-hidden="true"></div></div>
+        <div class="focus-heading"><h2 id="focus-title">Board A1</h2><span id="board-status" class="status-tag">Playable</span></div>
+        <div class="board-layout">
+          <div id="evaluation-bar" class="evaluation-bar" role="img" aria-label="Evaluation pending" data-ready="false" data-side="pending" hidden>
+            <div id="evaluation-white" class="evaluation-white" aria-hidden="true" hidden></div>
+            <output id="focus-evaluation" aria-hidden="true">…</output>
+          </div>
+          <div class="board-frame"><div id="rank-labels" class="rank-labels" aria-hidden="true"></div><div id="chessboard" class="chessboard" aria-label="Selected chess board"></div><div class="file-labels" aria-hidden="true"></div></div>
+        </div>
         <div class="route-strip"><strong id="route-title">Next board</strong><span id="route-detail">Select a piece.</span></div>
         <div class="board-tools"><button id="undo" class="text-button">Undo</button><span id="local-counts">White: 0 moves · Black: 0 moves</span><button id="flip" class="text-button">Flip board</button></div>
       </section>
@@ -58,6 +64,7 @@
     <div class="evaluation-settings">
       <label class="checkbox-label" for="show-evaluations"><input id="show-evaluations" type="checkbox" />Show board evaluations</label>
       <p class="small-note">Positive scores favor White; negative scores favor Black. Scores are in pawn units, not win probabilities.</p>
+      <p class="small-note">The main board’s bar shows White from the bottom and Black from the top. It is a visual evaluation scale, not a win probability.</p>
       <p class="small-note">Evaluations assume alternating moves on each board and ignore routing. They are estimates of the local position, not the whole match.</p>
       <p id="evaluation-status" class="small-note" role="status">Off</p><button id="retry-evaluations" class="text-button" hidden>Retry evaluations</button>
     </div>

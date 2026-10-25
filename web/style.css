@@ -169,13 +169,20 @@ h1, h2 { font-family: var(--heading-font); }
 .score-values strong { font-size: 30px; font-weight: 500; font-variant-numeric: tabular-nums; display: block; margin-top: 5px; }
 .score-divider { color: var(--muted); }
 .score-foot { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
-.focus-heading { display: flex; justify-content: space-between; align-items: center; min-height: 24px; margin: 0 0 12px 18px; gap: 10px; }
+.focus:has(.evaluation-bar:not([hidden])) { --board-indent: 56px; }
+.focus-heading { display: flex; justify-content: space-between; align-items: center; min-height: 24px; margin: 0 0 12px var(--board-indent, 18px); gap: 10px; }
 .focus-heading h2 { font-size: 17px; font-weight: 600; }
-.focus-status { display: flex; align-items: center; gap: 12px; }
 .status-tag { font-size: 12px; color: var(--accent); }
 .status-tag.inactive { color: var(--muted); }
-.evaluation { font: 600 14px Arial, sans-serif; font-variant-numeric: tabular-nums; border: 1px solid var(--border); background: var(--panel); padding: 4px 7px; white-space: nowrap; }
-.board-frame { position: relative; margin-left: 18px; padding-bottom: 21px; }
+.board-layout { display: flex; gap: 8px; }
+.evaluation-bar { position: relative; flex: 0 0 30px; margin-bottom: 21px; border: 1px solid #888; background: #262626; overflow: hidden; }
+.evaluation-white { position: absolute; bottom: 0; left: 0; right: 0; background: #fff; transition: height 180ms linear; }
+.evaluation-bar output { position: absolute; left: 0; right: 0; text-align: center; font: 600 10px Arial, sans-serif; font-variant-numeric: tabular-nums; }
+.evaluation-bar[data-side="white"] output { bottom: 6px; color: #111; }
+.evaluation-bar[data-side="black"] output { top: 6px; color: #fff; }
+.evaluation-bar[data-ready="false"] { background: var(--control); }
+.evaluation-bar[data-side="pending"] output { top: 50%; transform: translateY(-50%); color: var(--muted); }
+.board-frame { position: relative; flex: 1; min-width: 0; margin-left: 18px; padding-bottom: 21px; }
 .chessboard { display: grid; grid-template-columns: repeat(8, 1fr); aspect-ratio: 1; border: 1px solid var(--board-edge); }
 .square { aspect-ratio: 1; min-width: 0; position: relative; border: 0; border-radius: 0; padding: 0; display: grid; place-items: center; background: var(--board-light); }
 .square.dark { background: var(--board-dark); }
@@ -188,12 +195,12 @@ h1, h2 { font-family: var(--heading-font); }
 .square:hover { box-shadow: inset 0 0 0 2px #172a3277; }
 .square:focus-visible { outline-offset: -3px; z-index: 2; }
 .rank-labels { position: absolute; right: calc(100% + 7px); top: 0; bottom: 21px; display: flex; flex-direction: column; justify-content: space-around; font-size: 11px; color: var(--muted); }
-.file-labels { display: flex; padding-top: 6px; font-size: 11px; color: var(--muted); }
+.file-labels { position: absolute; bottom: 0; left: 0; right: 0; height: 21px; display: flex; padding-top: 6px; font-size: 11px; color: var(--muted); }
 .file-labels span { width: 12.5%; text-align: center; }
-.route-strip { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 10px; padding: 10px 12px; margin-left: 18px; background: var(--panel); border: 1px solid var(--border); font-size: 12px; min-height: 38px; }
+.route-strip { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 10px; padding: 10px 12px; margin-left: var(--board-indent, 18px); background: var(--panel); border: 1px solid var(--border); font-size: 12px; min-height: 38px; }
 .route-strip strong { font-weight: 600; }
 .route-strip > span { color: var(--muted); line-height: 1.5; }
-.board-tools { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 0 18px; gap: 10px; }
+.board-tools { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 0 var(--board-indent, 18px); gap: 10px; }
 .board-tools > span { color: var(--muted); font-size: 11px; }
 .sidebar { border-left: 1px solid var(--border); padding-left: 20px; }
 label { font-size: 12px; }
@@ -267,7 +274,6 @@ dialog li { font-size: 13px; line-height: 1.65; margin: 13px 0; }
   .sidebar { order: 2; display: block; }
   .focus-heading { margin-bottom: 10px; }
   .focus-heading h2 { font-size: 16px; }
-  .focus-status { gap: 8px; }
   .piece { font-size: clamp(27px, 9vw, 54px); }
   .board-tools > span { font-size: 10px; }
   .tiny-square { font-size: clamp(12px, 4.2vw, 24px); }
@@ -276,3 +282,4 @@ dialog li { font-size: 13px; line-height: 1.65; margin: 13px 0; }
   .theme-options { gap: 8px; }
   .theme-option { padding: 8px; }
 }
+@media (prefers-reduced-motion: reduce) { .evaluation-white { transition: none; } }

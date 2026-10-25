@@ -31,3 +31,15 @@ test('an invalid perspective raises an error', () => assert.throws(() => parseEv
 for (const [winner, expected] of [['white', 'W capture'], ['black', 'B capture']]) {
   test(`${winner} forced capture is labeled as a capture`, () => assert.equal(describeEvaluation({ kind: 'capture', winner }).label, expected));
 }
+
+for (const { name, evaluation, expected } of [
+  { name: 'equal position splits the bar equally', evaluation: { kind: 'cp', value: 0 }, expected: 50 },
+  { name: 'one pawn for White expands the bottom', evaluation: { kind: 'cp', value: 100 }, expected: 62 },
+  { name: 'one pawn for Black expands the top', evaluation: { kind: 'cp', value: -100 }, expected: 38 },
+  { name: 'large finite White advantage retains a Black segment', evaluation: { kind: 'cp', value: 10000 }, expected: 98 },
+  { name: 'large finite Black advantage retains a White segment', evaluation: { kind: 'cp', value: -10000 }, expected: 2 },
+  { name: 'forced White capture fills the bar white', evaluation: { kind: 'capture', winner: 'white' }, expected: 100 },
+  { name: 'forced Black capture fills the bar black', evaluation: { kind: 'capture', winner: 'black' }, expected: 0 },
+]) {
+  test(name, () => assert.equal(describeEvaluation(evaluation).whitePercent, expected));
+}
