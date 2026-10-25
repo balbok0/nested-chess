@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="data:,">
+  <title>Online play: scope and cost · Nested chess</title>
+  <style>
+    :root { color-scheme:light dark; --paper:#f7f5ef; --ink:#272722; --muted:#65645c; --line:#d7d3c7; --panel:#eeece4; --link:#375b47; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.65 system-ui,sans-serif; }
+    main { max-width:1000px; margin:auto; padding:28px 24px 64px; }
+    h1,h2 { font-family:Georgia,serif; font-weight:500; line-height:1.2; }
+    h1 { font-size:37px; } h2 { font-size:26px; margin:0 0 18px; }
+    section,header { border-bottom:1px solid var(--line); margin-bottom:28px; padding-bottom:26px; }
+    p { max-width:88ch; margin:0 0 15px; }
+    a { color:var(--link); text-underline-offset:3px; }
+    small,.muted { color:var(--muted); }
+    .tables { overflow-x:auto; margin:18px 0; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th,td { text-align:left; vertical-align:top; border-bottom:1px solid var(--line); padding:10px; }
+    th { font-weight:600; }
+    code,pre { font:13px/1.6 ui-monospace,monospace; }
+    pre { white-space:pre-wrap; overflow-wrap:anywhere; background:var(--panel); padding:16px; }
+    .inputs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px 24px; margin:20px 0; }
+    label { display:grid; gap:5px; }
+    input,button,select { font:inherit; color:var(--ink); background:var(--paper); border:1px solid var(--line); border-radius:2px; padding:7px 10px; max-width:100%; }
+    button { cursor:pointer; margin:0 7px 10px 0; } button:hover { border-color:var(--link); }
+    .output { background:var(--panel); padding:16px; margin:15px 0; font-variant-numeric:tabular-nums; }
+    li { margin-bottom:9px; }
+    details { margin:18px 0; } summary { cursor:pointer; }
+    :focus-visible { outline:2px solid var(--link); outline-offset:3px; }
+    @media(prefers-color-scheme:dark) { :root { --paper:#24221f; --ink:#e6e1d6; --muted:#b3ac9d; --line:#49453d; --panel:#302d28; --link:#b6c5a5; } }
+    @media(max-width:600px) { main { padding:20px 15px 40px; } h1 { font-size:30px; } .inputs { grid-template-columns:1fr; } }
+    @media print { button { display:none; } main { max-width:none; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <a href="https://github.com/balbok0/nested-chess/tree/explore/online-play">Exploration branch</a>
+    <h1>Online play: scope and cost</h1>
+    <p><strong>100 simultaneous human games looks feasible on a small Rust server.</strong> I would start with a 4 GB AWS Lightsail VM, SQLite, and Google login. Budget about <strong>$30–40/month</strong> for the service and backups. The hard work is reliable multiplayer and account handling; validating chess moves is cheap.</p>
+    <p class="muted">Proposal, not an implemented backend. Prices checked 25 October 2026, USD, selected US regions, no tax or promotional credits. One server, without automatic failover. Server-side bots and spectators are excluded from the base estimate.</p>
+  </header>
+  <section>
+    <h2>What changes</h2>
+    <p>The existing Rust crate already validates moves, routes turns, scores boards, and saves/replays matches. The deployed app is a browser client on <a href="https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages">GitHub Pages</a>; a new backend would own online games.</p>
+    <div class="tables"><table>
+      <thead><tr><th>Area</th><th>Proposed first version</th></tr></thead>
+      <tbody>
+        <tr><th>Accounts</th><td><a href="https://developers.google.com/identity/openid-connect/openid-connect">Google OpenID Connect</a>, a chosen username, and server sessions in secure HttpOnly cookies. Identify accounts by provider + subject, not email. Use full-page redirects to avoid popup dependencies under the app's isolation headers. Email/password can use a managed provider later.</td></tr>
+        <tr><th>Multiplayer</th><td>Invite links first, then a simple matchmaking queue. Two seats with assigned colors; both agree to the grid and settings. Rust validates every action and sends committed events over WebSockets.</td></tr>
+        <tr><th>History</th><td>Account page listing opponent, settings, result, date, and rating change. Existing WASM replays a server-owned move log. Store original starts and rules version with every game; compact completed logs and evict finished games from memory.</td></tr>
+        <tr><th>Ratings</th><td>One rating result per complete match: win 1, draw ½, loss 0. Start with Elo and provisional labels. Local boards are correlated parts of one game, so do not count them as separate rating results.</td></tr>
+        <tr><th>Reliable play</th><td>Sequence numbers, duplicate-request handling, reconnect/resync, resignation, and server-owned clocks. Decide disconnect and server-outage outcomes before opening rated play.</td></tr>
+      </tbody>
+    </table></div>
+    <p>I recommend one initial rated pool for human classical 2×2, with other settings available through casual invites and bot games unrated. More rated queues split a small player population. The existing evaluation worker should be disabled during rated games; that does not prevent external engine assistance.</p>
+  </section>
+  <section>
+    <h2>Server shape</h2>
+    <pre>Browser UI + WASM  ↔  Rust / Axum  ↔  SQLite on persistent disk
+                         │
+                    Google login
+
+TLS and static assets share the app's origin.</pre>
+    <p>One Rust process can own 100 matches and their socket connections. Use a serialized command queue per game and a bounded SQLite writer. <a href="https://docs.rs/axum/latest/axum/extract/ws/index.html">Axum supports WebSockets</a>; <a href="https://www.sqlite.org/wal.html">SQLite WAL</a> permits concurrent readers with one writer.</p>
+    <ol>
+      <li>The client submits <code>{request_id, expected_seq, board, uci}</code>. The session identifies the user; the server checks their seat, turn, and current sequence.</li>
+      <li>Validate against a candidate clone of the Rust game. Commit the event and new game sequence in one database transaction, then swap the cached game and broadcast. A failed commit leaves the accepted position unchanged.</li>
+      <li>A retry with the same request ID returns the recorded result. A sequence gap triggers resync. Reconnect loads the persisted log; clients never submit an authoritative result or arbitrary position.</li>
+      <li>When a match finishes, store its result and both rating changes exactly once in one transaction. Rebuild a lost cache from the log after restart.</li>
+    </ol>
+    <p>Use an event sequence independent of chess ply: resignations and other match actions can change state without moving a piece. The current save loader replays its history; saving its JSON does not create a fast native checkpoint.</p>
+    <details><summary>Data and client boundaries</summary>
+      <p>Small tables: users; provider identities; sessions; games; ordered game events; ratings; rating changes. Enforce unique provider identity, username, game sequence, request ID within a game, and rating change per player/game. The server controls these writes.</p>
+      <p>The current UI directly owns its WASM game and local saves. Patching online checks into every handler is quicker initially. I recommend extracting a small session interface for local/bot/remote play instead: it makes turn permissions, undo/import availability, and reconnection explicit without rewriting the renderer. Allow roughly 1–2 extra development days for that separation.</p>
+      <p>Player clocks belong to the whole match. A disconnect should not automatically concede a game; reconnect while its clock runs. Server outages need an explicit pause/abort policy. These are proposed online rules, not changes to the existing offline game.</p>
+    </details>
+  </section>
+  <section>
+    <h2>Capacity measured so far</h2>
+    <p>A release-build experiment runs real legal moves across 100 games per grid. These are native engine measurements on the Ryzen 9 5950X while the bot benchmark was running—not an HTTP, TLS, database, or cloud load test.</p>
+    <div class="tables"><table>
+      <thead><tr><th>Grid</th><th>Move validation p95</th><th>Candidate clone p95</th><th>Full view + JSON p95</th><th>Process RSS, 100 games</th></tr></thead>
+      <tbody>
+        <tr><th>2×2</th><td>31 µs</td><td>223 µs</td><td>145 µs</td><td>14 MiB</td></tr>
+        <tr><th>4×4</th><td>41 µs</td><td>425 µs</td><td>236 µs</td><td>39 MiB</td></tr>
+        <tr><th>8×8</th><td>63 µs</td><td>982 µs</td><td>498 µs</td><td>138 MiB</td></tr>
+      </tbody>
+    </table></div>
+    <p>Each grid received 20,000 moves; retained games were about 200 plies. RSS includes the harness and allocator retention across grids, not just engine objects. Longer games retain more repetition history. The engine stores full position keys, so this memory grows with both board count and history length.</p>
+    <p>A second run issued 1,000 moves per game slot: 300,000 accepted moves total. RSS reached 22/184/669 MiB for 2×2/4×4/8×8. Finished games restarted, leaving mean histories of 267/991/1,000 plies. In the 8×8 sample, candidate cloning took 5.0 ms at p95 and replaying a 1,000-ply save took 62 ms. A 4 GB VM looks reasonable, with long-game limits and real cloud load testing still needed.</p>
+    <p>Send small move events during play and a full state on join/resync. The current full view includes the entire history: sending it after every move increases traffic as a game grows. Existing WASM can apply the accepted event locally.</p>
+    <p><a href="online-play/capacity.json">Raw 200-move trial</a> · <a href="online-play/capacity-long.json">Longer-history trial</a> · <a href="https://github.com/balbok0/nested-chess/blob/explore/online-play/crates/engine/examples/online_capacity.rs">Experiment source</a></p>
+  </section>
+  <section>
+    <h2>Monthly cost model</h2>
+    <p>100 simultaneous games means about 200 player connections. Peak concurrency does not determine monthly traffic, history, or unique users. Compare continuous full occupancy with an average of 20% of that peak.</p>
+    <button id="continuous" type="button">100 games continuously</button><button id="typical" type="button">20% average occupancy</button>
+    <div class="inputs">
+      <label>Peak games<input id="games" type="number" min="1" max="1000" step="1" value="100"></label>
+      <label>Average occupancy (% of peak)<input id="occupancy" type="number" min="0" max="100" step="1" value="100"></label>
+      <label>Seconds per global move in each active game<input id="seconds" type="number" min="0.2" max="300" step="0.1" value="5"></label>
+      <label>Event size per recipient (KiB)<input id="payload" type="number" min="0.1" max="100" step="0.1" value="1"></label>
+    </div>
+    <div id="volume" class="output" aria-live="polite"></div>
+    <div class="tables"><table>
+      <thead><tr><th>Provider / candidate</th><th>Compute</th><th>Disk + IP</th><th>Traffic estimate</th><th>Backups + domain allowance</th><th>Modeled total</th></tr></thead>
+      <tbody>
+        <tr><th>AWS Lightsail, US<br><small>2 vCPU / 4 GB</small></th><td>$24</td><td>80 GB + IPv4 included</td><td id="aws-egress"></td><td>$6</td><td id="aws-total"></td></tr>
+        <tr><th>GCP e2-medium, Iowa<br><small>2 shared vCPU / 4 GiB</small></th><td>$24.46</td><td>$11.65<br><small>80 GiB balanced disk + IPv4</small></td><td id="gcp-egress"></td><td>$6</td><td id="gcp-total"></td></tr>
+        <tr><th>Azure B2als v2, East US<br><small>2 vCPU / 4 GiB</small></th><td>$27.45</td><td>~$9 allowance<br><small>disk + IPv4</small></td><td id="azure-egress"></td><td>$6</td><td id="azure-total"></td></tr>
+      </tbody>
+    </table></div>
+    <p class="muted">A sizing hypothesis for roughly 100 human games, not a capacity guarantee at larger input values. Prices are modeled up to 1 TiB outbound/month. No load balancer or managed database is assumed. GCP uses explicitly configured Standard network tier; Premium tier would cost <span id="gcp-premium"></span> more in this model. Azure disk/IP and all backup/domain figures are planning allowances, not quoted totals.</p>
+    <details><summary>Assumptions and price sources</summary>
+      <p>730 hours/month; two recipients per move; 20% traffic overhead plus 20 decimal GB/month for assets, reconnects, and keepalives. History assumes 256 stored bytes per move including row/index overhead, with no compaction, plus 200 plies per completed game. These are adjustable workload assumptions, not measured production payloads. Log retention, unique monthly users, backup retention, taxes, and actual asset traffic can change the bill.</p>
+      <p><a href="https://aws.amazon.com/lightsail/pricing/">AWS</a>: the $24 public-IPv4 Linux bundle includes 4 TB transfer; snapshots are $0.05/GB-month. Region allowances vary. The modeled traffic fits the bundle, including an allowance for inbound requests.</p>
+      <p><a href="https://cloud.google.com/products/compute/pricing/general-purpose">GCP compute</a>: e2-medium $0.03350571/hour. <a href="https://cloud.google.com/compute/disks-image-pricing">Balanced disk</a>: about $0.10/GiB-month. <a href="https://cloud.google.com/vpc/network-pricing">Network</a>: IPv4 $0.005/hour; Standard tier includes 200 GiB, then $0.085/GiB at this volume. Premium to North America/Europe uses $0.12/GiB after 1 GiB.</p>
+      <p><a href="https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices">Azure Retail Prices API</a>: Linux Standard_B2als_v2 in eastus, on-demand $0.0376/hour. <a href="https://azure.microsoft.com/en-us/pricing/details/bandwidth/">Internet traffic</a>: first 100 decimal GB free, then $0.087/GB from North America. See <a href="online-play/prices.json">captured rates and provenance</a>.</p>
+    </details>
+    <p><strong>My choice: AWS Lightsail at roughly $30–40/month initially.</strong> The bundled disk and traffic make the bill predictable. Run SQLite on that VM with tested off-machine backups. Moving to managed PostgreSQL buys operational convenience and easier multiple-server deployment, at additional cost and coordination work; 100 player-versus-player games do not yet justify that structure.</p>
+    <details><summary>Managed-container alternative</summary>
+      <p>A Rust container plus managed PostgreSQL and a managed identity provider reduces VM maintenance. It also needs shared match ownership and delivery across instances. <a href="https://docs.cloud.google.com/run/docs/triggering/websockets">Cloud Run</a> supports WebSockets, but open sockets keep an instance active and billed; connections time out and must reconnect, and affinity is best-effort. That architecture deserves its own database and always-active compute budget. The VM estimates above do not apply to it.</p>
+    </details>
+    <p>The continuous-occupancy model adds about 13.5 GB of uncompressed event storage each month. An 80 GB disk would fill within months after allowing for the OS and backup workspace. Compact completed replays or expand storage; the initial bill is not a promise of unlimited history at that price.</p>
+    <p>Continuous server-side Fairy-Stockfish games are a separate workload. Keep solo bots in the browser as today; otherwise budget and benchmark an engine-worker pool separately. A human match only needs the native rules engine.</p>
+  </section>
+  <section>
+    <h2>Ratings and implementation order</h2>
+    <p>Start everyone on an arbitrary common scale, such as 1500. A simple Elo update uses <code>expected = 1 / (1 + 10^((opponent − player) / 400))</code> and <code>new = old + K × (result − expected)</code>. I would start with K = 32 for both players and mark their first 20 rated matches provisional. This is a rating within this game, with no conversion to chess.com or FIDE Elo.</p>
+    <p>Elo does not supply calibrated uncertainty. <a href="https://www.glicko.net/glicko/glicko2.pdf">Glicko-2</a> adds rating deviation and volatility, but its rating-period policy needs care in a small pool. I recommend simple Elo first; keep immutable results and rating algorithm versions so ratings can be recomputed.</p>
+    <div class="tables"><table>
+      <thead><tr><th>Stage</th><th>Deliverable</th><th>Rough engineering effort</th></tr></thead>
+      <tbody>
+        <tr><th>Private play</th><td>Rust server, session boundary, invite/join, authoritative moves, durable log, reconnect and basic history.</td><td>4–7 working days</td></tr>
+        <tr><th>Accounts and ratings</th><td>OIDC login, profiles, account history, clocks/resignation policy, exactly-once rating updates, simple queue.</td><td>4–7 days</td></tr>
+        <tr><th>Public release</th><td>Two-browser/restart tests, rate limits, operational visibility, backup restore, deployment and real network load test.</td><td>3–5 days</td></tr>
+      </tbody>
+    </table></div>
+    <p>Roughly 2–4 weeks for a small public version, with invite-only play available earlier. This is a planning estimate, not measured work. OAuth provider registration, hosting credentials, and a domain are required for deployment.</p>
+    <p>Before sizing is accepted: test 200 TLS WebSocket clients, 20–50 accepted moves/second, duplicate/out-of-order requests, reconnect bursts, long 8×8 histories, and process restarts against the actual cloud disk. Aim for server-side move acknowledgments under 100 ms at p95, excluding internet latency. Hold sustained load long enough to expose burst-credit limits.</p>
+    <p class="muted">Exploration only. No accounts, cloud resources, or live multiplayer deployment were created. The main bot benchmark continues independently.</p>
+  </section>
+</main>
+<script>
+  const $ = id => document.getElementById(id);
+  const money = value => `$${value.toFixed(2)}`;
+  const MONTH_SECONDS = 730 * 3600;
+  function update() {
+    const inputs = ['games','occupancy','seconds','payload'].map($);
+    if (!inputs.every(input => input.checkValidity() && input.value !== '')) {
+      $('volume').textContent = 'Enter values within the displayed input limits to update the estimate.';
+      for (const provider of ['aws','gcp','azure']) {
+        $(`${provider}-egress`).textContent = '—';
+        $(`${provider}-total`).textContent = '—';
+      }
+      $('gcp-premium').textContent = 'an uncalculated amount';
+      return;
+    }
+    const [games, occupancy, seconds, payload] = inputs.map(input => Number(input.value));
+    const movesPerSecond = games * occupancy / 100 / seconds;
+    const monthlyMoves = movesPerSecond * MONTH_SECONDS;
+    const outgoingBytes = monthlyMoves * 2 * payload * 1024 * 1.2 + 20e9;
+    const gb = outgoingBytes / 1e9, gib = outgoingBytes / 2**30;
+    const gcpTraffic = Math.max(0, gib - 200) * .085;
+    const azureTraffic = Math.max(0, gb - 100) * .087;
+    const premiumTraffic = Math.max(0, gib - 1) * .12;
+    $('volume').textContent = `${(games * occupancy / 100).toFixed(1)} active games on average · ${movesPerSecond.toFixed(1)} moves/s · ${(monthlyMoves / 1e6).toFixed(2)} million moves/month · ${gb.toFixed(1)} GB outbound/month · ${(monthlyMoves * 256 / 1e9).toFixed(1)} GB new history/month · ${(monthlyMoves / 200).toLocaleString(undefined,{maximumFractionDigits:0})} completed games/month at 200 plies each`;
+    if (gib > 1024) {
+      for (const provider of ['aws','gcp','azure']) {
+        $(`${provider}-egress`).textContent = 'Above modeled range';
+        $(`${provider}-total`).textContent = 'Requote at this volume';
+      }
+      $('gcp-premium').textContent = 'an uncalculated amount';
+      return;
+    }
+    for (const [provider, traffic, base] of [['aws',0,30],['gcp',gcpTraffic,.03350571*730+8+.005*730+6],['azure',azureTraffic,.0376*730+9+6]]) {
+      $(`${provider}-egress`).textContent = money(traffic);
+      $(`${provider}-total`).textContent = `~${money(base+traffic)}/mo`;
+    }
+    $('gcp-premium').textContent = `${money(premiumTraffic-gcpTraffic)}/month`;
+  }
+  for (const id of ['games','occupancy','seconds','payload']) $(id).addEventListener('input', update);
+  $('continuous').onclick = () => { $('games').value=100; $('occupancy').value=100; update(); };
+  $('typical').onclick = () => { $('games').value=100; $('occupancy').value=20; update(); };
+  update();
+</script>
+</body>
+</html>
