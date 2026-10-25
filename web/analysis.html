@@ -68,6 +68,14 @@
     <div id="local-detail" class="detail" aria-live="polite" hidden></div>
   </section>
   <section>
+    <h2>Five-move opening trial</h2>
+    <p>Five setups use four different classical book lines each, developed independently for five full moves per board. Each setup is played with colors swapped by Casual global and Casual local against Strong local: 20 games total. Play starts with White and free board choice; routing applies from there.</p>
+    <p id="trial-diversity"></p>
+    <div id="trial-results" class="table-wrap"></div>
+    <p class="muted">Similarity compares color-labeled local move sequences, allowing board relabeling and ignoring global interleaving. Setup moves are excluded. These are selected positions, not a representative opening sample. The matched fresh-start pilots used different concurrency; the trial is a diversity check, not evidence of a strength change.</p>
+    <p><a href="https://github.com/balbok0/nested-chess/tree/main/benchmarks/opening-trial">Exact openings, games, and comparison data</a> · <a href="https://github.com/lichess-org/chess-openings">Opening source</a></p>
+  </section>
+  <section>
     <h2>Method</h2>
     <p>Win rate is wins ÷ games. Match score is (wins + ½ draws) ÷ games; above 50% means outscoring the opponent. Intervals treat a color-swapped pair as one observation and use conservative 95% bounds. Draws remain separate from wins.</p>
     <p id="openings"></p>
@@ -77,7 +85,7 @@
       <div id="budgets" class="table-wrap"></div>
       <p id="resources"></p>
       <p>Time budgets are unchanged from the presets. Global search uses all legal moves and a 100,000-node cap. The local baseline chooses a free board using <code>legal_boards[global_ply % count]</code>. Each game uses fresh engine processes.</p>
-      <p>Confidence bounds use Bonferroni-adjusted Clopper–Pearson intervals for the paired-outcome distribution. They account for pairing and remain nonzero at 0% or 100% observed wins. Bounds are per pairing, not jointly corrected across the matrix. They describe these engine runs, not optimal play or Elo. <a href="https://itl.nist.gov/div898/handbook/prc/section2/prc241.htm">Binomial interval reference</a>.</p>
+      <p>Confidence bounds use Bonferroni-adjusted Clopper–Pearson intervals for the paired-outcome distribution. They account for pairing and remain nonzero at 0% or 100% observed wins. Bounds are per pairing, not jointly corrected across the matrix. They assume independent, identically distributed pairs; shared machine load can weaken that assumption. They describe these engine runs, not optimal play or Elo. <a href="https://itl.nist.gov/div898/handbook/prc/section2/prc241.htm">Binomial interval reference</a>.</p>
       <p><a href="https://github.com/balbok0/nested-chess/tree/main/benchmarks/classical-2x2">Games, protocol, telemetry, and summary</a> · <a href="https://github.com/balbok0/nested-chess/blob/main/crates/engine/examples/benchmark.rs">Runner</a></p>
     </details>
   </section>
@@ -97,6 +105,7 @@
 </main>
 <script type="module">
   import data from './benchmark-results.json';
+  import trial from '../benchmarks/opening-trial/summary.json';
   const $ = id => document.getElementById(id);
   const percent = value => `${(value * 100).toFixed(1)}%`;
   const bounds = value => `${percent(value.low)}–${percent(value.high)}`;
@@ -149,6 +158,10 @@
   $('openings').textContent = `${conditions.filter(row => row.forced_openings).length} of ${conditions.length} pairings required forced openings after a 10-game determinism check. Each final pair shares a position with colors swapped. Pilots are excluded from the scored sample.`;
   if (data.protocol?.global_presets) $('budgets').innerHTML = `<table><thead><tr><th>Preset</th><th>Global depth cap</th><th>Global ms</th><th>Leaf nodes</th><th>Local skill</th><th>Local ms</th></tr></thead><tbody>${data.levels.map((level,i) => { const g=data.protocol.global_presets[i],l=data.protocol.local_presets[i]; return `<tr><th>${level}</th><td>${g.depth}</td><td>${g.milliseconds}</td><td>${g.analysis_nodes}</td><td>${l.skill}</td><td>${l.milliseconds}</td></tr>`; }).join('')}</tbody></table>`;
   if (data.resources) $('resources').textContent = `${data.protocol.workers} parallel games. System CPU mean ${data.resources.mean_system_cpu_percent.toFixed(1)}%, peak ${data.resources.peak_system_cpu_percent.toFixed(1)}%. Peak summed benchmark RSS ${(data.resources.peak_benchmark_rss_bytes / 2**30).toFixed(1)} GiB; peak system memory use ${data.resources.peak_system_memory_percent.toFixed(1)}%.`;
+  const fresh = trial.samples.find(sample => sample.name === 'standard');
+  const developed = trial.samples.find(sample => sample.name === 'developed');
+  $('trial-diversity').textContent = `Against the matched 20 fresh-start pilots, median local sequence similarity fell from ${percent(fresh.diversity.median_local_similarity)} to ${percent(developed.diversity.median_local_similarity)}; the closest pair fell from ${percent(fresh.diversity.maximum_local_similarity)} to ${percent(developed.diversity.maximum_local_similarity)}. Comparisons stay within the same policy and color: 40 game pairs per sample.`;
+  $('trial-results').innerHTML = `<table><thead><tr><th>Casual vs Strong local</th><th>Start</th><th>W–D–L</th><th>Match score · 95% bounds</th><th>No completed depth</th></tr></thead><tbody>${['global','local'].flatMap(family => trial.samples.map(sample => { const r = sample.results.find(row => row.family === family); return `<tr><th>${family === 'global' ? 'Global' : 'Local'}</th><td>${sample.name === 'standard' ? 'Fresh-start pilot' : 'Five-move openings'}</td><td>${r.wins}–${r.draws}–${r.losses}</td><td>${percent(r.score_rate)} · ${bounds(r.score_ci95)}</td><td>${family === 'global' ? percent(r.a_metrics.fallback_moves / r.a_metrics.moves) : '—'}</td></tr>`; })).join('')}</tbody></table>`;
 </script>
 </body>
 </html>

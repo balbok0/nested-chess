@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from scripts.benchmark_results import binomial_interval, paired_interval
+from scripts.benchmark_results import binomial_interval, paired_interval, summarize
 
 
 @pytest.mark.parametrize(
@@ -30,3 +30,19 @@ def test_paired_bounds(values, maximum, expected_low, expected_high):
     actual = paired_interval(values, maximum)
     assert math.isclose(actual.low, expected_low, abs_tol=1e-12)
     assert math.isclose(actual.high, expected_high, abs_tol=1e-12)
+
+
+@pytest.mark.parametrize(
+    "field,first,second",
+    [
+        pytest.param("opening", [], [{"board": 0, "uci": "e2e4"}], id="different_move_prefixes_rejected"),
+        pytest.param("initial_fens", ["first_position"], ["second_position"], id="different_starting_positions_rejected"),
+    ],
+)
+def test_color_pairs_require_matching_starts(field, first, second):
+    rows = [
+        {"job": {"id": color, "family": "global", "a_level": 1, "b_level": 3, "pair": 0, "a_color": color, "opening": [], field: start}}
+        for color, start in (("white", first), ("black", second))
+    ]
+    with pytest.raises(ValueError, match="different openings"):
+        summarize(rows)

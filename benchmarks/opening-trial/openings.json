@@ -1,0 +1,395 @@
+{
+  "source": "https://github.com/lichess-org/chess-openings",
+  "revision": "a6189a30dc273ccb21fc2536a9a2fefd5592a67a",
+  "license": "CC0-1.0",
+  "source_sha256": {
+    "a.tsv": "3282e4c9155289a29224f9a85fba0decb46efa35c2fa5e39662d2ac48fb0f793",
+    "b.tsv": "1d5ed134ebbd87915ead5683416e37583bb3e5ae3582b4d8cb5cb4aa7ef4f623",
+    "c.tsv": "45e843c7b7e79a0d04d5bda879c9bd23f5a10974488bd8615e4f4c5d0749986f",
+    "d.tsv": "1cf4057a8aece94f27bb3f278ad410ee2844831a642364eeceaafa091dbcceda",
+    "e.tsv": "48c6f6645b031a5937c8386839debab0e2e48837251687ba1afb6369677f8546"
+  },
+  "full_moves_per_board": 5,
+  "positions_in_board_order": [
+    {
+      "family": "Ruy Lopez",
+      "book_line": "Ruy Lopez: Morphy Defense, Modern Steinitz Defense, Siesta Variation",
+      "eco": "C74",
+      "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 d6 5. c3 f5",
+      "uci": [
+        "e2e4",
+        "e7e5",
+        "g1f3",
+        "b8c6",
+        "f1b5",
+        "a7a6",
+        "b5a4",
+        "d7d6",
+        "c2c3",
+        "f7f5"
+      ],
+      "fen": "r1bqkbnr/1pp3pp/p1np4/4pp2/B3P3/2P2N2/PP1P1PPP/RNBQK2R w KQkq f6 0 6"
+    },
+    {
+      "family": "Sicilian Defense",
+      "book_line": "Sicilian Defense: Closed",
+      "eco": "B25",
+      "pgn": "1. e4 c5 2. Nc3 Nc6 3. g3 g6 4. Bg2 Bg7 5. d3 d6",
+      "uci": [
+        "e2e4",
+        "c7c5",
+        "b1c3",
+        "b8c6",
+        "g2g3",
+        "g7g6",
+        "f1g2",
+        "f8g7",
+        "d2d3",
+        "d7d6"
+      ],
+      "fen": "r1bqk1nr/pp2ppbp/2np2p1/2p5/4P3/2NP2P1/PPP2PBP/R1BQK1NR w KQkq - 0 6"
+    },
+    {
+      "family": "Queen's Gambit Declined",
+      "book_line": "Queen's Gambit Declined: Semi-Tarrasch Defense",
+      "eco": "D41",
+      "pgn": "1. c4 c5 2. Nf3 Nf6 3. Nc3 Nc6 4. g3 d5 5. d4 e6",
+      "uci": [
+        "c2c4",
+        "c7c5",
+        "g1f3",
+        "g8f6",
+        "b1c3",
+        "b8c6",
+        "g2g3",
+        "d7d5",
+        "d2d4",
+        "e7e6"
+      ],
+      "fen": "r1bqkb1r/pp3ppp/2n1pn2/2pp4/2PP4/2N2NP1/PP2PP1P/R1BQKB1R w KQkq - 0 6"
+    },
+    {
+      "family": "English Opening",
+      "book_line": "English Opening: Symmetrical Variation, Botvinnik System Reversed, with e3",
+      "eco": "A36",
+      "pgn": "1. c4 c5 2. Nc3 Nc6 3. g3 g6 4. Bg2 Bg7 5. e3 e5",
+      "uci": [
+        "c2c4",
+        "c7c5",
+        "b1c3",
+        "b8c6",
+        "g2g3",
+        "g7g6",
+        "f1g2",
+        "f8g7",
+        "e2e3",
+        "e7e5"
+      ],
+      "fen": "r1bqk1nr/pp1p1pbp/2n3p1/2p1p3/2P5/2N1P1P1/PP1P1PBP/R1BQK1NR w KQkq e6 0 6"
+    },
+    {
+      "family": "Italian Game",
+      "book_line": "Italian Game: Classical Variation, Giuoco Pianissimo, with a6",
+      "eco": "C54",
+      "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. c3 Nf6 5. d3 a6",
+      "uci": [
+        "e2e4",
+        "e7e5",
+        "g1f3",
+        "b8c6",
+        "f1c4",
+        "f8c5",
+        "c2c3",
+        "g8f6",
+        "d2d3",
+        "a7a6"
+      ],
+      "fen": "r1bqk2r/1ppp1ppp/p1n2n2/2b1p3/2B1P3/2PP1N2/PP3PPP/RNBQK2R w KQkq - 0 6"
+    },
+    {
+      "family": "French Defense",
+      "book_line": "French Defense: Winawer Variation, Retreat Variation",
+      "eco": "C17",
+      "pgn": "1. e4 e6 2. d4 d5 3. Nc3 Bb4 4. e5 c5 5. a3 Ba5",
+      "uci": [
+        "e2e4",
+        "e7e6",
+        "d2d4",
+        "d7d5",
+        "b1c3",
+        "f8b4",
+        "e4e5",
+        "c7c5",
+        "a2a3",
+        "b4a5"
+      ],
+      "fen": "rnbqk1nr/pp3ppp/4p3/b1ppP3/3P4/P1N5/1PP2PPP/R1BQKBNR w KQkq - 1 6"
+    },
+    {
+      "family": "Caro-Kann Defense",
+      "book_line": "Caro-Kann Defense: Panov Attack",
+      "eco": "B14",
+      "pgn": "1. e4 c6 2. d4 d5 3. exd5 cxd5 4. c4 Nf6 5. Nc3 e6",
+      "uci": [
+        "e2e4",
+        "c7c6",
+        "d2d4",
+        "d7d5",
+        "e4d5",
+        "c6d5",
+        "c2c4",
+        "g8f6",
+        "b1c3",
+        "e7e6"
+      ],
+      "fen": "rnbqkb1r/pp3ppp/4pn2/3p4/2PP4/2N5/PP3PPP/R1BQKBNR w KQkq - 0 6"
+    },
+    {
+      "family": "King's Indian Defense",
+      "book_line": "King's Indian Defense: S\u00e4misch Variation, Normal Defense",
+      "eco": "E81",
+      "pgn": "1. d4 Nf6 2. c4 g6 3. Nc3 Bg7 4. e4 d6 5. f3 O-O",
+      "uci": [
+        "d2d4",
+        "g8f6",
+        "c2c4",
+        "g7g6",
+        "b1c3",
+        "f8g7",
+        "e2e4",
+        "d7d6",
+        "f2f3",
+        "e8g8"
+      ],
+      "fen": "rnbq1rk1/ppp1ppbp/3p1np1/8/2PPP3/2N2P2/PP4PP/R1BQKBNR w KQ - 1 6"
+    },
+    {
+      "family": "Scotch Game",
+      "book_line": "Scotch Game: Scotch Gambit, Kingside Variation",
+      "eco": "C44",
+      "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d4 exd4 5. e5 Ng4",
+      "uci": [
+        "e2e4",
+        "e7e5",
+        "g1f3",
+        "b8c6",
+        "f1c4",
+        "g8f6",
+        "d2d4",
+        "e5d4",
+        "e4e5",
+        "f6g4"
+      ],
+      "fen": "r1bqkb1r/pppp1ppp/2n5/4P3/2Bp2n1/5N2/PPP2PPP/RNBQK2R w KQkq - 1 6"
+    },
+    {
+      "family": "Slav Defense",
+      "book_line": "Slav Defense: Chebanenko Variation",
+      "eco": "D15",
+      "pgn": "1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 a6 5. e3 Bf5",
+      "uci": [
+        "d2d4",
+        "d7d5",
+        "c2c4",
+        "c7c6",
+        "g1f3",
+        "g8f6",
+        "b1c3",
+        "a7a6",
+        "e2e3",
+        "c8f5"
+      ],
+      "fen": "rn1qkb1r/1p2pppp/p1p2n2/3p1b2/2PP4/2N1PN2/PP3PPP/R1BQKB1R w KQkq - 1 6"
+    },
+    {
+      "family": "Queen's Indian Defense",
+      "book_line": "Queen's Indian Defense: Kasparov-Petrosian Variation, Main Line",
+      "eco": "E12",
+      "pgn": "1. d4 Nf6 2. c4 e6 3. Nf3 b6 4. a3 Bb7 5. Nc3 d5",
+      "uci": [
+        "d2d4",
+        "g8f6",
+        "c2c4",
+        "e7e6",
+        "g1f3",
+        "b7b6",
+        "a2a3",
+        "c8b7",
+        "b1c3",
+        "d7d5"
+      ],
+      "fen": "rn1qkb1r/pbp2ppp/1p2pn2/3p4/2PP4/P1N2N2/1P2PPPP/R1BQKB1R w KQkq d6 0 6"
+    },
+    {
+      "family": "Nimzo-Indian Defense",
+      "book_line": "Nimzo-Indian Defense: Three Knights Variation, Euwe Variation",
+      "eco": "E21",
+      "pgn": "1. d4 Nf6 2. c4 e6 3. Nc3 Bb4 4. Nf3 c5 5. d5 Ne4",
+      "uci": [
+        "d2d4",
+        "g8f6",
+        "c2c4",
+        "e7e6",
+        "b1c3",
+        "f8b4",
+        "g1f3",
+        "c7c5",
+        "d4d5",
+        "f6e4"
+      ],
+      "fen": "rnbqk2r/pp1p1ppp/4p3/2pP4/1bP1n3/2N2N2/PP2PPPP/R1BQKB1R w KQkq - 1 6"
+    },
+    {
+      "family": "Petrov's Defense",
+      "book_line": "Petrov's Defense: Classical Attack, Closed Variation",
+      "eco": "C42",
+      "pgn": "1. e4 e5 2. Nf3 Nf6 3. Nxe5 d6 4. Nf3 Nxe4 5. d4 Nf6",
+      "uci": [
+        "e2e4",
+        "e7e5",
+        "g1f3",
+        "g8f6",
+        "f3e5",
+        "d7d6",
+        "e5f3",
+        "f6e4",
+        "d2d4",
+        "e4f6"
+      ],
+      "fen": "rnbqkb1r/ppp2ppp/3p1n2/8/3P4/5N2/PPP2PPP/RNBQKB1R w KQkq - 1 6"
+    },
+    {
+      "family": "Pirc Defense",
+      "book_line": "Pirc Defense: Austrian Attack, Dragon Formation",
+      "eco": "B09",
+      "pgn": "1. e4 d6 2. d4 Nf6 3. Nc3 g6 4. f4 Bg7 5. Nf3 c5",
+      "uci": [
+        "e2e4",
+        "d7d6",
+        "d2d4",
+        "g8f6",
+        "b1c3",
+        "g7g6",
+        "f2f4",
+        "f8g7",
+        "g1f3",
+        "c7c5"
+      ],
+      "fen": "rnbqk2r/pp2ppbp/3p1np1/2p5/3PPP2/2N2N2/PPP3PP/R1BQKB1R w KQkq c6 0 6"
+    },
+    {
+      "family": "Gr\u00fcnfeld Defense",
+      "book_line": "Gr\u00fcnfeld Defense: Brinckmann Attack, Gr\u00fcnfeld Gambit",
+      "eco": "D83",
+      "pgn": "1. d4 Nf6 2. c4 g6 3. Nc3 d5 4. Bf4 Bg7 5. e3 O-O",
+      "uci": [
+        "d2d4",
+        "g8f6",
+        "c2c4",
+        "g7g6",
+        "b1c3",
+        "d7d5",
+        "c1f4",
+        "f8g7",
+        "e2e3",
+        "e8g8"
+      ],
+      "fen": "rnbq1rk1/ppp1ppbp/5np1/3p4/2PP1B2/2N1P3/PP3PPP/R2QKBNR w KQ - 1 6"
+    },
+    {
+      "family": "Catalan Opening",
+      "book_line": "Catalan Opening: Tarrasch Defense",
+      "eco": "E01",
+      "pgn": "1. d4 Nf6 2. c4 e6 3. g3 d5 4. Bg2 c5 5. Nf3 Nc6",
+      "uci": [
+        "d2d4",
+        "g8f6",
+        "c2c4",
+        "e7e6",
+        "g2g3",
+        "d7d5",
+        "f1g2",
+        "c7c5",
+        "g1f3",
+        "b8c6"
+      ],
+      "fen": "r1bqkb1r/pp3ppp/2n1pn2/2pp4/2PP4/5NP1/PP2PPBP/RNBQK2R w KQkq - 2 6"
+    },
+    {
+      "family": "Vienna Game",
+      "book_line": "Vienna Game: Paulsen Variation, Mariotti Gambit",
+      "eco": "C25",
+      "pgn": "1. e4 e5 2. Nc3 Nc6 3. g3 Bc5 4. Bg2 h5 5. Nf3 h4",
+      "uci": [
+        "e2e4",
+        "e7e5",
+        "b1c3",
+        "b8c6",
+        "g2g3",
+        "f8c5",
+        "f1g2",
+        "h7h5",
+        "g1f3",
+        "h5h4"
+      ],
+      "fen": "r1bqk1nr/pppp1pp1/2n5/2b1p3/4P2p/2N2NP1/PPPP1PBP/R1BQK2R w KQkq - 0 6"
+    },
+    {
+      "family": "King's Gambit Accepted",
+      "book_line": "King's Gambit Accepted: Kieseritzky Gambit, Brentano Defense",
+      "eco": "C39",
+      "pgn": "1. e4 e5 2. f4 exf4 3. Nf3 g5 4. h4 g4 5. Ne5 d5",
+      "uci": [
+        "e2e4",
+        "e7e5",
+        "f2f4",
+        "e5f4",
+        "g1f3",
+        "g7g5",
+        "h2h4",
+        "g5g4",
+        "f3e5",
+        "d7d5"
+      ],
+      "fen": "rnbqkbnr/ppp2p1p/8/3pN3/4PppP/8/PPPP2P1/RNBQKB1R w KQkq d6 0 6"
+    },
+    {
+      "family": "Benoni Defense",
+      "book_line": "Benoni Defense: King's Indian System",
+      "eco": "A56",
+      "pgn": "1. d4 Nf6 2. c4 c5 3. d5 e5 4. Nc3 d6 5. e4 g6",
+      "uci": [
+        "d2d4",
+        "g8f6",
+        "c2c4",
+        "c7c5",
+        "d4d5",
+        "e7e5",
+        "b1c3",
+        "d7d6",
+        "e2e4",
+        "g7g6"
+      ],
+      "fen": "rnbqkb1r/pp3p1p/3p1np1/2pPp3/2P1P3/2N5/PP3PPP/R1BQKBNR w KQkq - 0 6"
+    },
+    {
+      "family": "Dutch Defense",
+      "book_line": "Dutch Defense: Hort-Antoshin System",
+      "eco": "A86",
+      "pgn": "1. d4 f5 2. c4 Nf6 3. g3 d6 4. Bg2 c6 5. Nc3 Qc7",
+      "uci": [
+        "d2d4",
+        "f7f5",
+        "c2c4",
+        "g8f6",
+        "g2g3",
+        "d7d6",
+        "f1g2",
+        "c7c6",
+        "b1c3",
+        "d8c7"
+      ],
+      "fen": "rnb1kb1r/ppq1p1pp/2pp1n2/5p2/2PP4/2N3P1/PP2PPBP/R1BQK1NR w KQkq - 2 6"
+    }
+  ]
+}

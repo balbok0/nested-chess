@@ -1,0 +1,1220 @@
+{
+  "protocol": {
+    "grid": 2,
+    "a_level": 1,
+    "b_level": 3,
+    "games_per_policy": 10,
+    "full_moves_per_board": 5,
+    "setup_plies_per_game": 40,
+    "workers": 1,
+    "search_revision": "56ab470",
+    "build_profile": "release",
+    "binary_sha256": "39deb712e09a48a1873402aaa04c9ba3f347005d44be321fd15be7d02487d6d0",
+    "runner_source_sha256": "c38e9d81873bec5305f1097f0304a29d6c43326e619e1e38eaa777c90c144782",
+    "standard_sample": "Matched 20 unscored pilot games: Casual vs Strong, global and local; timing pilot global workers=10, local pilot workers=32.",
+    "start": "Four independent ten-ply book positions; White to move with free board choice. Setup bypasses routing; all continuation moves follow normal rules.",
+    "limitations": "Five selected opening setups, one run per color. Different concurrency and timing from the pilots; not a controlled strength comparison. Continuation lengths and similarities exclude setup moves."
+  },
+  "samples": [
+    {
+      "name": "standard",
+      "games": 20,
+      "results": [
+        {
+          "family": "global",
+          "a_level": 1,
+          "b_level": 3,
+          "games": 10,
+          "pairs": 5,
+          "wins": 2,
+          "draws": 6,
+          "losses": 2,
+          "win_rate": 0.2,
+          "score_rate": 0.5,
+          "win_ci95": {
+            "low": 0.014872850395476072,
+            "high": 0.7585443420102723
+          },
+          "score_ci95": {
+            "low": 0.09833421758734055,
+            "high": 0.9016657824126595
+          },
+          "white": {
+            "games": 5,
+            "score": 2.5
+          },
+          "black": {
+            "games": 5,
+            "score": 2.5
+          },
+          "mean_plies": 80.5,
+          "a_metrics": {
+            "moves": 402,
+            "elapsed_ms": 235325.44425600002,
+            "engine_calls": 33250,
+            "search_nodes": 21373,
+            "cutoffs": 1001,
+            "cache_hits": 46873,
+            "completed_depth_sum": 272,
+            "fallback_moves": 165
+          },
+          "b_metrics": {
+            "moves": 403,
+            "elapsed_ms": 123406.99653599999,
+            "engine_calls": 403
+          }
+        },
+        {
+          "family": "local",
+          "a_level": 1,
+          "b_level": 3,
+          "games": 10,
+          "pairs": 5,
+          "wins": 0,
+          "draws": 0,
+          "losses": 10,
+          "win_rate": 0.0,
+          "score_rate": 0.0,
+          "win_ci95": {
+            "low": 0.0,
+            "high": 0.6161480503626224
+          },
+          "score_ci95": {
+            "low": 0.0,
+            "high": 0.6534275784224268
+          },
+          "white": {
+            "games": 5,
+            "score": 0.0
+          },
+          "black": {
+            "games": 5,
+            "score": 0.0
+          },
+          "mean_plies": 188.5,
+          "a_metrics": {
+            "moves": 940,
+            "elapsed_ms": 123900.74570099999,
+            "engine_calls": 940,
+            "search_nodes": 0,
+            "cutoffs": 0,
+            "cache_hits": 0,
+            "completed_depth_sum": 0,
+            "fallback_moves": 0
+          },
+          "b_metrics": {
+            "moves": 945,
+            "elapsed_ms": 310747.486895,
+            "engine_calls": 945
+          }
+        }
+      ],
+      "diversity": {
+        "games": 20,
+        "groups": 4,
+        "pair_comparisons": 40,
+        "median_common_prefix": 0.0,
+        "median_edit_fraction": 0.943487292277615,
+        "median_moves_only_edit_fraction": 0.9225592899752655,
+        "minimum_moves_only_edit_fraction": 0.7352941176470589,
+        "median_local_similarity": 0.08681929527039756,
+        "maximum_local_similarity": 0.2647058823529411,
+        "near_duplicates_under_10pct": 0,
+        "near_duplicates_under_20pct": 0,
+        "same_first_8_all_five": 0,
+        "flagship": [
+          {
+            "group": [
+              "global",
+              1,
+              3,
+              "black"
+            ],
+            "distinct_first_4": 4,
+            "distinct_first_8": 5,
+            "distinct_first_12": 5,
+            "median_common_prefix": 0.0,
+            "median_edit_fraction": 0.9270186335403727,
+            "median_local_similarity": 0.11883527100918406,
+            "ply_range": [
+              48,
+              161
+            ],
+            "outcomes": {
+              "draw": 3,
+              "black": 1,
+              "white": 1
+            }
+          },
+          {
+            "group": [
+              "global",
+              1,
+              3,
+              "white"
+            ],
+            "distinct_first_4": 2,
+            "distinct_first_8": 4,
+            "distinct_first_12": 5,
+            "median_common_prefix": 5.0,
+            "median_edit_fraction": 0.85625,
+            "median_local_similarity": 0.19574468085106383,
+            "ply_range": [
+              37,
+              88
+            ],
+            "outcomes": {
+              "white": 1,
+              "draw": 3,
+              "black": 1
+            }
+          }
+        ],
+        "most_similar": [
+          {
+            "group": [
+              "global",
+              1,
+              3,
+              "white"
+            ],
+            "distinct_first_4": 2,
+            "distinct_first_8": 4,
+            "distinct_first_12": 5,
+            "median_common_prefix": 5.0,
+            "median_edit_fraction": 0.85625,
+            "median_local_similarity": 0.19574468085106383,
+            "ply_range": [
+              37,
+              88
+            ],
+            "outcomes": {
+              "white": 1,
+              "draw": 3,
+              "black": 1
+            }
+          },
+          {
+            "group": [
+              "global",
+              1,
+              3,
+              "black"
+            ],
+            "distinct_first_4": 4,
+            "distinct_first_8": 5,
+            "distinct_first_12": 5,
+            "median_common_prefix": 0.0,
+            "median_edit_fraction": 0.9270186335403727,
+            "median_local_similarity": 0.11883527100918406,
+            "ply_range": [
+              48,
+              161
+            ],
+            "outcomes": {
+              "draw": 3,
+              "black": 1,
+              "white": 1
+            }
+          },
+          {
+            "group": [
+              "local",
+              1,
+              3,
+              "black"
+            ],
+            "distinct_first_4": 5,
+            "distinct_first_8": 5,
+            "distinct_first_12": 5,
+            "median_common_prefix": 0.0,
+            "median_edit_fraction": 0.9624941397093296,
+            "median_local_similarity": 0.06083738144806844,
+            "ply_range": [
+              161,
+              237
+            ],
+            "outcomes": {
+              "white": 5
+            }
+          },
+          {
+            "group": [
+              "local",
+              1,
+              3,
+              "white"
+            ],
+            "distinct_first_4": 5,
+            "distinct_first_8": 5,
+            "distinct_first_12": 5,
+            "median_common_prefix": 0.0,
+            "median_edit_fraction": 0.9635164835164836,
+            "median_local_similarity": 0.06063739344224628,
+            "ply_range": [
+              88,
+              248
+            ],
+            "outcomes": {
+              "black": 5
+            }
+          }
+        ],
+        "by_group": [
+          {
+            "group": [
+              "global",
+              1,
+              3,
+              "black"
+            ],
+            "distinct_first_4": 4,
+            "distinct_first_8": 5,
+            "distinct_first_12": 5,
+            "median_common_prefix": 0.0,
+            "median_edit_fraction": 0.9270186335403727,
+            "median_local_similarity": 0.11883527100918406,
+            "ply_range": [
+              48,
+              161
+            ],
+            "outcomes": {
+              "draw": 3,
+              "black": 1,
+              "white": 1
+            }
+          },
+          {
+            "group": [
+              "global",
+              1,
+              3,
+              "white"
+            ],
+            "distinct_first_4": 2,
+            "distinct_first_8": 4,
+            "distinct_first_12": 5,
+            "median_common_prefix": 5.0,
+            "median_edit_fraction": 0.85625,
+            "median_local_similarity": 0.19574468085106383,
+            "ply_range": [
+              37,
+              88
+            ],
+            "outcomes": {
+              "white": 1,
+              "draw": 3,
+              "black": 1
+            }
+          },
+          {
+            "group": [
+              "local",
+              1,
+              3,
+              "black"
+            ],
+            "distinct_first_4": 5,
+            "distinct_first_8": 5,
+            "distinct_first_12": 5,
+            "median_common_prefix": 0.0,
+            "median_edit_fraction": 0.9624941397093296,
+            "median_local_similarity": 0.06083738144806844,
+            "ply_range": [
+              161,
+              237
+            ],
+            "outcomes": {
+              "white": 5
+            }
+          },
+          {
+            "group": [
+              "local",
+              1,
+              3,
+              "white"
+            ],
+            "distinct_first_4": 5,
+            "distinct_first_8": 5,
+            "distinct_first_12": 5,
+            "median_common_prefix": 0.0,
+            "median_edit_fraction": 0.9635164835164836,
+            "median_local_similarity": 0.06063739344224628,
+            "ply_range": [
+              88,
+              248
+            ],
+            "outcomes": {
+              "black": 5
+            }
+          }
+        ]
+      },
+      "by_policy_diversity": {
+        "global": {
+          "games": 10,
+          "groups": 2,
+          "pair_comparisons": 20,
+          "median_common_prefix": 1.0,
+          "median_edit_fraction": 0.9090909090909091,
+          "median_moves_only_edit_fraction": 0.8835487906588824,
+          "minimum_moves_only_edit_fraction": 0.7352941176470589,
+          "median_local_similarity": 0.13636363636363635,
+          "maximum_local_similarity": 0.2647058823529411,
+          "near_duplicates_under_10pct": 0,
+          "near_duplicates_under_20pct": 0,
+          "same_first_8_all_five": 0,
+          "flagship": [
+            {
+              "group": [
+                "global",
+                1,
+                3,
+                "black"
+              ],
+              "distinct_first_4": 4,
+              "distinct_first_8": 5,
+              "distinct_first_12": 5,
+              "median_common_prefix": 0.0,
+              "median_edit_fraction": 0.9270186335403727,
+              "median_local_similarity": 0.11883527100918406,
+              "ply_range": [
+                48,
+                161
+              ],
+              "outcomes": {
+                "draw": 3,
+                "black": 1,
+                "white": 1
+              }
+            },
+            {
+              "group": [
+                "global",
+                1,
+                3,
+                "white"
+              ],
+              "distinct_first_4": 2,
+              "distinct_first_8": 4,
+              "distinct_first_12": 5,
+              "median_common_prefix": 5.0,
+              "median_edit_fraction": 0.85625,
+              "median_local_similarity": 0.19574468085106383,
+              "ply_range": [
+                37,
+                88
+              ],
+              "outcomes": {
+                "white": 1,
+                "draw": 3,
+                "black": 1
+              }
+            }
+          ],
+          "most_similar": [
+            {
+              "group": [
+                "global",
+                1,
+                3,
+                "white"
+              ],
+              "distinct_first_4": 2,
+              "distinct_first_8": 4,
+              "distinct_first_12": 5,
+              "median_common_prefix": 5.0,
+              "median_edit_fraction": 0.85625,
+              "median_local_similarity": 0.19574468085106383,
+              "ply_range": [
+                37,
+                88
+              ],
+              "outcomes": {
+                "white": 1,
+                "draw": 3,
+                "black": 1
+              }
+            },
+            {
+              "group": [
+                "global",
+                1,
+                3,
+                "black"
+              ],
+              "distinct_first_4": 4,
+              "distinct_first_8": 5,
+              "distinct_first_12": 5,
+              "median_common_prefix": 0.0,
+              "median_edit_fraction": 0.9270186335403727,
+              "median_local_similarity": 0.11883527100918406,
+              "ply_range": [
+                48,
+                161
+              ],
+              "outcomes": {
+                "draw": 3,
+                "black": 1,
+                "white": 1
+              }
+            }
+          ],
+          "by_group": [
+            {
+              "group": [
+                "global",
+                1,
+                3,
+                "black"
+              ],
+              "distinct_first_4": 4,
+              "distinct_first_8": 5,
+              "distinct_first_12": 5,
+              "median_common_prefix": 0.0,
+              "median_edit_fraction": 0.9270186335403727,
+              "median_local_similarity": 0.11883527100918406,
+              "ply_range": [
+                48,
+                161
+              ],
+              "outcomes": {
+                "draw": 3,
+                "black": 1,
+                "white": 1
+              }
+            },
+            {
+              "group": [
+                "global",
+                1,
+                3,
+                "white"
+              ],
+              "distinct_first_4": 2,
+              "distinct_first_8": 4,
+              "distinct_first_12": 5,
+              "median_common_prefix": 5.0,
+              "median_edit_fraction": 0.85625,
+              "median_local_similarity": 0.19574468085106383,
+              "ply_range": [
+                37,
+                88
+              ],
+              "outcomes": {
+                "white": 1,
+                "draw": 3,
+                "black": 1
+              }
+            }
+          ]
+        },
+        "local": {
+          "games": 10,
+          "groups": 2,
+          "pair_comparisons": 20,
+          "median_common_prefix": 0.0,
+          "median_edit_fraction": 0.9624941397093296,
+          "median_moves_only_edit_fraction": 0.9413636059205679,
+          "minimum_moves_only_edit_fraction": 0.9175824175824175,
+          "median_local_similarity": 0.06083738144806844,
+          "maximum_local_similarity": 0.10989010989010994,
+          "near_duplicates_under_10pct": 0,
+          "near_duplicates_under_20pct": 0,
+          "same_first_8_all_five": 0,
+          "flagship": [],
+          "most_similar": [
+            {
+              "group": [
+                "local",
+                1,
+                3,
+                "black"
+              ],
+              "distinct_first_4": 5,
+              "distinct_first_8": 5,
+              "distinct_first_12": 5,
+              "median_common_prefix": 0.0,
+              "median_edit_fraction": 0.9624941397093296,
+              "median_local_similarity": 0.06083738144806844,
+              "ply_range": [
+                161,
+                237
+              ],
+              "outcomes": {
+                "white": 5
+              }
+            },
+            {
+              "group": [
+                "local",
+                1,
+                3,
+                "white"
+              ],
+              "distinct_first_4": 5,
+              "distinct_first_8": 5,
+              "distinct_first_12": 5,
+              "median_common_prefix": 0.0,
+              "median_edit_fraction": 0.9635164835164836,
+              "median_local_similarity": 0.06063739344224628,
+              "ply_range": [
+                88,
+                248
+              ],
+              "outcomes": {
+                "black": 5
+              }
+            }
+          ],
+          "by_group": [
+            {
+              "group": [
+                "local",
+                1,
+                3,
+                "black"
+              ],
+              "distinct_first_4": 5,
+              "distinct_first_8": 5,
+              "distinct_first_12": 5,
+              "median_common_prefix": 0.0,
+              "median_edit_fraction": 0.9624941397093296,
+              "median_local_similarity": 0.06083738144806844,
+              "ply_range": [
+                161,
+                237
+              ],
+              "outcomes": {
+                "white": 5
+              }
+            },
+            {
+              "group": [
+                "local",
+                1,
+                3,
+                "white"
+              ],
+              "distinct_first_4": 5,
+              "distinct_first_8": 5,
+              "distinct_first_12": 5,
+              "median_common_prefix": 0.0,
+              "median_edit_fraction": 0.9635164835164836,
+              "median_local_similarity": 0.06063739344224628,
+              "ply_range": [
+                88,
+                248
+              ],
+              "outcomes": {
+                "black": 5
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "developed",
+      "games": 20,
+      "results": [
+        {
+          "family": "global",
+          "a_level": 1,
+          "b_level": 3,
+          "games": 10,
+          "pairs": 5,
+          "wins": 0,
+          "draws": 3,
+          "losses": 7,
+          "win_rate": 0.0,
+          "score_rate": 0.15,
+          "win_ci95": {
+            "low": 0.0,
+            "high": 0.6161480503626224
+          },
+          "score_ci95": {
+            "low": 0.0207072968003692,
+            "high": 0.8547813849733525
+          },
+          "white": {
+            "games": 5,
+            "score": 0.5
+          },
+          "black": {
+            "games": 5,
+            "score": 1.0
+          },
+          "mean_plies": 54.7,
+          "a_metrics": {
+            "moves": 271,
+            "elapsed_ms": 165174.339684,
+            "engine_calls": 11233,
+            "search_nodes": 6365,
+            "cutoffs": 4,
+            "cache_hits": 13937,
+            "completed_depth_sum": 42,
+            "fallback_moves": 229
+          },
+          "b_metrics": {
+            "moves": 276,
+            "elapsed_ms": 90432.718866,
+            "engine_calls": 276
+          }
+        },
+        {
+          "family": "local",
+          "a_level": 1,
+          "b_level": 3,
+          "games": 10,
+          "pairs": 5,
+          "wins": 0,
+          "draws": 3,
+          "losses": 7,
+          "win_rate": 0.0,
+          "score_rate": 0.15,
+          "win_ci95": {
+            "low": 0.0,
+            "high": 0.6161480503626224
+          },
+          "score_ci95": {
+            "low": 0.0207072968003692,
+            "high": 0.8547813849733525
+          },
+          "white": {
+            "games": 5,
+            "score": 0.5
+          },
+          "black": {
+            "games": 5,
+            "score": 1.0
+          },
+          "mean_plies": 117.1,
+          "a_metrics": {
+            "moves": 583,
+            "elapsed_ms": 72428.95489,
+            "engine_calls": 583,
+            "search_nodes": 0,
+            "cutoffs": 0,
+            "cache_hits": 0,
+            "completed_depth_sum": 0,
+            "fallback_moves": 0
+          },
+          "b_metrics": {
+            "moves": 588,
+            "elapsed_ms": 188030.866516,
+            "engine_calls": 588
+          }
+        }
+      ],
+      "diversity": {
+        "games": 20,
+        "groups": 4,
+        "pair_comparisons": 40,
+        "median_common_prefix": 0.0,
+        "median_edit_fraction": 0.9825839298316362,
+        "median_moves_only_edit_fraction": 0.9603921568627451,
+        "minimum_moves_only_edit_fraction": 0.8235294117647058,
+        "median_local_similarity": 0.04524919848440684,
+        "maximum_local_similarity": 0.1333333333333333,
+        "near_duplicates_under_10pct": 0,
+        "near_duplicates_under_20pct": 0,
+        "same_first_8_all_five": 0,
+        "flagship": [
+          {
+            "group": [
+              "global",
+              1,
+              3,
+              "black"
+            ],
+            "distinct_first_4": 5,
+            "distinct_first_8": 5,
+            "distinct_first_12": 5,
+            "median_common_prefix": 0.0,
+            "median_edit_fraction": 0.9873092369477912,
+            "median_local_similarity": 0.053022005376879455,
+            "ply_range": [
+              37,
+              83
+            ],
+            "outcomes": {
+              "white": 3,
+              "draw": 2
+            }
+          },
+          {
+            "group": [
+              "global",
+              1,
+              3,
+              "white"
+            ],
+            "distinct_first_4": 5,
+            "distinct_first_8": 5,
+            "distinct_first_12": 5,
+            "median_common_prefix": 0.0,
+            "median_edit_fraction": 0.9411764705882353,
+            "median_local_similarity": 0.09463487332339793,
+            "ply_range": [
+              24,
+              68
+            ],
+            "outcomes": {
+              "draw": 1,
+              "black": 4
+            }
+          }
+        ],
+        "most_similar": [
+          {
+            "group": [
+              "global",
+              1,
+              3,
+              "white"
+            ],
+            "distinct_first_4": 5,
+            "distinct_first_8": 5,
+            "distinct_first_12": 5,
+            "median_common_prefix": 0.0,
+            "median_edit_fraction": 0.9411764705882353,
+            "median_local_similarity": 0.09463487332339793,
+            "ply_range": [
+              24,
+              68
+            ],
+            "outcomes": {
+              "draw": 1,
+              "black": 4
+            }
+          },
+          {
+            "group": [
+              "local",
+              1,
+              3,
+              "black"
+            ],
+            "distinct_first_4": 5,
+            "distinct_first_8": 5,
+            "distinct_first_12": 5,
+            "median_common_prefix": 0.0,
+            "median_edit_fraction": 0.9869281045751634,
+            "median_local_similarity": 0.03068783068783071,
+            "ply_range": [
+              79,
+              153
+            ],
+            "outcomes": {
+              "white": 3,
+              "draw": 2
+            }
+          },
+          {
+            "group": [
+              "global",
+              1,
+              3,
+              "black"
+            ],
+            "distinct_first_4": 5,
+            "distinct_first_8": 5,
+            "distinct_first_12": 5,
+            "median_common_prefix": 0.0,
+            "median_edit_fraction": 0.9873092369477912,
+            "median_local_similarity": 0.053022005376879455,
+            "ply_range": [
+              37,
+              83
+            ],
+            "outcomes": {
+              "white": 3,
+              "draw": 2
+            }
+          },
+          {
+            "group": [
+              "local",
+              1,
+              3,
+              "white"
+            ],
+            "distinct_first_4": 5,
+            "distinct_first_8": 5,
+            "distinct_first_12": 5,
+            "median_common_prefix": 0.0,
+            "median_edit_fraction": 0.9873417721518988,
+            "median_local_similarity": 0.032118616677440204,
+            "ply_range": [
+              64,
+              182
+            ],
+            "outcomes": {
+              "black": 4,
+              "draw": 1
+            }
+          }
+        ],
+        "by_group": [
+          {
+            "group": [
+              "global",
+              1,
+              3,
+              "black"
+            ],
+            "distinct_first_4": 5,
+            "distinct_first_8": 5,
+            "distinct_first_12": 5,
+            "median_common_prefix": 0.0,
+            "median_edit_fraction": 0.9873092369477912,
+            "median_local_similarity": 0.053022005376879455,
+            "ply_range": [
+              37,
+              83
+            ],
+            "outcomes": {
+              "white": 3,
+              "draw": 2
+            }
+          },
+          {
+            "group": [
+              "global",
+              1,
+              3,
+              "white"
+            ],
+            "distinct_first_4": 5,
+            "distinct_first_8": 5,
+            "distinct_first_12": 5,
+            "median_common_prefix": 0.0,
+            "median_edit_fraction": 0.9411764705882353,
+            "median_local_similarity": 0.09463487332339793,
+            "ply_range": [
+              24,
+              68
+            ],
+            "outcomes": {
+              "draw": 1,
+              "black": 4
+            }
+          },
+          {
+            "group": [
+              "local",
+              1,
+              3,
+              "black"
+            ],
+            "distinct_first_4": 5,
+            "distinct_first_8": 5,
+            "distinct_first_12": 5,
+            "median_common_prefix": 0.0,
+            "median_edit_fraction": 0.9869281045751634,
+            "median_local_similarity": 0.03068783068783071,
+            "ply_range": [
+              79,
+              153
+            ],
+            "outcomes": {
+              "white": 3,
+              "draw": 2
+            }
+          },
+          {
+            "group": [
+              "local",
+              1,
+              3,
+              "white"
+            ],
+            "distinct_first_4": 5,
+            "distinct_first_8": 5,
+            "distinct_first_12": 5,
+            "median_common_prefix": 0.0,
+            "median_edit_fraction": 0.9873417721518988,
+            "median_local_similarity": 0.032118616677440204,
+            "ply_range": [
+              64,
+              182
+            ],
+            "outcomes": {
+              "black": 4,
+              "draw": 1
+            }
+          }
+        ]
+      },
+      "by_policy_diversity": {
+        "global": {
+          "games": 10,
+          "groups": 2,
+          "pair_comparisons": 20,
+          "median_common_prefix": 0.0,
+          "median_edit_fraction": 0.9705882352941176,
+          "median_moves_only_edit_fraction": 0.9421017402945113,
+          "minimum_moves_only_edit_fraction": 0.8235294117647058,
+          "median_local_similarity": 0.06666666666666665,
+          "maximum_local_similarity": 0.1333333333333333,
+          "near_duplicates_under_10pct": 0,
+          "near_duplicates_under_20pct": 0,
+          "same_first_8_all_five": 0,
+          "flagship": [
+            {
+              "group": [
+                "global",
+                1,
+                3,
+                "black"
+              ],
+              "distinct_first_4": 5,
+              "distinct_first_8": 5,
+              "distinct_first_12": 5,
+              "median_common_prefix": 0.0,
+              "median_edit_fraction": 0.9873092369477912,
+              "median_local_similarity": 0.053022005376879455,
+              "ply_range": [
+                37,
+                83
+              ],
+              "outcomes": {
+                "white": 3,
+                "draw": 2
+              }
+            },
+            {
+              "group": [
+                "global",
+                1,
+                3,
+                "white"
+              ],
+              "distinct_first_4": 5,
+              "distinct_first_8": 5,
+              "distinct_first_12": 5,
+              "median_common_prefix": 0.0,
+              "median_edit_fraction": 0.9411764705882353,
+              "median_local_similarity": 0.09463487332339793,
+              "ply_range": [
+                24,
+                68
+              ],
+              "outcomes": {
+                "draw": 1,
+                "black": 4
+              }
+            }
+          ],
+          "most_similar": [
+            {
+              "group": [
+                "global",
+                1,
+                3,
+                "white"
+              ],
+              "distinct_first_4": 5,
+              "distinct_first_8": 5,
+              "distinct_first_12": 5,
+              "median_common_prefix": 0.0,
+              "median_edit_fraction": 0.9411764705882353,
+              "median_local_similarity": 0.09463487332339793,
+              "ply_range": [
+                24,
+                68
+              ],
+              "outcomes": {
+                "draw": 1,
+                "black": 4
+              }
+            },
+            {
+              "group": [
+                "global",
+                1,
+                3,
+                "black"
+              ],
+              "distinct_first_4": 5,
+              "distinct_first_8": 5,
+              "distinct_first_12": 5,
+              "median_common_prefix": 0.0,
+              "median_edit_fraction": 0.9873092369477912,
+              "median_local_similarity": 0.053022005376879455,
+              "ply_range": [
+                37,
+                83
+              ],
+              "outcomes": {
+                "white": 3,
+                "draw": 2
+              }
+            }
+          ],
+          "by_group": [
+            {
+              "group": [
+                "global",
+                1,
+                3,
+                "black"
+              ],
+              "distinct_first_4": 5,
+              "distinct_first_8": 5,
+              "distinct_first_12": 5,
+              "median_common_prefix": 0.0,
+              "median_edit_fraction": 0.9873092369477912,
+              "median_local_similarity": 0.053022005376879455,
+              "ply_range": [
+                37,
+                83
+              ],
+              "outcomes": {
+                "white": 3,
+                "draw": 2
+              }
+            },
+            {
+              "group": [
+                "global",
+                1,
+                3,
+                "white"
+              ],
+              "distinct_first_4": 5,
+              "distinct_first_8": 5,
+              "distinct_first_12": 5,
+              "median_common_prefix": 0.0,
+              "median_edit_fraction": 0.9411764705882353,
+              "median_local_similarity": 0.09463487332339793,
+              "ply_range": [
+                24,
+                68
+              ],
+              "outcomes": {
+                "draw": 1,
+                "black": 4
+              }
+            }
+          ]
+        },
+        "local": {
+          "games": 10,
+          "groups": 2,
+          "pair_comparisons": 20,
+          "median_common_prefix": 0.0,
+          "median_edit_fraction": 0.9869281045751634,
+          "median_moves_only_edit_fraction": 0.9669421487603306,
+          "minimum_moves_only_edit_fraction": 0.9519230769230769,
+          "median_local_similarity": 0.03068783068783071,
+          "maximum_local_similarity": 0.05600000000000005,
+          "near_duplicates_under_10pct": 0,
+          "near_duplicates_under_20pct": 0,
+          "same_first_8_all_five": 0,
+          "flagship": [],
+          "most_similar": [
+            {
+              "group": [
+                "local",
+                1,
+                3,
+                "black"
+              ],
+              "distinct_first_4": 5,
+              "distinct_first_8": 5,
+              "distinct_first_12": 5,
+              "median_common_prefix": 0.0,
+              "median_edit_fraction": 0.9869281045751634,
+              "median_local_similarity": 0.03068783068783071,
+              "ply_range": [
+                79,
+                153
+              ],
+              "outcomes": {
+                "white": 3,
+                "draw": 2
+              }
+            },
+            {
+              "group": [
+                "local",
+                1,
+                3,
+                "white"
+              ],
+              "distinct_first_4": 5,
+              "distinct_first_8": 5,
+              "distinct_first_12": 5,
+              "median_common_prefix": 0.0,
+              "median_edit_fraction": 0.9873417721518988,
+              "median_local_similarity": 0.032118616677440204,
+              "ply_range": [
+                64,
+                182
+              ],
+              "outcomes": {
+                "black": 4,
+                "draw": 1
+              }
+            }
+          ],
+          "by_group": [
+            {
+              "group": [
+                "local",
+                1,
+                3,
+                "black"
+              ],
+              "distinct_first_4": 5,
+              "distinct_first_8": 5,
+              "distinct_first_12": 5,
+              "median_common_prefix": 0.0,
+              "median_edit_fraction": 0.9869281045751634,
+              "median_local_similarity": 0.03068783068783071,
+              "ply_range": [
+                79,
+                153
+              ],
+              "outcomes": {
+                "white": 3,
+                "draw": 2
+              }
+            },
+            {
+              "group": [
+                "local",
+                1,
+                3,
+                "white"
+              ],
+              "distinct_first_4": 5,
+              "distinct_first_8": 5,
+              "distinct_first_12": 5,
+              "median_common_prefix": 0.0,
+              "median_edit_fraction": 0.9873417721518988,
+              "median_local_similarity": 0.032118616677440204,
+              "ply_range": [
+                64,
+                182
+              ],
+              "outcomes": {
+                "black": 4,
+                "draw": 1
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "resources": {
+    "telemetry_started_utc": "2026-10-25T16:33:31Z",
+    "telemetry_finished_utc": "2026-10-25T16:43:43Z",
+    "peak_benchmark_rss_bytes": 753324032,
+    "mean_system_cpu_percent": 96.40869565217392
+  }
+}

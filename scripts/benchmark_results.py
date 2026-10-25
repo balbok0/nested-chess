@@ -90,7 +90,7 @@ def summarize(rows: list[dict]) -> list[dict]:
                 raise ValueError("duplicate color in pair")
             if len(pair) != 2:
                 continue
-            if pair[0]["job"]["opening"] != pair[1]["job"]["opening"]:
+            if any(pair[0]["job"].get(key) != pair[1]["job"].get(key) for key in ("opening", "initial_fens")):
                 raise ValueError("color-paired games have different openings")
             complete.extend(pair)
             paired_wins.append(sum(game["a_score"] == 1 for game in pair))
