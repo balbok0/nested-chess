@@ -23,6 +23,15 @@ impl NestedGame {
             game: Game::new(size).map_err(js_error)?,
         })
     }
+    pub fn chess960(size: u8, index: u16) -> Result<NestedGame, JsValue> {
+        Ok(Self {
+            game: Game::chess960(size, index).map_err(js_error)?,
+        })
+    }
+    pub fn move_details(&self, board: usize, uci: &str) -> Result<String, JsValue> {
+        serde_json::to_string(&self.game.move_details(board, uci).map_err(js_error)?)
+            .map_err(js_error)
+    }
     pub fn state(&self) -> Result<String, JsValue> {
         serde_json::to_string(&self.game.state()).map_err(js_error)
     }

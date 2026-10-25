@@ -3,21 +3,21 @@
 ## Exact game state
 
 The authoritative engine stores one `Board` per macro cell, using twelve `u64`
-piece bitboards, four castling bits, an optional en passant target, and a local
+piece bitboards, four optional castling-rook squares, an optional en passant target, and a local
 no-progress counter. A board deliberately has no side-to-move field: that belongs
 to `Game`, once, for the entire match. The game also stores the forced destination,
 board results, move counts, and repetition history. Board coordinates are stable
 when the UI is flipped.
 
-The measured `Board` size on x86-64 is 104 bytes. Reproduce with
+The measured `Board` size on x86-64 is 112 bytes. Reproduce with
 `cargo run --example state_size`. This excludes allocations, match bookkeeping,
 and history, which grow separately.
 
 | Grid | Local games | Local board storage | Binary 12-plane features | Float32 119-plane features |
 | --- | ---: | ---: | ---: | ---: |
-| 2×2 | 4 | 416 B | 3 KiB | 119 KiB |
-| 4×4 | 16 | 1,664 B | 12 KiB | 476 KiB |
-| 8×8 | 64 | 6,656 B | 48 KiB | 1.86 MiB |
+| 2×2 | 4 | 448 B | 3 KiB | 119 KiB |
+| 4×4 | 16 | 1,792 B | 12 KiB | 476 KiB |
+| 8×8 | 64 | 7,168 B | 48 KiB | 1.86 MiB |
 
 The final column is a hypothetical AlphaZero-style input for all boards; it is
 not the engine's storage format or a model implemented here. It excludes extra

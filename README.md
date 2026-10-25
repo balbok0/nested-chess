@@ -40,6 +40,13 @@ The setting is off by default and is saved on this device with the selected them
 System reduced-motion preferences take priority. Engine turns have a short pause
 so the move and its routing are easier to follow.
 
+**Fischer Random (Chess960)** applies to new matches. All boards share one random
+Scharnagl start (0–959), with mirrored colors, opposite-color bishops, and the king
+between its rooks. To castle, select the king and then its rook. The king finishes
+on c/g and the rook on d/f; routing uses the king's landing square. King safety is
+ignored under these king-capture rules, including during castling. These final
+castling squares follow the [FIDE Chess960 rules](https://handbook.fide.com/chapter/e012023).
+
 ## Publish to GitHub Pages
 
 After committing source changes on `main`, run `npm run deploy:pages`. This builds
@@ -127,6 +134,12 @@ each initial board must contain exactly one king of each color. FEN side fields
 do not control local turns. At most one board may have a valid en passant target,
 which must be capturable by the initial global player. Finished boards are restored
 by replay, not by importing kingless starting positions.
+
+`Game::chess960(size, index)` creates a shared Chess960 start. The binding equivalents
+are `NestedGame.chess960(size, index)` in JavaScript and `Game(size, chess960=index)`
+in Python. Chess960 FENs use file-letter castling rights (Shredder-FEN), and castling
+UCI moves target the rook's starting square. `move_details(board, uci)` reports the
+actual landing square and optional rook movement for a legal move.
 
 The `state()` view includes board results, legal board choices, move counts, and
 the global turn. Local FEN views use that global turn and a synthetic fullmove

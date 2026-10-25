@@ -55,3 +55,28 @@ test('agreed board draws award half each and survive save, load, and undo', () =
   assert.equal(restored.undo(), before);
   game.free(); restored.free();
 });
+
+test('Chess960 exposes its shared start, legal moves, and replay metadata', () => {
+  const game = NestedGame.chess960(2, 0);
+  const state = JSON.parse(game.state());
+  assert.equal(state.chess960, true);
+  assert.equal(state.start_position, 0);
+  assert.ok(state.boards.every(board => board.fen === state.boards[0].fen));
+  assert.equal(state.boards[0].fen.split('/').at(-1).split(' ')[0], 'BBQNNRKR');
+  const before = game.state();
+  game.play(0, 'a2a3');
+  const restored = NestedGame.load(game.save());
+  assert.equal(restored.state(), game.state());
+  assert.equal(restored.undo(), before);
+  assert.throws(() => NestedGame.chess960(2, 960));
+  game.free(); restored.free();
+});
+
+test('Chess960 castling exposes the actual king and rook destinations', () => {
+  const game = NestedGame.load(JSON.stringify({ version: 2, size: 2, first_player: 'white', initial_fens: Array(4).fill('4k3/8/8/8/8/8/8/6KR w H - 0 1'), finish_rule: 'majority', events: [] }));
+  assert.deepEqual(JSON.parse(game.move_details(0, 'g1h1')), { destination: 6, rook: { from: 7, to: 5 } });
+  const state = JSON.parse(game.play(0, 'g1h1'));
+  assert.equal(state.boards[0].squares[6], 'K');
+  assert.equal(state.boards[0].squares[5], 'R');
+  game.free();
+});

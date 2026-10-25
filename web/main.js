@@ -13,12 +13,13 @@ const STORAGE_KEY = 'nested-chess-v1';
 const SETTINGS_KEY = 'nested-chess-settings';
 const BOT_TURN_MIN_MS = 650;
 const BOT_MOVE_DURATION_MS = 400;
+const CHESS960_POSITIONS = 960;
 const systemAppearance = window.matchMedia('(prefers-color-scheme: dark)');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 let game, state, viewing = 0, source = null, flipped = false, busy = false, opponent = null, generation = 0;
 let engineError = '';
-let botAnimation = null;
-let preferences = { theme: 'system', evaluations: false, animations: true };
+let botAnimations = [];
+let preferences = { theme: 'system', evaluations: false, animations: true, chess960: false };
 let analyzer = null, evaluationGeneration = 0, evaluationError = '';
 const evaluations = new Map();
 
@@ -44,12 +45,13 @@ function applyPreferences() {
   document.querySelector(`input[name="theme"][value="${preferences.theme}"]`).checked = true;
   document.querySelector('meta[name="theme-color"]').content = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
   $('show-evaluations').checked = preferences.evaluations;
+  $('chess960').checked = preferences.chess960;
   const animate = preferences.animations && !reducedMotion.matches;
   document.documentElement.dataset.animations = animate ? 'on' : 'off';
   $('animate-moves').checked = animate;
   $('animate-moves').disabled = reducedMotion.matches;
   $('motion-note').textContent = reducedMotion.matches ? 'Disabled by your system’s reduced-motion setting.' : 'Animate engine moves and changes to the evaluation bar.';
-  if (!animate) botAnimation?.finish();
+  if (!animate) botAnimations.forEach(animation => animation.finish());
 }
 
 function savePreferences() {
@@ -128,8 +130,8 @@ async function refreshEvaluations() {
 
 function resetOpponent() {
   generation += 1;
-  botAnimation?.cancel();
-  botAnimation = null;
+  botAnimations.forEach(animation => animation.cancel());
+  botAnimations = [];
   if (opponent) opponent.destroy();
   opponent = null; busy = false; engineError = '';
 }
@@ -137,26 +139,24 @@ function resetOpponent() {
 async function animateBotMove(board, move) {
   if (!preferences.animations || reducedMotion.matches) return;
   viewing = board; source = null; render();
-  const piece = document.querySelector(`[data-square="${move.slice(0, 2)}"] .piece`);
-  const destination = document.querySelector(`[data-square="${move.slice(2, 4)}"]`);
-  const from = piece.getBoundingClientRect();
-  const to = destination.getBoundingClientRect();
-  const moving = piece.cloneNode(true);
-  moving.setAttribute('aria-hidden', 'true');
-  Object.assign(moving.style, {
-    position: 'fixed', left: `${from.x}px`, top: `${from.y}px`,
-    width: `${from.width}px`, height: `${from.height}px`, margin: '0',
-    display: 'grid', placeItems: 'center', zIndex: '1000',
-    fontSize: getComputedStyle(piece).fontSize,
+  const details = JSON.parse(game.move_details(board, move));
+  const motions = [{ from: squareIndex(move.slice(0, 2)), to: details.destination }, ...(details.rook ? [details.rook] : [])];
+  const pieces = motions.map(motion => {
+    const piece = document.querySelector(`[data-square="${squareName(motion.from)}"] .piece`);
+    const destination = document.querySelector(`[data-square="${squareName(motion.to)}"]`);
+    const from = piece.getBoundingClientRect(), to = destination.getBoundingClientRect();
+    const moving = piece.cloneNode(true);
+    moving.setAttribute('aria-hidden', 'true');
+    Object.assign(moving.style, { position: 'fixed', left: `${from.x}px`, top: `${from.y}px`, width: `${from.width}px`, height: `${from.height}px`, margin: '0', display: 'grid', placeItems: 'center', zIndex: '1000', fontSize: getComputedStyle(piece).fontSize });
+    document.body.append(moving); piece.style.visibility = 'hidden';
+    return { piece, moving, from, to };
   });
-  document.body.append(moving);
-  piece.style.visibility = 'hidden';
-  botAnimation = moving.animate([
+  botAnimations = pieces.map(({ moving, from, to }) => moving.animate([
     { transform: 'translate(0, 0)' },
     { transform: `translate(${to.x + (to.width - from.width) / 2 - from.x}px, ${to.y + (to.height - from.height) / 2 - from.y}px)` },
-  ], { duration: BOT_MOVE_DURATION_MS, easing: 'ease-in-out', fill: 'forwards' });
-  try { await botAnimation.finished; }
-  finally { moving.remove(); piece.style.visibility = ''; botAnimation = null; }
+  ], { duration: BOT_MOVE_DURATION_MS, easing: 'ease-in-out', fill: 'forwards' }));
+  try { await Promise.all(botAnimations.map(animation => animation.finished)); }
+  finally { pieces.forEach(({ piece, moving }) => { moving.remove(); piece.style.visibility = ''; }); botAnimations = []; }
 }
 
 function acceptState(json) {
@@ -214,9 +214,10 @@ function renderBoard() {
       const piece = board.squares[square], name = squareName(square);
       const destination = legal.some(move => move.slice(2, 4) === name);
       const button = document.createElement('button');
-      button.className = `square ${(rank + file) % 2 === 0 ? 'dark' : ''} ${source === square ? 'selected' : ''} ${last && [last.slice(0, 2), last.slice(2, 4)].includes(name) ? 'last-move' : ''} ${destination ? piece === '.' ? 'legal' : 'legal capture' : ''}`;
+      const castling = destination && piece !== '.' && colorOf(piece) === state.turn;
+      button.className = `square ${(rank + file) % 2 === 0 ? 'dark' : ''} ${source === square ? 'selected' : ''} ${last && [last.slice(0, 2), last.slice(2, 4)].includes(name) ? 'last-move' : ''} ${destination ? castling ? 'legal castle' : piece === '.' ? 'legal' : 'legal capture' : ''}`;
       button.dataset.square = name;
-      button.setAttribute('aria-label', `${name}${piece !== '.' ? ` ${colorOf(piece)} ${NAMES[piece.toLowerCase()]}` : ' empty'}${destination ? ', available destination' : ''}`);
+      button.setAttribute('aria-label', `${name}${piece !== '.' ? ` ${colorOf(piece)} ${NAMES[piece.toLowerCase()]}` : ' empty'}${castling ? ', castle with this rook' : destination ? ', available destination' : ''}`);
       button.setAttribute('aria-pressed', String(source === square));
       if (piece !== '.') button.innerHTML = `<span class="piece ${colorOf(piece)}-piece" aria-hidden="true">${GLYPHS[piece.toLowerCase()]}</span>`;
       button.onclick = () => clickSquare(square);
@@ -232,10 +233,12 @@ function renderBoard() {
 }
 
 function previewRoute(square) {
-  const id = destination_board(state.size, square);
+  const move = source === null ? null : movesOnView().find(move => squareIndex(move.slice(0, 2)) === source && squareIndex(move.slice(2, 4)) === square);
+  const destination = move ? JSON.parse(game.move_details(viewing, move)).destination : square;
+  const id = destination_board(state.size, destination);
   document.querySelector(`[data-board="${id}"]`)?.classList.add('next');
   const open = state.boards[id].outcome === 'ongoing';
-  $('route-title').textContent = `${squareName(square)} → Board ${boardName(id)}`;
+  $('route-title').textContent = `${squareName(destination)} → Board ${boardName(id)}`;
   $('route-detail').textContent = open ? `${capitalize(state.turn === 'white' ? 'black' : 'white')} plays there next, if a move is available.` : 'That board is finished. Your opponent chooses freely.';
 }
 function clearRoute() {
@@ -249,6 +252,7 @@ function render() {
   $('turn-disc').classList.toggle('black', state.turn === 'black');
   $('turn-label').textContent = finished ? state.outcome === 'draw' ? 'Match drawn' : `${capitalize(state.outcome)} wins the match` : `${capitalize(state.turn)} to move${busy ? ' · thinking' : ''}`;
   $('turn-detail').textContent = finished ? `${state.score.white} – ${state.score.black} points` : state.forced_board === null ? 'Free choice of any playable board' : `Routed to board ${boardName(state.forced_board)}`;
+  if (state.chess960) $('turn-detail').textContent += ` · Chess960${state.start_position === null ? '' : ` #${state.start_position}`}`;
   $('routing-note').textContent = finished ? 'Match finished.' : state.forced_board === null ? 'Choose a playable board.' : `${capitalize(state.turn)} plays on ${boardName(state.forced_board)}.`;
   $('board-count').textContent = `${state.boards.length} boards`;
   $('white-score').textContent = state.score.white; $('black-score').textContent = state.score.black;
@@ -334,20 +338,20 @@ async function maybeBot() {
 
 function newGame(size) {
   resetOpponent(); clearError(); $('promotion').close(); $('draw-offer').close();
-  game.free(); game = new NestedGame(size); viewing = 0;
+  game.free(); game = preferences.chess960 ? NestedGame.chess960(size, Math.floor(Math.random() * CHESS960_POSITIONS)) : new NestedGame(size); viewing = 0;
   acceptState(game.state());
 }
 
 async function boot() {
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
-    if (saved) preferences = { theme: THEMES.includes(saved.theme) ? saved.theme : 'system', evaluations: saved.evaluations === true, animations: saved.animations !== false };
+    if (saved) preferences = { theme: THEMES.includes(saved.theme) ? saved.theme : 'system', evaluations: saved.evaluations === true, animations: saved.animations !== false, chess960: saved.chess960 === true };
   } catch {}
   applyPreferences();
   systemAppearance.addEventListener('change', () => { if (preferences.theme === 'system') applyPreferences(); });
   reducedMotion.addEventListener('change', applyPreferences);
   await init();
-  game = new NestedGame(2);
+  game = preferences.chess960 ? NestedGame.chess960(2, Math.floor(Math.random() * CHESS960_POSITIONS)) : new NestedGame(2);
   LEVELS.forEach((level, index) => $('difficulty').add(new Option(level.label, index)));
   $('difficulty').value = '2';
   try {
@@ -393,6 +397,7 @@ async function boot() {
   });
   $('show-evaluations').onchange = () => { preferences.evaluations = $('show-evaluations').checked; savePreferences(); void refreshEvaluations(); };
   $('animate-moves').onchange = () => { preferences.animations = $('animate-moves').checked; applyPreferences(); savePreferences(); };
+  $('chess960').onchange = () => { preferences.chess960 = $('chess960').checked; savePreferences(); };
   $('retry-evaluations').onclick = () => { void refreshEvaluations(); };
   $('promotion-cancel').onclick = () => $('promotion').close();
   $('export').onclick = () => {

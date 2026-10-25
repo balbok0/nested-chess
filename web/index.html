@@ -66,6 +66,7 @@
     </div></fieldset>
     <p class="small-note">System uses Classic in light mode and Classic Dark in dark mode.</p>
     <div class="motion-settings"><label class="checkbox-label" for="animate-moves"><input id="animate-moves" type="checkbox" checked />Animate moves</label><p id="motion-note" class="small-note">Animate engine moves and changes to the evaluation bar.</p></div>
+    <div class="motion-settings"><label class="checkbox-label" for="chess960"><input id="chess960" type="checkbox" />Fischer Random (Chess960)</label><p class="small-note">Applies to new matches. All boards share one random starting arrangement. To castle in Chess960, select the king and then its rook.</p></div>
     <div class="evaluation-settings">
       <label class="checkbox-label" for="show-evaluations"><input id="show-evaluations" type="checkbox" />Show board evaluations</label>
       <p class="small-note">Positive scores favor White; negative scores favor Black. Scores are in pawn units, not win probabilities.</p>
@@ -87,6 +88,7 @@
     </ol>
     <p class="small-note">En passant is available only on the next global turn, on that same board. A board draws after 100 local moves without a pawn move or capture. Threefold repetition of the entire nested position draws unfinished boards; so does having no move anywhere.</p>
     <p class="small-note">En passant example: after Black plays d7–d5, a White pawn on e5 may capture on d6, removing the pawn on d5. Routing must allow White to play on that board immediately; otherwise the opportunity expires.</p>
+    <p class="small-note">Fischer Random (Chess960) changes the starting arrangement for new matches. Select the king, then its rook to castle. The king finishes on c/g and the rook on d/f; routing follows the king’s final square. Castling requires clear paths and retained rights, but ignores attacks.</p>
     <img class="rules-demo rules-demo-animated" src="/rules.gif" alt="Four moves showing how landing squares route the opponent and allow Black to move twice on board B1 before White moves there." width="1100" height="850" loading="lazy" />
     <img class="rules-demo rules-demo-still" src="/rules-still.png" alt="Board B1 has zero White moves and two Black moves; White is required to play on A2." width="1100" height="850" loading="lazy" />
     <p class="small-note">Fairy-Stockfish analyzes one local board at a time and assumes alternating local turns. It does not account for routing or future repeat turns. <a href="https://github.com/fairy-stockfish/fairy-stockfish.wasm" target="_blank" rel="noreferrer">Engine source</a> · <a href="%BASE_URL%fairy/Copying.txt" target="_blank">GPL license</a></p>

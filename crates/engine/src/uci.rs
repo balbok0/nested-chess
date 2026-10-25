@@ -93,6 +93,10 @@ impl UciEngine {
         }
         let legal = game.legal_moves(board)?;
         self.send("ucinewgame")?;
+        self.send(&format!(
+            "setoption name UCI_Chess960 value {}",
+            game.board(board)?.is_chess960()
+        ))?;
         self.send("setoption name UCI_LimitStrength value false")?;
         self.send(&format!("setoption name Skill Level value {skill}"))?;
         self.send("isready")?;

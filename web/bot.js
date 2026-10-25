@@ -52,7 +52,8 @@ export class Opponent {
   }
   async search(fen, level) {
     await this.ready;
-    await this.command('readyok', ['ucinewgame', 'setoption name UCI_LimitStrength value false', `setoption name Skill Level value ${level.skill}`, 'setoption name MultiPV value 1', 'isready']);
+    const chess960 = /[A-Ha-h]/.test(fen.split(' ')[2]);
+    await this.command('readyok', ['ucinewgame', `setoption name UCI_Chess960 value ${chess960}`, 'setoption name UCI_LimitStrength value false', `setoption name Skill Level value ${level.skill}`, 'setoption name MultiPV value 1', 'isready']);
     return this.command('bestmove ', [`position fen ${fen}`, `go movetime ${level.ms}`]);
   }
   async bestMove(fen, level) {

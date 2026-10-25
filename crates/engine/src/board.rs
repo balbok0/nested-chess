@@ -5,7 +5,20 @@ use crate::{Color, Error, Outcome};
 
 pub const BOARD_WIDTH: u8 = 8;
 pub const SQUARES: usize = 64;
+pub const CHESS960_POSITIONS: u16 = 960;
 const NO_PROGRESS_LIMIT: u32 = 100;
+const KNIGHT_PAIRS: [(usize, usize); 10] = [
+    (0, 1),
+    (0, 2),
+    (0, 3),
+    (0, 4),
+    (1, 2),
+    (1, 3),
+    (1, 4),
+    (2, 3),
+    (2, 4),
+    (3, 4),
+];
 const KNIGHT_STEPS: [(i8, i8); 8] = [
     (1, 2),
     (2, 1),
@@ -58,6 +71,24 @@ pub struct Move {
     pub from: u8,
     pub to: u8,
     pub promotion: Option<Role>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RookMove {
+    pub from: u8,
+    pub to: u8,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MoveDetails {
+    pub destination: u8,
+    pub rook: Option<RookMove>,
+}
+
+struct Castle {
+    king_to: u8,
+    rook_from: u8,
+    rook_to: u8,
 }
 
 pub fn square_name(square: u8) -> Result<String, Error> {
@@ -120,7 +151,8 @@ impl fmt::Display for Move {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Board {
     pub(crate) pieces: [u64; 12],
-    pub(crate) castling: u8,
+    pub(crate) castling: [Option<u8>; 4],
+    pub(crate) chess960: bool,
     pub(crate) en_passant: Option<u8>,
     pub(crate) halfmoves: u32,
 }
@@ -132,6 +164,49 @@ impl Default for Board {
 }
 
 impl Board {
+    /// Create a mirrored Chess960 start using its Scharnagl number, 0 through 959.
+    pub fn chess960(index: u16) -> Result<Self, Error> {
+        if index >= CHESS960_POSITIONS {
+            return Err(Error::InvalidChess960);
+        }
+        let mut number = usize::from(index);
+        let mut back = [None; BOARD_WIDTH as usize];
+        back[(number % 4) * 2 + 1] = Some(Role::Bishop);
+        number /= 4;
+        back[(number % 4) * 2] = Some(Role::Bishop);
+        number /= 4;
+        back[empty_files(&back)[number % 6]] = Some(Role::Queen);
+        number /= 6;
+        let empty = empty_files(&back);
+        let (first, second) = KNIGHT_PAIRS[number];
+        back[empty[first]] = Some(Role::Knight);
+        back[empty[second]] = Some(Role::Knight);
+        let empty = empty_files(&back);
+        for (file, role) in empty.iter().zip([Role::Rook, Role::King, Role::Rook]) {
+            back[*file] = Some(role);
+        }
+        let white: String = back
+            .into_iter()
+            .map(|role| {
+                role.expect("complete back rank")
+                    .symbol()
+                    .to_ascii_uppercase()
+            })
+            .collect();
+        let black = white.to_ascii_lowercase();
+        let left = char::from(b'A' + empty[0] as u8);
+        let right = char::from(b'A' + empty[2] as u8);
+        Self::from_fen(&format!(
+            "{black}/pppppppp/8/8/8/8/PPPPPPPP/{white} w {right}{left}{}{} - 0 1",
+            right.to_ascii_lowercase(),
+            left.to_ascii_lowercase()
+        ))
+    }
+
+    pub fn is_chess960(&self) -> bool {
+        self.chess960
+    }
+
     /// Read a FEN position. The nested game supplies the side to move.
     pub fn from_fen(fen: &str) -> Result<Self, Error> {
         let fields: Vec<_> = fen.split_whitespace().collect();
@@ -143,7 +218,8 @@ impl Board {
         }
         let mut board = Self {
             pieces: [0; 12],
-            castling: 0,
+            castling: [None; 4],
+            chess960: false,
             en_passant: None,
             halfmoves: fields[4].parse().map_err(|_| Error::InvalidFen)?,
         };
@@ -204,38 +280,40 @@ impl Board {
         }
         if fields[2] != "-" {
             for symbol in fields[2].chars() {
-                let bit = match symbol {
-                    'K' => 1,
-                    'Q' => 2,
-                    'k' => 4,
-                    'q' => 8,
+                let (color, rook, side) = match symbol {
+                    'K' => (Color::White, 7, 0),
+                    'Q' => (Color::White, 0, 1),
+                    'k' => (Color::Black, 63, 0),
+                    'q' => (Color::Black, 56, 1),
+                    'A'..='H' | 'a'..='h' => {
+                        board.chess960 = true;
+                        let color = if symbol.is_ascii_uppercase() {
+                            Color::White
+                        } else {
+                            Color::Black
+                        };
+                        let base = if color == Color::White { 0 } else { 56 };
+                        let rook = base + symbol.to_ascii_lowercase() as u8 - b'a';
+                        let king = board.bitboard(color, Role::King).trailing_zeros() as u8;
+                        (color, rook, usize::from(rook < king))
+                    }
                     _ => return Err(Error::InvalidFen),
                 };
-                if board.castling & bit != 0 {
-                    return Err(Error::InvalidFen);
-                }
-                board.castling |= bit;
-            }
-        }
-        for (bit, king, rook, color) in [
-            (1, 4, 7, Color::White),
-            (2, 4, 0, Color::White),
-            (4, 60, 63, Color::Black),
-            (8, 60, 56, Color::Black),
-        ] {
-            if board.castling & bit != 0
-                && (board.piece_at(king)
-                    != Some(Piece {
-                        color,
-                        role: Role::King,
-                    })
+                let king = board.bitboard(color, Role::King).trailing_zeros() as u8;
+                let base = if color == Color::White { 0 } else { 56 };
+                let slot = color as usize * 2 + side;
+                if board.castling[slot].is_some()
+                    || king / BOARD_WIDTH != base / BOARD_WIDTH
                     || board.piece_at(rook)
                         != Some(Piece {
                             color,
                             role: Role::Rook,
-                        }))
-            {
-                return Err(Error::InvalidFen);
+                        })
+                    || (matches!(symbol, 'K' | 'Q' | 'k' | 'q') && king != base + 4)
+                {
+                    return Err(Error::InvalidFen);
+                }
+                board.castling[slot] = Some(rook);
             }
         }
         if fields[3] != "-" {
@@ -374,19 +452,28 @@ impl Board {
             }
             if piece.role == Role::King {
                 let base = if color == Color::White { 0 } else { 56 };
-                let rights = self.castling >> (color as u8 * 2);
-                if from == base + 4 {
-                    for (bit, rook, empty, to) in [
-                        (1, base + 7, vec![base + 5, base + 6], base + 6),
-                        (2, base, vec![base + 1, base + 2, base + 3], base + 2),
-                    ] {
-                        if rights & bit != 0
-                            && self.piece_at(rook)
-                                == Some(Piece {
-                                    color,
-                                    role: Role::Rook,
-                                })
-                            && empty.iter().all(|square| self.piece_at(*square).is_none())
+                for side in 0..2 {
+                    if let Some(rook) = self.castling[color as usize * 2 + side] {
+                        let to = if self.chess960 {
+                            rook
+                        } else {
+                            base + if side == 0 { 6 } else { 2 }
+                        };
+                        let castle = self
+                            .castle(
+                                color,
+                                Move {
+                                    from,
+                                    to,
+                                    promotion: None,
+                                },
+                            )
+                            .expect("matching castling right");
+                        let occupied = self.pieces.iter().fold(0, |bits, next| bits | next)
+                            & !(1u64 << from | 1u64 << rook);
+                        if (from.min(castle.king_to)..=from.max(castle.king_to))
+                            .chain(rook.min(castle.rook_to)..=rook.max(castle.rook_to))
+                            .all(|square| occupied & (1u64 << square) == 0)
                         {
                             add(to);
                         }
@@ -399,7 +486,12 @@ impl Board {
 
     pub(crate) fn apply(&mut self, color: Color, mv: Move) {
         let piece = self.piece_at(mv.from).expect("validated move has a piece");
-        let captured = self.piece_at(mv.to);
+        let castle = self.castle(color, mv);
+        let captured = if castle.is_some() {
+            None
+        } else {
+            self.piece_at(mv.to)
+        };
         if piece.role == Role::Pawn && self.en_passant == Some(mv.to) && captured.is_none() {
             self.remove(if color == Color::White {
                 mv.to - BOARD_WIDTH
@@ -408,37 +500,43 @@ impl Board {
             });
         }
         self.en_passant = None;
-        self.remove(mv.from);
-        self.remove(mv.to);
-        self.put(
-            mv.to,
-            Piece {
-                color,
-                role: mv.promotion.unwrap_or(piece.role),
-            },
-        );
-        if piece.role == Role::King {
-            self.castling &= !(3 << (color as u8 * 2));
-            if mv.from.abs_diff(mv.to) == 2 {
-                let base = mv.from / BOARD_WIDTH * BOARD_WIDTH;
-                let (from, to) = if mv.to > mv.from {
-                    (base + 7, base + 5)
-                } else {
-                    (base, base + 3)
-                };
-                self.remove(from);
-                self.put(
-                    to,
-                    Piece {
-                        color,
-                        role: Role::Rook,
-                    },
-                );
-            }
+        if let Some(castle) = castle {
+            self.remove(mv.from);
+            self.remove(castle.rook_from);
+            self.put(
+                castle.king_to,
+                Piece {
+                    color,
+                    role: Role::King,
+                },
+            );
+            self.put(
+                castle.rook_to,
+                Piece {
+                    color,
+                    role: Role::Rook,
+                },
+            );
+        } else {
+            self.remove(mv.from);
+            self.remove(mv.to);
+            self.put(
+                mv.to,
+                Piece {
+                    color,
+                    role: mv.promotion.unwrap_or(piece.role),
+                },
+            );
         }
-        for (square, right) in [(0, 2), (7, 1), (56, 8), (63, 4)] {
-            if mv.from == square || mv.to == square {
-                self.castling &= !right;
+        if piece.role == Role::King {
+            self.castling[color as usize * 2..color as usize * 2 + 2].fill(None);
+        }
+        if captured.is_some_and(|piece| piece.role == Role::King) {
+            self.castling[color.other() as usize * 2..color.other() as usize * 2 + 2].fill(None);
+        }
+        for right in &mut self.castling {
+            if *right == Some(mv.from) || *right == Some(mv.to) {
+                *right = None;
             }
         }
         if piece.role == Role::Pawn && mv.from.abs_diff(mv.to) == BOARD_WIDTH * 2 {
@@ -449,6 +547,47 @@ impl Board {
         } else {
             self.halfmoves.saturating_add(1)
         };
+    }
+
+    fn castle(&self, color: Color, mv: Move) -> Option<Castle> {
+        if self.piece_at(mv.from)
+            != Some(Piece {
+                color,
+                role: Role::King,
+            })
+        {
+            return None;
+        }
+        let base = if color == Color::White { 0 } else { 56 };
+        for side in 0..2 {
+            if let Some(rook) = self.castling[color as usize * 2 + side] {
+                let king_to = base + if side == 0 { 6 } else { 2 };
+                if mv.to == if self.chess960 { rook } else { king_to } {
+                    return Some(Castle {
+                        king_to,
+                        rook_from: rook,
+                        rook_to: base + if side == 0 { 5 } else { 3 },
+                    });
+                }
+            }
+        }
+        None
+    }
+
+    pub(crate) fn move_details(&self, color: Color, mv: Move) -> MoveDetails {
+        self.castle(color, mv).map_or(
+            MoveDetails {
+                destination: mv.to,
+                rook: None,
+            },
+            |castle| MoveDetails {
+                destination: castle.king_to,
+                rook: Some(RookMove {
+                    from: castle.rook_from,
+                    to: castle.rook_to,
+                }),
+            },
+        )
     }
 
     pub(crate) fn outcome(&self) -> Outcome {
@@ -488,10 +627,19 @@ impl Board {
             }
             rows.push(row);
         }
-        let rights: String = [(1, 'K'), (2, 'Q'), (4, 'k'), (8, 'q')]
-            .into_iter()
-            .filter(|(bit, _)| self.castling & bit != 0)
-            .map(|(_, symbol)| symbol)
+        let rights: String = self
+            .castling
+            .iter()
+            .enumerate()
+            .filter_map(|(index, square)| {
+                square.map(|square| {
+                    if self.chess960 {
+                        char::from(if index < 2 { b'A' } else { b'a' } + square % BOARD_WIDTH)
+                    } else {
+                        ['K', 'Q', 'k', 'q'][index]
+                    }
+                })
+            })
             .collect();
         let rights = if rights.is_empty() { "-" } else { &rights };
         let ep = self
@@ -504,6 +652,13 @@ impl Board {
         let halfmoves = self.halfmoves;
         format!("{placement} {side} {rights} {ep} {halfmoves} 1")
     }
+}
+
+fn empty_files(back: &[Option<Role>; BOARD_WIDTH as usize]) -> Vec<usize> {
+    back.iter()
+        .enumerate()
+        .filter_map(|(index, piece)| piece.is_none().then_some(index))
+        .collect()
 }
 
 fn offset(square: u8, dx: i8, dy: i8) -> Option<u8> {

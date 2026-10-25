@@ -2,7 +2,10 @@ mod board;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod uci;
 
-pub use board::{BOARD_WIDTH, Board, Move, Piece, Role, SQUARES, parse_square, square_name};
+pub use board::{
+    BOARD_WIDTH, Board, CHESS960_POSITIONS, Move, MoveDetails, Piece, Role, RookMove, SQUARES,
+    parse_square, square_name,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -14,6 +17,8 @@ const DRAW_POINTS: f32 = 0.5;
 pub enum Error {
     #[error("grid width must be 2, 4, or 8")]
     InvalidGrid,
+    #[error("Chess960 starting position must be between 0 and 959")]
+    InvalidChess960,
     #[error("square must be a1 through h8")]
     InvalidSquare,
     #[error("move must be UCI notation, such as e2e4 or a7a8q")]
@@ -101,6 +106,8 @@ pub struct State {
     pub ply: usize,
     pub boards: Vec<BoardView>,
     pub history: Vec<Action>,
+    pub chess960: bool,
+    pub start_position: Option<u16>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -112,6 +119,8 @@ struct Save {
     initial_fens: Vec<String>,
     finish_rule: FinishRule,
     events: Vec<Action>,
+    #[serde(default)]
+    start_position: Option<u16>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -172,6 +181,17 @@ fn validate_size(size: u8) -> Result<(), Error> {
 }
 
 impl Game {
+    /// Create a match with the same Chess960 arrangement on every local board.
+    pub fn chess960(size: u8, index: u16) -> Result<Self, Error> {
+        validate_size(size)?;
+        let mut game = Self::from_fens(
+            size,
+            Color::White,
+            &vec![Board::chess960(index)?.fen(Color::White); usize::from(size).pow(2)],
+        )?;
+        game.save.start_position = Some(index);
+        Ok(game)
+    }
     pub fn new(size: u8) -> Result<Self, Error> {
         validate_size(size)?;
         Self::from_fens(
@@ -224,6 +244,7 @@ impl Game {
                 initial_fens: fens.to_vec(),
                 finish_rule: FinishRule::Majority,
                 events: Vec::new(),
+                start_position: None,
             },
         };
         game.resolve_turn();
@@ -263,6 +284,14 @@ impl Game {
         Ok(self.boards[id].legal_moves(self.turn))
     }
 
+    pub fn move_details(&self, id: usize, uci: &str) -> Result<MoveDetails, Error> {
+        let mv: Move = uci.parse()?;
+        if !self.legal_moves(id)?.contains(&mv) {
+            return Err(Error::IllegalMove);
+        }
+        Ok(self.boards[id].move_details(self.turn, mv))
+    }
+
     /// Play one global turn. Rejected actions leave the match unchanged.
     pub fn play(&mut self, id: usize, uci: &str) -> Result<(), Error> {
         if self.outcome() != Outcome::Ongoing {
@@ -272,6 +301,7 @@ impl Game {
         if !self.legal_moves(id)?.contains(&mv) {
             return Err(Error::IllegalMove);
         }
+        let destination = self.boards[id].move_details(self.turn, mv).destination;
         self.boards[id].apply(self.turn, mv);
         for (other, board) in self.boards.iter_mut().enumerate() {
             if other != id {
@@ -285,7 +315,7 @@ impl Game {
             uci: mv.to_string(),
         });
         self.turn = self.turn.other();
-        self.requested_board = Some(route(self.size, mv.to)?);
+        self.requested_board = Some(route(self.size, destination)?);
         self.resolve_turn();
         let key = self.position_key();
         let count = self.repetitions.entry(key).or_default();
@@ -341,11 +371,17 @@ impl Game {
         ];
         for (board, outcome) in self.boards.iter().zip(&self.outcomes) {
             key.extend(board.pieces);
-            key.push(
-                board.castling as u64
-                    | (board.en_passant.map_or(64, u64::from) << 8)
-                    | ((*outcome as u64) << 16),
-            );
+            let [wk, wq, bk, bq] = board.castling;
+            key.push(u64::from_le_bytes([
+                wk.unwrap_or(64),
+                wq.unwrap_or(64),
+                bk.unwrap_or(64),
+                bq.unwrap_or(64),
+                board.en_passant.unwrap_or(64),
+                *outcome as u8,
+                u8::from(board.chess960),
+                0,
+            ]));
         }
         key
     }
@@ -435,6 +471,8 @@ impl Game {
                 })
                 .collect(),
             history: self.save.events.clone(),
+            chess960: self.boards.iter().any(Board::is_chess960),
+            start_position: self.save.start_position,
         }
     }
 
@@ -476,6 +514,7 @@ impl Game {
                             uci: event.uci,
                         })
                         .collect(),
+                    start_position: None,
                 }
             }
             Some(2) => serde_json::from_value(value)
@@ -484,6 +523,13 @@ impl Game {
         };
         let mut game = Self::from_fens(save.size, save.first_player, &save.initial_fens)?;
         game.save.finish_rule = save.finish_rule;
+        if save
+            .start_position
+            .is_some_and(|index| index >= CHESS960_POSITIONS)
+        {
+            return Err(Error::InvalidChess960);
+        }
+        game.save.start_position = save.start_position;
         for action in save.events {
             match action {
                 Action::Move { board, uci } => game.play(board, &uci)?,

@@ -62,3 +62,21 @@ def test_agreed_draw_does_not_consume_a_turn_and_survives_undo():
     restored = nested_chess.Game.load(game.save())
     assert restored.state() == game.state()
     assert restored.undo() == before
+
+
+@pytest.mark.parametrize("index", [pytest.param(0, id="first_start"), pytest.param(518, id="classical_layout"), pytest.param(959, id="last_start")])
+def test_chess960_opponent_returns_a_legal_move(index):
+    game = nested_chess.Game(2, chess960=index)
+    state = json.loads(game.state())
+    assert state["chess960"]
+    assert state["start_position"] == index
+    opponent = nested_chess.Opponent("node", ["scripts/fairy-uci.cjs"], "variants/nested.ini")
+    move = opponent.best_move(game, 0, 20, 100)
+    assert move in game.legal_moves(0)
+    game.play(0, move)
+    assert nested_chess.Game.load(game.save()).state() == game.state()
+
+
+def test_chess960_castling_details_use_the_kings_actual_landing():
+    game = nested_chess.Game.load(json.dumps({"version": 2, "size": 2, "first_player": "white", "initial_fens": ["4k3/8/8/8/8/8/8/6KR w H - 0 1"] * 4, "finish_rule": "majority", "events": []}))
+    assert json.loads(game.move_details(0, "g1h1")) == {"destination": 6, "rook": {"from": 7, "to": 5}}

@@ -13,11 +13,19 @@ struct PyGame {
 #[pymethods]
 impl PyGame {
     #[new]
-    #[pyo3(signature = (size=2))]
-    fn new(size: u8) -> PyResult<Self> {
+    #[pyo3(signature = (size=2, chess960=None))]
+    fn new(size: u8, chess960: Option<u16>) -> PyResult<Self> {
         Ok(Self {
-            game: Game::new(size).map_err(py_error)?,
+            game: match chess960 {
+                Some(index) => Game::chess960(size, index),
+                None => Game::new(size),
+            }
+            .map_err(py_error)?,
         })
+    }
+    fn move_details(&self, board: usize, uci: &str) -> PyResult<String> {
+        serde_json::to_string(&self.game.move_details(board, uci).map_err(py_error)?)
+            .map_err(py_error)
     }
     fn state(&self) -> PyResult<String> {
         serde_json::to_string(&self.game.state()).map_err(py_error)

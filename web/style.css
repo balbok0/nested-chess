@@ -195,6 +195,7 @@ h1, h2 { font-family: var(--heading-font); }
 .square.selected, .square.selected.last-move { background: var(--selected); }
 .square.legal::after { content: ''; position: absolute; width: 23%; height: 23%; border-radius: 50%; background: #172a3266; }
 .square.capture::after { width: 87%; height: 87%; background: transparent; border: 4px solid #a34b35aa; }
+.square.castle::after { width: 85%; height: 85%; background: transparent; border: 3px solid #376c55; }
 .square:hover { box-shadow: inset 0 0 0 2px #172a3277; }
 .square:focus-visible { outline-offset: -3px; z-index: 2; }
 .rank-labels { position: absolute; right: calc(100% + 7px); top: 0; bottom: 21px; display: flex; flex-direction: column; justify-content: space-around; font-size: 11px; color: var(--muted); }
