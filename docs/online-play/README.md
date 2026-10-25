@@ -5,11 +5,20 @@ Branch: `explore/online-play`. The main bot benchmark is independent and unchang
 [HTML proposal and cost calculator](../online-play.html) — download/open it in a
 browser; no build or external scripts are required.
 
-Recommendation: one Rust/Axum service, SQLite on persistent disk, Google OIDC
-login, server sessions, invite links, and a simple queue. Reuse the Rust rules
-engine and browser WASM. The server owns moves, results, clocks, and ratings.
-Start with Elo on whole-match outcomes and a provisional label; local boards do
-not receive independent ratings.
+Recommendation: one Rust/Axum service, SQLite on persistent disk, Google, GitHub,
+and Microsoft login, server sessions, invite links, and a simple queue. Reuse the
+Rust rules engine and browser WASM. For online games, the server owns moves,
+results, clocks, and ratings. Local and bot games run on the device without an
+account or connection to the multiplayer backend.
+
+Elo uses whole-match outcomes, with provisional labels for new players. Local
+boards never receive independent ratings; this is a permanent rating rule.
+
+Use Rust's `openidconnect` crate for Google/Microsoft OIDC and the related
+`oauth2` crate for GitHub OAuth 2.0 plus its authenticated-user API. The providers
+share the app's login/session flow, with small identity adapters. Additional
+identities link to an existing account only through an authenticated linking
+flow; matching email addresses alone do not merge accounts.
 
 Planning budget for 100 simultaneous human games, with the workload assumptions
 and rates recorded in the HTML:

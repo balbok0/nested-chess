@@ -41,29 +41,35 @@
   <header>
     <a href="https://github.com/balbok0/nested-chess/tree/explore/online-play">Exploration branch</a>
     <h1>Online play: scope and cost</h1>
-    <p><strong>100 simultaneous human games looks feasible on a small Rust server.</strong> I would start with a 4 GB AWS Lightsail VM, SQLite, and Google login. Budget about <strong>$30–40/month</strong> for the service and backups. The hard work is reliable multiplayer and account handling; validating chess moves is cheap.</p>
+    <p><strong>100 simultaneous human games looks feasible on a small Rust server.</strong> I would use a 4 GB AWS Lightsail VM, SQLite, and Google, GitHub, and Microsoft login. Budget about <strong>$30–40/month</strong> for the service and backups. The hard work is reliable multiplayer and account handling; validating chess moves is cheap.</p>
     <p class="muted">Proposal, not an implemented backend. Prices checked 25 October 2026, USD, selected US regions, no tax or promotional credits. One server, without automatic failover. Server-side bots and spectators are excluded from the base estimate.</p>
   </header>
   <section>
     <h2>What changes</h2>
     <p>The existing Rust crate already validates moves, routes turns, scores boards, and saves/replays matches. The deployed app is a browser client on <a href="https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages">GitHub Pages</a>; a new backend would own online games.</p>
+    <p><strong>Server authority applies to online games.</strong> Local and bot games run on the device without login or a connection to the multiplayer backend.</p>
     <div class="tables"><table>
       <thead><tr><th>Area</th><th>Proposed first version</th></tr></thead>
       <tbody>
-        <tr><th>Accounts</th><td><a href="https://developers.google.com/identity/openid-connect/openid-connect">Google OpenID Connect</a>, a chosen username, and server sessions in secure HttpOnly cookies. Identify accounts by provider + subject, not email. Use full-page redirects to avoid popup dependencies under the app's isolation headers. Email/password can use a managed provider later.</td></tr>
+        <tr><th>Accounts</th><td>Google, GitHub, and Microsoft login, a chosen username, and server sessions in secure HttpOnly cookies. Provider identities map to one internal user. Use full-page redirects to avoid popup dependencies under the app's isolation headers.</td></tr>
         <tr><th>Multiplayer</th><td>Invite links first, then a simple matchmaking queue. Two seats with assigned colors; both agree to the grid and settings. Rust validates every action and sends committed events over WebSockets.</td></tr>
         <tr><th>History</th><td>Account page listing opponent, settings, result, date, and rating change. Existing WASM replays a server-owned move log. Store original starts and rules version with every game; compact completed logs and evict finished games from memory.</td></tr>
-        <tr><th>Ratings</th><td>One rating result per complete match: win 1, draw ½, loss 0. Start with Elo and provisional labels. Local boards are correlated parts of one game, so do not count them as separate rating results.</td></tr>
+        <tr><th>Ratings</th><td>Elo uses one result per rated online match: win 1, draw ½, loss 0. New players have provisional labels. Whole-match outcomes are the permanent rating unit; individual boards never receive independent ratings.</td></tr>
         <tr><th>Reliable play</th><td>Sequence numbers, duplicate-request handling, reconnect/resync, resignation, and server-owned clocks. Decide disconnect and server-outage outcomes before opening rated play.</td></tr>
       </tbody>
     </table></div>
     <p>I recommend one initial rated pool for human classical 2×2, with other settings available through casual invites and bot games unrated. More rated queues split a small player population. The existing evaluation worker should be disabled during rated games; that does not prevent external engine assistance.</p>
+    <details><summary>Login providers and Rust libraries</summary>
+      <p><a href="https://docs.rs/openidconnect/latest/openidconnect/">openidconnect</a> covers the OIDC flow for <a href="https://developers.google.com/identity/openid-connect/openid-connect">Google</a> and <a href="https://learn.microsoft.com/en-us/entra/identity-platform/v2-protocols-oidc">Microsoft</a>. Configure Microsoft for personal and work/school accounts, with tenant-aware issuer validation.</p>
+      <p><a href="https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps">GitHub user login uses OAuth 2.0</a>. Use the related <a href="https://docs.rs/oauth2/latest/oauth2/">oauth2</a> crate and <a href="https://docs.github.com/en/rest/users/users#get-the-authenticated-user">GET /user</a> to obtain its stable numeric account ID. Repository permissions are unnecessary for login.</p>
+      <p>Share the login, callback, and application-session flow across small provider adapters. Store OIDC issuer + subject or GitHub provider + numeric ID. Link another identity from an already authenticated account; matching emails alone never merge users. Match history and ratings belong to the internal user.</p>
+    </details>
   </section>
   <section>
     <h2>Server shape</h2>
     <pre>Browser UI + WASM  ↔  Rust / Axum  ↔  SQLite on persistent disk
                          │
-                    Google login
+                 Google / GitHub / Microsoft
 
 TLS and static assets share the app's origin.</pre>
     <p>One Rust process can own 100 matches and their socket connections. Use a serialized command queue per game and a bounded SQLite writer. <a href="https://docs.rs/axum/latest/axum/extract/ws/index.html">Axum supports WebSockets</a>; <a href="https://www.sqlite.org/wal.html">SQLite WAL</a> permits concurrent readers with one writer.</p>
@@ -132,16 +138,16 @@ TLS and static assets share the app's origin.</pre>
   <section>
     <h2>Ratings and implementation order</h2>
     <p>Start everyone on an arbitrary common scale, such as 1500. A simple Elo update uses <code>expected = 1 / (1 + 10^((opponent − player) / 400))</code> and <code>new = old + K × (result − expected)</code>. I would start with K = 32 for both players and mark their first 20 rated matches provisional. This is a rating within this game, with no conversion to chess.com or FIDE Elo.</p>
-    <p>Elo does not supply calibrated uncertainty. <a href="https://www.glicko.net/glicko/glicko2.pdf">Glicko-2</a> adds rating deviation and volatility, but its rating-period policy needs care in a small pool. I recommend simple Elo first; keep immutable results and rating algorithm versions so ratings can be recomputed.</p>
+    <p>Elo does not supply calibrated uncertainty. Keep immutable results and rating algorithm versions so ratings can be recomputed. Whole matches remain the rating unit regardless of any future algorithm change.</p>
     <div class="tables"><table>
       <thead><tr><th>Stage</th><th>Deliverable</th><th>Rough engineering effort</th></tr></thead>
       <tbody>
         <tr><th>Private play</th><td>Rust server, session boundary, invite/join, authoritative moves, durable log, reconnect and basic history.</td><td>4–7 working days</td></tr>
-        <tr><th>Accounts and ratings</th><td>OIDC login, profiles, account history, clocks/resignation policy, exactly-once rating updates, simple queue.</td><td>4–7 days</td></tr>
+        <tr><th>Accounts and ratings</th><td>Google/GitHub/Microsoft login, profiles, account history, clocks/resignation policy, exactly-once rating updates, simple queue.</td><td>4–7 days</td></tr>
         <tr><th>Public release</th><td>Two-browser/restart tests, rate limits, operational visibility, backup restore, deployment and real network load test.</td><td>3–5 days</td></tr>
       </tbody>
     </table></div>
-    <p>Roughly 2–4 weeks for a small public version, with invite-only play available earlier. This is a planning estimate, not measured work. OAuth provider registration, hosting credentials, and a domain are required for deployment.</p>
+    <p>Roughly 2–4 weeks for a small public version, with invite-only play available earlier. This is a planning estimate, not measured work. All three login providers need application registration and callback configuration; hosting credentials and a domain are required for deployment.</p>
     <p>Before sizing is accepted: test 200 TLS WebSocket clients, 20–50 accepted moves/second, duplicate/out-of-order requests, reconnect bursts, long 8×8 histories, and process restarts against the actual cloud disk. Aim for server-side move acknowledgments under 100 ms at p95, excluding internet latency. Hold sustained load long enough to expose burst-credit limits.</p>
     <p class="muted">Exploration only. No accounts, cloud resources, or live multiplayer deployment were created. The main bot benchmark continues independently.</p>
   </section>
