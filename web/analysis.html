@@ -57,6 +57,7 @@
   <section>
     <h2>Global vs local</h2>
     <p id="headline"></p>
+    <p id="search-cost" class="muted"></p>
     <p class="muted">Rows are global difficulty; columns are local difficulty. Cells show win rate, 95% bounds, and W–D–L. Select a cell for match score and search costs. Only global ≤ local pairings are tested.</p>
     <div id="global-matrix" class="table-wrap"></div>
     <div id="global-detail" class="detail" aria-live="polite" hidden></div>
@@ -153,6 +154,8 @@
   if (flagship) {
     const conclusion = flagship.score_ci95.low > .5 ? 'outscored Strong local' : flagship.score_ci95.high < .5 ? 'was outscored by Strong local' : 'has no clear advantage over Strong local at this sample size';
     $('headline').textContent = `Casual global ${conclusion}: ${flagship.wins} wins, ${flagship.draws} draws, ${flagship.losses} losses. Match score ${percent(flagship.score_rate)} (${bounds(flagship.score_ci95)}, 95% bounds).`;
+    const baseline = rows.find(row => row.family === 'local' && row.a_level === 1 && row.b_level === 3);
+    $('search-cost').textContent = `${percent(flagship.a_metrics.fallback_moves / flagship.a_metrics.moves)} of Casual global moves completed no search depth. These results measure the current implementation under its time budgets.${baseline ? ` The matching Casual-local baseline scored ${percent(baseline.score_rate)} (${bounds(baseline.score_ci95)}).` : ''}`;
   } else $('headline').textContent = 'The benchmark is running. Results appear after both colors of a pair finish.';
   const conditions = data.protocol?.conditions ?? [];
   $('openings').textContent = `${conditions.filter(row => row.forced_openings).length} of ${conditions.length} pairings required forced openings after a 10-game determinism check. Each final pair shares a position with colors swapped. Pilots are excluded from the scored sample.`;

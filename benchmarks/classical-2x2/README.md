@@ -76,3 +76,8 @@ per-pairing determinism decisions. `summary.json` is the data shown in the HTML.
 `global-A-B.jsonl.gz` and `local-A-B.jsonl.gz` contain all scored games; level
 indices run 0 (Beginner) through 5 (Maximum). `pilot.jsonl.gz` and
 `resources.jsonl.gz` retain pilot games and telemetry.
+
+`diversity.json` compares move sequences within pilot policy/color groups,
+including local streams with board relabeling and global interleaving allowed.
+The independent five-move classical [opening trial](../opening-trial) has its own
+games and summary; it is excluded from this study's scored sample.

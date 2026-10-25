@@ -13,5 +13,5 @@ execFileSync('tar', [
   '.gitignore', 'Cargo.toml', 'Cargo.lock', 'package.json', 'package-lock.json',
   'pyproject.toml', 'vite.config.js', 'LICENSE', 'LICENSE-MIT', 'LICENSING.md',
   'THIRD_PARTY.md', 'README.md', 'crates', 'web', 'scripts', 'variants', 'tests',
-  'docs', 'third_party',
+  'docs', 'third_party', 'benchmarks',
 ], { stdio: 'inherit' });
