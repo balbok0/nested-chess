@@ -10,8 +10,8 @@
   <title>Nested chess</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23252525'/%3E%3Ctext x='3' y='26' font-size='29' fill='white'%3E♞%3C/text%3E%3C/svg%3E" />
   <script src="/nested-chess/coi-serviceworker.js"></script>
-  <script type="module" crossorigin src="/nested-chess/assets/index-DL0XcDEl.js"></script>
-  <link rel="stylesheet" crossorigin href="/nested-chess/assets/index-D6WckJ_U.css">
+  <script type="module" crossorigin src="/nested-chess/assets/index-U0tnd9W8.js"></script>
+  <link rel="stylesheet" crossorigin href="/nested-chess/assets/index-D3laiidy.css">
 </head>
 <body>
   <header class="masthead">
@@ -49,7 +49,12 @@
         <label class="sr-only" for="mode">Opponent</label><select id="mode"><option value="bot">Fairy-Stockfish</option><option value="local">Local two-player</option></select>
         <div id="bot-settings"><label for="difficulty">Difficulty</label><select id="difficulty"></select><p class="small-note">Skill presets; no calibrated Elo.</p></div>
         <p id="engine-status" class="engine-status" role="status">You play White.</p><button id="retry-bot" class="text-button" hidden>Retry opponent</button>
-        <div class="history-section"><div class="section-heading"><h2>Moves</h2><span id="ply-count">0 moves</span></div><ol id="history" class="history"><li class="empty-history">No moves yet.</li></ol></div>
+        <div class="history-section">
+          <div class="section-heading"><h2>Global moves</h2><span id="ply-count">0 moves</span></div>
+          <ol id="history" class="history" aria-label="Global moves"><li class="empty-history">No moves yet.</li></ol>
+          <div class="section-heading local-history-heading"><h2 id="local-history-title">Local · A1</h2><span id="local-ply-count">0 moves</span></div>
+          <ol id="local-history" class="history" aria-label="Moves on board A1"><li class="empty-history">No moves on this board yet.</li></ol>
+        </div>
         <div class="save-tools"><button id="export" class="text-button">Export match</button><button id="import" class="text-button">Import match</button><input id="import-file" type="file" accept="application/json,.json" hidden /></div><p id="save-status" class="small-note"></p>
       </aside>
     </div>
