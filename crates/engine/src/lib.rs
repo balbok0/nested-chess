@@ -174,6 +174,79 @@ pub struct Game {
     save: Save,
 }
 
+#[cfg(feature = "checkpoint")]
+#[derive(Serialize, Deserialize)]
+struct Checkpoint {
+    version: u8,
+    size: u8,
+    turn: Color,
+    boards: Vec<Board>,
+    outcomes: Vec<Outcome>,
+    forced_board: Option<usize>,
+    requested_board: Option<usize>,
+    counts: Vec<[u32; 2]>,
+    repetitions: Vec<(Vec<u64>, u8)>,
+    save: Save,
+}
+
+#[cfg(feature = "checkpoint")]
+impl Game {
+    /// Encode an engine checkpoint for trusted persistent storage.
+    pub fn checkpoint_json(&self) -> Result<String, Error> {
+        serde_json::to_string(&Checkpoint {
+            version: 1,
+            size: self.size,
+            turn: self.turn,
+            boards: self.boards.clone(),
+            outcomes: self.outcomes.clone(),
+            forced_board: self.forced_board,
+            requested_board: self.requested_board,
+            counts: self.counts.clone(),
+            repetitions: self
+                .repetitions
+                .iter()
+                .map(|(k, v)| (k.clone(), *v))
+                .collect(),
+            save: self.save.clone(),
+        })
+        .map_err(|error| Error::InvalidSave(error.to_string()))
+    }
+
+    /// Restore an engine checkpoint from trusted storage without replaying moves.
+    pub fn from_checkpoint_json(json: &str) -> Result<Self, Error> {
+        let value: Checkpoint =
+            serde_json::from_str(json).map_err(|error| Error::InvalidSave(error.to_string()))?;
+        validate_size(value.size)?;
+        let count = usize::from(value.size).pow(2);
+        if value.version != 1
+            || value.save.version != SAVE_VERSION
+            || value.save.size != value.size
+            || value.boards.len() != count
+            || value.outcomes.len() != count
+            || value.counts.len() != count
+            || value.forced_board.is_some_and(|id| id >= count)
+            || value.requested_board.is_some_and(|id| id >= count)
+            || value.boards.iter().any(|b| {
+                b.castling.iter().flatten().any(|&s| s >= 64)
+                    || b.en_passant.is_some_and(|s| s >= 64)
+            })
+        {
+            return Err(Error::InvalidSave("invalid engine checkpoint".into()));
+        }
+        Ok(Self {
+            size: value.size,
+            turn: value.turn,
+            boards: value.boards,
+            outcomes: value.outcomes,
+            forced_board: value.forced_board,
+            requested_board: value.requested_board,
+            counts: value.counts,
+            repetitions: value.repetitions.into_iter().collect(),
+            save: value.save,
+        })
+    }
+}
+
 /// Map a destination square to a macro board; both use a1 as the lower left.
 pub fn route(size: u8, square: u8) -> Result<usize, Error> {
     validate_size(size)?;

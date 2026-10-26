@@ -6,13 +6,13 @@ use reqwest::{
 };
 use serde_json::{Value, json};
 use std::{path::PathBuf, sync::Arc, time::Duration};
-use tempfile::TempDir;
+mod common;
 use tokio::{net::TcpListener, task::JoinHandle};
 use tokio_tungstenite::{connect_async, tungstenite::client::IntoClientRequest};
 use uuid::Uuid;
 
 struct Server {
-    _dir: TempDir,
+    database: String,
     app: Arc<App>,
     task: JoinHandle<()>,
     url: String,
@@ -27,16 +27,32 @@ impl Server {
         Self::configured(Vec::new()).await
     }
     async fn configured(credentials: Vec<(String, String, String)>) -> Self {
-        let parent = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../scratch/claude/20261025_online-tests");
-        std::fs::create_dir_all(&parent).unwrap();
-        let dir = TempDir::new_in(parent).unwrap();
+        let (database, _store) = common::database().await;
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
-        let app = App::new(&dir.path().join("http.sqlite"), &url, credentials).unwrap();
+        let app = App::new(&database, &url, credentials).await.unwrap();
         app.start_clock();
         let mut stopped = app.stopped();
-        let routes = router(app.clone(), dir.path().into());
+        let routes = router(app.clone(), PathBuf::from("web"));
+        let task = tokio::spawn(async move {
+            axum::serve(listener, routes)
+                .with_graceful_shutdown(async move {
+                    let _ = stopped.changed().await;
+                })
+                .await
+                .unwrap();
+        });
+        Self { database,app,task,url }
+    }
+    async fn replica(&self) -> Self {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let app = App::new(&self.database, &self.url, Vec::new())
+            .await
+            .unwrap();
+        app.start_clock();
+        let mut stopped = app.stopped();
+        let routes = router(app.clone(), PathBuf::from("web"));
         let task = tokio::spawn(async move {
             axum::serve(listener, routes)
                 .with_graceful_shutdown(async move {
@@ -46,7 +62,7 @@ impl Server {
                 .unwrap();
         });
         Self {
-            _dir: dir,
+            database: self.database.clone(),
             app,
             task,
             url,
@@ -87,8 +103,9 @@ impl Server {
 }
 
 #[tokio::test]
-async fn two_players_receive_committed_moves_and_resync_over_real_websockets() {
+async fn replicas_deliver_committed_moves_and_survive_another_server_stopping() {
     let server = Server::start().await;
+    let replica = server.replica().await;
     let a = server.player().await;
     let b = server.player().await;
     let created: Value = a
@@ -122,7 +139,7 @@ async fn two_players_receive_committed_moves_and_resync_over_real_websockets() {
     };
     let url = format!(
         "{}/api/v1/games/{id}/stream",
-        server.url.replace("http:", "ws:")
+        replica.url.replace("http:", "ws:")
     );
     let mut request = url.as_str().into_client_request().unwrap();
     request
@@ -203,6 +220,14 @@ async fn two_players_receive_committed_moves_and_resync_over_real_websockets() {
     assert_eq!(history[0]["info"]["result"], "black");
     assert_eq!(history[0]["rating_after"], Value::Null);
     server.stop().await;
+    let response = black
+        .client
+        .get(format!("{}/api/v1/games/{id}", replica.url))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200);
+    replica.stop().await;
 }
 
 #[tokio::test]

@@ -1,6 +1,6 @@
 use crate::{
     model::{Error, Result, User},
-    store::{Store, hash, secret},
+    store::{Clock, Store, hash, secret},
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use oauth2::{
@@ -12,8 +12,8 @@ use openidconnect::{
     AccessTokenHash, IssuerUrl, Nonce, TokenResponse as OidcTokenResponse,
     core::{CoreClient, CoreJsonWebKeySet, CoreProviderMetadata},
 };
-use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
+use sqlx::{PgConnection, Row};
 use std::{collections::HashMap, time::Duration};
 use url::Url;
 use uuid::Uuid;
@@ -297,70 +297,115 @@ impl Auth {
 }
 
 impl Store {
-    pub fn begin_auth(
-        &mut self,
+    pub async fn begin_auth(
+        &self,
         start: &LoginStart,
         provider: &str,
         user_id: Option<&str>,
         linking: bool,
-        now: i64,
+        clock: impl Into<Clock>,
     ) -> Result<()> {
         if linking && user_id.is_none() {
             return Err(Error::Unauthorized);
         }
-        self.db
-            .execute("DELETE FROM auth_flows WHERE expires_ms<=?1", [now])?;
-        self.db.execute("INSERT INTO auth_flows(hash,browser_hash,provider,verifier,nonce,user_id,linking,expires_ms) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",params![hash(&start.state),hash(&start.browser_token),provider,start.verifier,start.nonce,user_id,linking,now+600_000])?;
+        let mut db = self.pool.acquire().await?;
+        let now = clock.into().resolve(&mut db).await?;
+        sqlx::query("DELETE FROM auth_flows WHERE expires_ms<=$1")
+            .bind(now)
+            .execute(&mut *db)
+            .await?;
+        sqlx::query("INSERT INTO auth_flows(hash,browser_hash,provider,verifier,nonce,user_id,linking,expires_ms) VALUES($1,$2,$3,$4,$5,$6,$7,$8)")
+            .bind(hash(&start.state)).bind(hash(&start.browser_token)).bind(provider).bind(&start.verifier).bind(&start.nonce).bind(user_id).bind(linking).bind(now+600_000).execute(&mut *db).await?;
         Ok(())
     }
-
-    pub fn take_auth(
-        &mut self,
+    pub async fn take_auth(
+        &self,
         state: &str,
         browser: &str,
         provider: &str,
-        now: i64,
+        clock: impl Into<Clock>,
     ) -> Result<AuthFlow> {
-        let tx = self.db.transaction()?;
-        let flow=tx.query_row("SELECT provider,verifier,nonce,user_id,linking,browser_hash FROM auth_flows WHERE hash=?1 AND expires_ms>?2",params![hash(state),now],|row|Ok((AuthFlow{provider:row.get(0)?,verifier:row.get(1)?,nonce:row.get(2)?,user_id:row.get(3)?,linking:row.get(4)?},row.get::<_,String>(5)?))).optional()?.ok_or_else(||Error::Forbidden("Sign-in expired. Please try again.".into()))?;
-        if flow.0.provider != provider || flow.1 != hash(browser) {
+        let mut tx = self.pool.begin().await?;
+        let now = clock.into().resolve(&mut tx).await?;
+        let row=sqlx::query("SELECT provider,verifier,nonce,user_id,linking,browser_hash FROM auth_flows WHERE hash=$1 AND expires_ms>$2 FOR UPDATE").bind(hash(state)).bind(now).fetch_optional(&mut *tx).await?.ok_or_else(||Error::Forbidden("Sign-in expired. Please try again.".into()))?;
+        if row.try_get::<String, _>("provider")? != provider
+            || row.try_get::<String, _>("browser_hash")? != hash(browser)
+        {
             return Err(Error::Forbidden(
                 "Sign-in did not match this browser.".into(),
             ));
         }
-        tx.execute("DELETE FROM auth_flows WHERE hash=?1", [hash(state)])?;
-        tx.commit()?;
-        Ok(flow.0)
+        let flow = AuthFlow {
+            provider: row.try_get("provider")?,
+            verifier: row.try_get("verifier")?,
+            nonce: row.try_get("nonce")?,
+            user_id: row.try_get("user_id")?,
+            linking: row.try_get("linking")?,
+        };
+        sqlx::query("DELETE FROM auth_flows WHERE hash=$1")
+            .bind(hash(state))
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(flow)
     }
-
-    pub fn finish_auth(
-        &mut self,
+    pub async fn finish_auth(
+        &self,
+        flow: AuthFlow,
+        identity: Identity,
+        clock: impl Into<Clock>,
+    ) -> Result<(User, String)> {
+        let mut tx = self.pool.begin().await?;
+        let now = clock.into().resolve(&mut tx).await?;
+        let user = Self::identify_on(&mut tx, flow, identity, now).await?;
+        let token = Self::new_session_on(&mut tx, &user.id, now).await?;
+        tx.commit().await?;
+        Ok((user, token))
+    }
+    pub async fn identify(
+        &self,
+        flow: AuthFlow,
+        identity: Identity,
+        clock: impl Into<Clock>,
+    ) -> Result<User> {
+        let mut tx = self.pool.begin().await?;
+        let now = clock.into().resolve(&mut tx).await?;
+        let user = Self::identify_on(&mut tx, flow, identity, now).await?;
+        tx.commit().await?;
+        Ok(user)
+    }
+    async fn identify_on(
+        db: &mut PgConnection,
         flow: AuthFlow,
         identity: Identity,
         now: i64,
-    ) -> Result<(User, String)> {
-        let user = self.identify(flow, identity, now)?;
-        let token = self.new_session(&user.id, now)?;
-        Ok((user, token))
-    }
-
-    pub fn identify(&mut self, flow: AuthFlow, identity: Identity, now: i64) -> Result<User> {
-        let existing: Option<String> = self
-            .db
-            .query_row(
-                "SELECT user_id FROM identities WHERE issuer=?1 AND subject=?2",
-                params![identity.issuer, identity.subject],
-                |row| row.get(0),
-            )
-            .optional()?;
+    ) -> Result<User> {
+        let key = serde_json::to_string(&(&identity.issuer, &identity.subject))?;
+        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))")
+            .bind(key)
+            .execute(&mut *db)
+            .await?;
+        if let Some(current) = &flow.user_id {
+            sqlx::query("SELECT id FROM users WHERE id=$1 FOR UPDATE")
+                .bind(current)
+                .fetch_optional(&mut *db)
+                .await?
+                .ok_or(Error::Unauthorized)?;
+        }
+        let existing: Option<String> =
+            sqlx::query_scalar("SELECT user_id FROM identities WHERE issuer=$1 AND subject=$2")
+                .bind(&identity.issuer)
+                .bind(&identity.subject)
+                .fetch_optional(&mut *db)
+                .await?;
         if !flow.linking
             && let (Some(current), Some(target)) = (&flow.user_id, &existing)
         {
-            if current != target
-                && self.user(current)?.guest
-                && !self.open_games(current, now)?.is_empty()
-            {
-                return Err(Error::GuestMatchesOpen);
+            if current != target && Self::user_on(db, current).await?.guest {
+                let open:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM games WHERE (white_id=$1 OR black_id=$1) AND status IN ('waiting','active','paused'))").bind(current).fetch_one(&mut *db).await?;
+                if open {
+                    return Err(Error::GuestMatchesOpen);
+                }
             }
         }
         let id = if flow.linking {
@@ -371,31 +416,35 @@ impl Store {
             user
         } else if let Some(id) = existing {
             id
-        } else if let Some(id) = flow
-            .user_id
-            .filter(|id| self.user(id).is_ok_and(|u| u.guest))
-        {
-            id
+        } else if let Some(id) = flow.user_id.as_ref() {
+            if Self::user_on(db, id).await?.guest {
+                id.clone()
+            } else {
+                Self::identity_user(db, &identity.name, now).await?
+            }
         } else {
-            let id = Uuid::new_v4().to_string();
-            let base: String = identity
-                .name
-                .chars()
-                .filter(char::is_ascii_alphanumeric)
-                .take(10)
-                .collect();
-            let handle = format!(
-                "{}_{}",
-                if base.is_empty() { "Player" } else { &base },
-                &Uuid::new_v4().simple().to_string()[..12]
-            );
-            self.insert_user(&id, &handle, false, now)?;
-            id
+            Self::identity_user(db, &identity.name, now).await?
         };
-        let tx = self.db.transaction()?;
-        tx.execute("INSERT INTO identities(issuer,subject,user_id) VALUES(?1,?2,?3) ON CONFLICT(issuer,subject) DO NOTHING",params![identity.issuer,identity.subject,id])?;
-        tx.execute("UPDATE users SET guest=0 WHERE id=?1", [&id])?;
-        tx.commit()?;
-        self.user(&id)
+        sqlx::query("INSERT INTO identities(issuer,subject,user_id) VALUES($1,$2,$3) ON CONFLICT(issuer,subject) DO NOTHING").bind(identity.issuer).bind(identity.subject).bind(&id).execute(&mut *db).await?;
+        sqlx::query("UPDATE users SET guest=false WHERE id=$1")
+            .bind(&id)
+            .execute(&mut *db)
+            .await?;
+        Self::user_on(db, &id).await
+    }
+    async fn identity_user(db: &mut PgConnection, name: &str, now: i64) -> Result<String> {
+        let id = Uuid::new_v4().to_string();
+        let base: String = name
+            .chars()
+            .filter(char::is_ascii_alphanumeric)
+            .take(10)
+            .collect();
+        let handle = format!(
+            "{}_{}",
+            if base.is_empty() { "Player" } else { &base },
+            &Uuid::new_v4().simple().to_string()[..12]
+        );
+        Self::insert_user_on(db, &id, &handle, false, now).await?;
+        Ok(id)
     }
 }

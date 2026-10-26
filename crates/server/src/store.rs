@@ -1,39 +1,59 @@
 use crate::model::*;
 use nested_chess::{Color, Game, Outcome};
-use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
-use std::{
-    collections::HashMap,
-    fs::{File, OpenOptions, TryLockError},
-    path::Path,
-    time::Duration,
+use sqlx::{
+    PgConnection, PgPool, Row,
+    postgres::{PgPoolOptions, PgRow},
 };
-use tokio::sync::broadcast;
+use std::time::Duration;
 use uuid::Uuid;
 
+pub const MATCH_CHANNEL: &str = "nested_matches";
+const CLOCK_BATCH: i64 = 64;
+
+#[derive(Clone)]
 pub struct Store {
-    pub(crate) db: Connection,
-    games: HashMap<String, Game>,
-    topics: HashMap<String, broadcast::Sender<MatchEvent>>,
-    _lease: File,
+    pub(crate) pool: PgPool,
 }
 
-pub struct Subscription {
-    pub snapshot: Snapshot,
-    pub updates: broadcast::Receiver<MatchEvent>,
+#[derive(Clone, Copy)]
+pub enum Clock {
+    Database,
+    At(i64),
 }
-
+impl From<i64> for Clock {
+    fn from(value: i64) -> Self {
+        Self::At(value)
+    }
+}
+impl From<i32> for Clock {
+    fn from(value: i32) -> Self {
+        Self::At(i64::from(value))
+    }
+}
+impl Clock {
+    pub(crate) async fn resolve(self, db: &mut PgConnection) -> Result<i64> {
+        match self {
+            Self::At(value) => Ok(value),
+            Self::Database => Ok(sqlx::query_scalar(
+                "SELECT floor(extract(epoch FROM clock_timestamp())*1000)::bigint",
+            )
+            .fetch_one(db)
+            .await?),
+        }
+    }
+}
 pub fn secret() -> String {
     format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple())
 }
 pub fn hash(value: &str) -> String {
     hex::encode(Sha256::digest(value.as_bytes()))
 }
-fn color(value: &str) -> rusqlite::Result<Color> {
+fn color(value: &str) -> Result<Color> {
     match value {
         "white" => Ok(Color::White),
         "black" => Ok(Color::Black),
-        _ => Err(rusqlite::Error::InvalidQuery),
+        _ => Err(Error::Internal("Invalid stored color.".into())),
     }
 }
 fn color_name(value: Color) -> &'static str {
@@ -44,146 +64,130 @@ fn color_name(value: Color) -> &'static str {
 }
 
 impl Store {
-    pub fn open(path: &Path, now: i64) -> Result<Self> {
-        let db = Connection::open(path)?;
-        let mut lock_path = path
-            .canonicalize()
-            .map_err(|error| Error::Internal(format!("Could not resolve database path: {error}")))?
-            .into_os_string();
-        lock_path.push(".lock");
-        let lease = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .open(lock_path)
-            .map_err(|error| Error::Internal(format!("Could not open database lease: {error}")))?;
-        lease.try_lock().map_err(|error| match error {
-            TryLockError::WouldBlock => {
-                Error::Conflict("This database is already open by another server.".into())
-            }
-            TryLockError::Error(error) => {
-                Error::Internal(format!("Could not lock database lease: {error}"))
-            }
-        })?;
-        db.busy_timeout(Duration::from_secs(5))?;
-        let version: i64 = db.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-        if version > 2 {
-            return Err(Error::Internal(
-                "Database schema is newer than this server.".into(),
-            ));
-        }
-        db.execute_batch(include_str!("schema.sql"))?;
-        let mut store = Self {
-            db,
-            games: HashMap::new(),
-            topics: HashMap::new(),
-            _lease: lease,
-        };
-        let heartbeat: Option<i64> = store
-            .db
-            .query_row(
-                "SELECT value FROM metadata WHERE key='heartbeat'",
-                [],
-                |row| row.get(0),
-            )
-            .optional()?;
-        let ids = store
-            .ids("SELECT id FROM games WHERE status='active' AND running_since_ms IS NOT NULL")?;
-        for id in ids {
-            let mut info = store.info(&id, now)?;
-            let charged_until = heartbeat.unwrap_or(info.running_since_ms.unwrap()).min(now);
-            store.charge_clock(&mut info, charged_until);
-            info.status = "paused".into();
-            info.running_since_ms = None;
-            info.ready_white = false;
-            info.ready_black = false;
-            store.persist(info, EventAction::Paused, None, None, None)?;
-        }
-        store
-            .db
-            .execute("DELETE FROM sessions WHERE expires_ms <= ?1", [now])?;
-        store
-            .db
-            .execute("DELETE FROM auth_flows WHERE expires_ms <= ?1", [now])?;
-        Ok(store)
+    pub async fn connect(url: &str) -> Result<Self> {
+        let pool = PgPoolOptions::new()
+            .max_connections(16)
+            .acquire_timeout(Duration::from_secs(5))
+            .connect(url)
+            .await?;
+        sqlx::migrate!().run(&pool).await?;
+        Ok(Self { pool })
     }
-
-    fn ids(&self, sql: &str) -> Result<Vec<String>> {
-        Ok(self
-            .db
-            .prepare(sql)?
-            .query_map([], |row| row.get(0))?
-            .collect::<rusqlite::Result<_>>()?)
-    }
-
-    pub fn user(&self, id: &str) -> Result<User> {
-        self.db.query_row("SELECT u.id,u.handle,u.guest,r.rating,r.games FROM users u JOIN ratings r ON r.user_id=u.id AND r.pool=?2 WHERE u.id=?1", params![id, RATING_POOL], |row| Ok(User { id: row.get(0)?, handle: row.get(1)?, guest: row.get(2)?, rating: row.get(3)?, rated_games: row.get(4)? })).optional()?.ok_or(Error::Unauthorized)
-    }
-
-    pub fn session(&self, token: &str, now: i64) -> Result<User> {
-        self.session_hash(&hash(token), now)
-    }
-
-    pub(crate) fn session_hash(&self, token_hash: &str, now: i64) -> Result<User> {
-        let id: Option<String> = self
-            .db
-            .query_row(
-                "SELECT user_id FROM sessions WHERE hash=?1 AND expires_ms>?2",
-                params![token_hash, now],
-                |row| row.get(0),
-            )
-            .optional()?;
-        self.user(&id.ok_or(Error::Unauthorized)?)
-    }
-
-    pub fn new_session(&mut self, user: &str, now: i64) -> Result<String> {
-        let token = secret();
-        self.db.execute(
-            "INSERT INTO sessions(hash,user_id,expires_ms) VALUES(?1,?2,?3)",
-            params![hash(&token), user, now + SESSION_SECONDS * 1000],
-        )?;
-        Ok(token)
-    }
-
-    pub fn logout(&mut self, token: &str) -> Result<()> {
-        self.db
-            .execute("DELETE FROM sessions WHERE hash=?1", [hash(token)])?;
+    pub async fn ready(&self) -> Result<()> {
+        sqlx::query("SELECT 1").execute(&self.pool).await?;
         Ok(())
     }
-
-    pub fn guest(&mut self, now: i64) -> Result<(User, String)> {
+    pub(crate) async fn user_on(db: &mut PgConnection, id: &str) -> Result<User> {
+        let row=sqlx::query("SELECT u.id,u.handle,u.guest,r.rating,r.games FROM users u JOIN ratings r ON r.user_id=u.id AND r.pool=$2 WHERE u.id=$1")
+            .bind(id).bind(RATING_POOL).fetch_optional(db).await?.ok_or(Error::Unauthorized)?;
+        Ok(User {
+            id: row.try_get("id")?,
+            handle: row.try_get("handle")?,
+            guest: row.try_get("guest")?,
+            rating: row.try_get("rating")?,
+            rated_games: row
+                .try_get::<i32, _>("games")?
+                .try_into()
+                .map_err(|_| Error::Internal("Invalid rating count.".into()))?,
+        })
+    }
+    pub async fn user(&self, id: &str) -> Result<User> {
+        {
+            let mut db = self.pool.acquire().await?;
+            Self::user_on(&mut db, id).await
+        }
+    }
+    pub(crate) async fn session_on(
+        db: &mut PgConnection,
+        token_hash: &str,
+        now: i64,
+    ) -> Result<User> {
+        let id: String =
+            sqlx::query_scalar("SELECT user_id FROM sessions WHERE hash=$1 AND expires_ms>$2")
+                .bind(token_hash)
+                .bind(now)
+                .fetch_optional(&mut *db)
+                .await?
+                .ok_or(Error::Unauthorized)?;
+        Self::user_on(db, &id).await
+    }
+    pub async fn session(&self, token: &str, clock: impl Into<Clock>) -> Result<User> {
+        self.session_hash(&hash(token), clock).await
+    }
+    pub(crate) async fn session_hash(
+        &self,
+        token_hash: &str,
+        clock: impl Into<Clock>,
+    ) -> Result<User> {
+        let mut db = self.pool.acquire().await?;
+        let now = clock.into().resolve(&mut db).await?;
+        Self::session_on(&mut db, token_hash, now).await
+    }
+    pub(crate) async fn new_session_on(
+        db: &mut PgConnection,
+        user: &str,
+        now: i64,
+    ) -> Result<String> {
+        let token = secret();
+        sqlx::query("INSERT INTO sessions(hash,user_id,expires_ms) VALUES($1,$2,$3)")
+            .bind(hash(&token))
+            .bind(user)
+            .bind(now + SESSION_SECONDS * 1000)
+            .execute(db)
+            .await?;
+        Ok(token)
+    }
+    pub async fn new_session(&self, user: &str, clock: impl Into<Clock>) -> Result<String> {
+        let mut db = self.pool.acquire().await?;
+        let now = clock.into().resolve(&mut db).await?;
+        Self::new_session_on(&mut db, user, now).await
+    }
+    pub async fn logout(&self, token: &str) -> Result<()> {
+        sqlx::query("DELETE FROM sessions WHERE hash=$1")
+            .bind(hash(token))
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+    pub async fn guest(&self, clock: impl Into<Clock>) -> Result<(User, String)> {
+        let mut tx = self.pool.begin().await?;
+        let now = clock.into().resolve(&mut tx).await?;
         let id = Uuid::new_v4().to_string();
-        self.insert_user(
+        Self::insert_user_on(
+            &mut tx,
             &id,
             &format!("Guest_{}", &Uuid::new_v4().simple().to_string()[..12]),
             true,
             now,
-        )?;
-        Ok((self.user(&id)?, self.new_session(&id, now)?))
+        )
+        .await?;
+        let token = Self::new_session_on(&mut tx, &id, now).await?;
+        let user = Self::user_on(&mut tx, &id).await?;
+        tx.commit().await?;
+        Ok((user, token))
     }
-
-    pub(crate) fn insert_user(
-        &mut self,
+    pub(crate) async fn insert_user_on(
+        db: &mut PgConnection,
         id: &str,
         handle: &str,
         guest: bool,
         now: i64,
     ) -> Result<()> {
-        let tx = self.db.transaction()?;
-        tx.execute(
-            "INSERT INTO users(id,handle,guest,created_ms) VALUES(?1,?2,?3,?4)",
-            params![id, handle, guest, now],
-        )?;
-        tx.execute(
-            "INSERT INTO ratings(user_id,pool) VALUES(?1,?2)",
-            params![id, RATING_POOL],
-        )?;
-        tx.commit()?;
+        sqlx::query("INSERT INTO users(id,handle,guest,created_ms) VALUES($1,$2,$3,$4)")
+            .bind(id)
+            .bind(handle)
+            .bind(guest)
+            .bind(now)
+            .execute(&mut *db)
+            .await?;
+        sqlx::query("INSERT INTO ratings(user_id,pool) VALUES($1,$2)")
+            .bind(id)
+            .bind(RATING_POOL)
+            .execute(db)
+            .await?;
         Ok(())
     }
-
-    pub fn rename(&mut self, user: &str, handle: &str) -> Result<User> {
+    pub async fn rename(&self, user: &str, handle: &str) -> Result<User> {
         if !(3..=24).contains(&handle.len())
             || !handle
                 .bytes()
@@ -193,22 +197,65 @@ impl Store {
                 "Use 3–24 letters, numbers, or underscores.".into(),
             ));
         }
-        if self.db.query_row(
-            "SELECT EXISTS(SELECT 1 FROM users WHERE handle=?1 COLLATE NOCASE AND id!=?2)",
-            params![handle, user],
-            |row| row.get::<_, bool>(0),
-        )? {
-            return Err(Error::Conflict("That username is taken.".into()));
+        let result = sqlx::query("UPDATE users SET handle=$2 WHERE id=$1")
+            .bind(user)
+            .bind(handle)
+            .execute(&self.pool)
+            .await;
+        if let Err(sqlx::Error::Database(error)) = &result {
+            if error.is_unique_violation() {
+                return Err(Error::Conflict("That username is taken.".into()));
+            }
         }
-        self.db.execute(
-            "UPDATE users SET handle=?1 WHERE id=?2",
-            params![handle, user],
-        )?;
-        self.user(user)
+        result?;
+        self.user(user).await
     }
-
-    pub fn create(&mut self, user: &str, spec: CreateGame, now: i64) -> Result<Snapshot> {
-        let player = self.user(user)?;
+    pub async fn identities(&self, user: &str) -> Result<Vec<String>> {
+        Ok(sqlx::query_scalar("SELECT DISTINCT CASE WHEN issuer='github' THEN 'github' WHEN issuer='https://accounts.google.com' THEN 'google' ELSE 'microsoft' END FROM identities WHERE user_id=$1").bind(user).fetch_all(&self.pool).await?)
+    }
+    async fn lock_user(db: &mut PgConnection, user: &str) -> Result<()> {
+        sqlx::query("SELECT id FROM users WHERE id=$1 FOR UPDATE")
+            .bind(user)
+            .fetch_optional(db)
+            .await?
+            .ok_or(Error::Unauthorized)?;
+        Ok(())
+    }
+    async fn check_open(db: &mut PgConnection, user: &str, rated: bool) -> Result<()> {
+        let rows:Vec<bool>=sqlx::query_scalar("SELECT rated FROM games WHERE (white_id=$1 OR black_id=$1) AND status IN ('waiting','active','paused')").bind(user).fetch_all(db).await?;
+        if rows.len() >= 3 {
+            return Err(Error::Conflict(
+                "Finish or cancel an open match first.".into(),
+            ));
+        }
+        if rated && rows.contains(&true) {
+            return Err(Error::Conflict(
+                "You already have an open rated match.".into(),
+            ));
+        }
+        Ok(())
+    }
+    pub async fn create(
+        &self,
+        user: &str,
+        spec: CreateGame,
+        clock: impl Into<Clock>,
+    ) -> Result<Snapshot> {
+        let mut tx = self.pool.begin().await?;
+        Self::lock_user(&mut tx, user).await?;
+        let now = clock.into().resolve(&mut tx).await?;
+        let id = Self::create_on(&mut tx, user, spec, now).await?;
+        let result = Self::snapshot_on(&mut tx, &id, user, now).await?;
+        tx.commit().await?;
+        Ok(result)
+    }
+    async fn create_on(
+        db: &mut PgConnection,
+        user: &str,
+        spec: CreateGame,
+        now: i64,
+    ) -> Result<String> {
+        let player = Self::user_on(db, user).await?;
         if !matches!(spec.size, 2 | 4 | 8) {
             return Err(Error::Invalid("Choose a 2×2, 4×4, or 8×8 grid.".into()));
         }
@@ -229,18 +276,8 @@ impl Store {
                 ));
             }
         }
-        let open: i64 = self.db.query_row("SELECT count(*) FROM games WHERE (white_id=?1 OR black_id=?1) AND status IN ('waiting','active','paused')", [user], |row| row.get(0))?;
-        if open >= 3 {
-            return Err(Error::Conflict(
-                "Finish or cancel an open match first.".into(),
-            ));
-        }
-        if spec.rated && self.has_rated_match(user)? {
-            return Err(Error::Conflict(
-                "You already have an open rated match.".into(),
-            ));
-        }
-        let engine = match spec.layout.as_str() {
+        Self::check_open(db, user, spec.rated).await?;
+        let game = match spec.layout.as_str() {
             "classical" => Game::new(spec.size)?,
             "chess960" => Game::chess960(spec.size, (Uuid::new_v4().as_u128() % 960) as u16)?,
             "independent960" => Game::chess960_boards(
@@ -253,24 +290,31 @@ impl Store {
         };
         let id = Uuid::new_v4().to_string();
         let white = Uuid::new_v4().as_u128() & 1 == 0;
-        self.db.execute("INSERT INTO games(id,initial_save,white_id,black_id,status,size,layout,rated,white_ms,black_ms,increment_ms,created_ms) VALUES(?1,?2,?3,?4,'waiting',?5,?6,?7,?8,?8,?9,?10)", params![id,engine.save_json()?,if white {Some(user)} else {None},if white {None} else {Some(user)},spec.size,spec.layout,spec.rated,spec.clock.map(|c|i64::from(c.seconds)*1000),spec.clock.map_or(0,|c|i64::from(c.increment)*1000),now])?;
-        self.games.insert(id.clone(), engine);
-        self.snapshot(&id, user, now)
+        sqlx::query("INSERT INTO games(id,initial_save,checkpoint,white_id,black_id,status,size,layout,rated,white_ms,black_ms,increment_ms,created_ms) VALUES($1,$2,$3,$4,$5,'waiting',$6,$7,$8,$9,$9,$10,$11)")
+            .bind(&id).bind(game.save_json()?).bind(game.checkpoint_json()?).bind(if white {Some(user)}else{None}).bind(if white {None}else{Some(user)})
+            .bind(i16::from(spec.size)).bind(&spec.layout).bind(spec.rated).bind(spec.clock.map(|c|i64::from(c.seconds)*1000)).bind(spec.clock.map_or(0,|c|i64::from(c.increment)*1000)).bind(now).execute(db).await?;
+        Ok(id)
     }
-
-    fn has_rated_match(&self, user: &str) -> Result<bool> {
-        Ok(self.db.query_row("SELECT EXISTS(SELECT 1 FROM games WHERE rated=1 AND (white_id=?1 OR black_id=?1) AND status IN ('waiting','active','paused'))", [user], |row| row.get(0))?)
-    }
-
-    pub fn queue(&mut self, user: &str, now: i64) -> Result<Snapshot> {
-        if self.user(user)?.guest {
+    pub async fn queue(&self, user: &str, clock: impl Into<Clock>) -> Result<Snapshot> {
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("SELECT pg_advisory_xact_lock(74102501)")
+            .execute(&mut *tx)
+            .await?;
+        Self::lock_user(&mut tx, user).await?;
+        if Self::user_on(&mut tx, user).await?.guest {
             return Err(Error::Forbidden("Sign in to play rated matches.".into()));
         }
-        if let Some(id) = self.db.query_row("SELECT id FROM games WHERE rated=1 AND (white_id=?1 OR black_id=?1) AND status IN ('waiting','active','paused') LIMIT 1", [user], |row| row.get::<_,String>(0)).optional()? { return self.snapshot(&id,user,now); }
-        let id: Option<String> = self.db.query_row("SELECT id FROM games WHERE rated=1 AND status='waiting' AND COALESCE(white_id,black_id)!=?1 ORDER BY created_ms LIMIT 1", [user], |row| row.get(0)).optional()?;
-        match id {
-            Some(id) => self.join(&id, user, now),
-            None => self.create(
+        let now = clock.into().resolve(&mut tx).await?;
+        if let Some(id)=sqlx::query_scalar::<_,String>("SELECT id FROM games WHERE rated AND (white_id=$1 OR black_id=$1) AND status IN ('waiting','active','paused') LIMIT 1").bind(user).fetch_optional(&mut *tx).await? {
+            let result=Self::snapshot_on(&mut tx,&id,user,now).await?;tx.commit().await?;return Ok(result);
+        }
+        let id:Option<String>=sqlx::query_scalar("SELECT id FROM games WHERE rated AND status='waiting' AND COALESCE(white_id,black_id)!=$1 ORDER BY created_ms,id LIMIT 1 FOR UPDATE").bind(user).fetch_optional(&mut *tx).await?;
+        let id = if let Some(id) = id {
+            Self::join_on(&mut tx, &id, user, now).await?;
+            id
+        } else {
+            Self::create_on(
+                &mut tx,
                 user,
                 CreateGame {
                     rated: true,
@@ -278,30 +322,36 @@ impl Store {
                     ..Default::default()
                 },
                 now,
-            ),
-        }
+            )
+            .await?
+        };
+        let result = Self::snapshot_on(&mut tx, &id, user, now).await?;
+        tx.commit().await?;
+        Ok(result)
     }
-
-    pub fn join(&mut self, id: &str, user: &str, now: i64) -> Result<Snapshot> {
-        let mut info = self.info(id, now)?;
+    pub async fn join(&self, id: &str, user: &str, clock: impl Into<Clock>) -> Result<Snapshot> {
+        let mut tx = self.pool.begin().await?;
+        Self::lock_user(&mut tx, user).await?;
+        Self::lock_game(&mut tx, id).await?;
+        let now = clock.into().resolve(&mut tx).await?;
+        Self::join_on(&mut tx, id, user, now).await?;
+        let result = Self::snapshot_on(&mut tx, id, user, now).await?;
+        tx.commit().await?;
+        Ok(result)
+    }
+    async fn join_on(db: &mut PgConnection, id: &str, user: &str, now: i64) -> Result<()> {
+        let mut info = Self::info_on(db, id, now).await?;
         if info.seat(user).is_some() {
-            return self.snapshot(id, user, now);
+            return Ok(());
         }
         if info.status != "waiting" {
             return Err(Error::Conflict("Both seats are occupied.".into()));
         }
-        let player = self.user(user)?;
-        if info.rated && (player.guest || self.has_rated_match(user)?) {
-            return Err(Error::Forbidden(
-                "Sign in and finish any open rated match before joining.".into(),
-            ));
+        let player = Self::user_on(db, user).await?;
+        if info.rated && player.guest {
+            return Err(Error::Forbidden("Sign in to play rated matches.".into()));
         }
-        let open:i64=self.db.query_row("SELECT count(*) FROM games WHERE (white_id=?1 OR black_id=?1) AND status IN ('waiting','active','paused')",[user],|row|row.get(0))?;
-        if open >= 3 {
-            return Err(Error::Conflict(
-                "Finish or cancel an open match first.".into(),
-            ));
-        }
+        Self::check_open(db, user, info.rated).await?;
         if info.white.is_none() {
             info.white = Some(player);
         } else {
@@ -309,80 +359,103 @@ impl Store {
         }
         info.status = "active".into();
         info.running_since_ms = info.white_ms.map(|_| now);
-        self.persist(info, EventAction::Joined, None, None, None)?;
-        self.snapshot(id, user, now)
-    }
-
-    pub fn info(&self, id: &str, now: i64) -> Result<MatchInfo> {
-        let row = self.db.query_row("SELECT id,seq,status,white_id,black_id,rated,size,layout,result,reason,white_ms,black_ms,increment_ms,running_since_ms,turn,ready_white,ready_black,created_ms FROM games WHERE id=?1", [id], |row| Ok((MatchInfo {id:row.get(0)?,seq:row.get(1)?,status:row.get(2)?,white:None,black:None,rated:row.get(5)?,size:row.get(6)?,layout:row.get(7)?,result:row.get(8)?,reason:row.get(9)?,white_ms:row.get(10)?,black_ms:row.get(11)?,increment_ms:row.get(12)?,running_since_ms:row.get(13)?,turn:color(&row.get::<_,String>(14)?)?,ready_white:row.get(15)?,ready_black:row.get(16)?,created_ms:row.get(17)?,server_ms:now}, row.get::<_,Option<String>>(3)?,row.get::<_,Option<String>>(4)?))).optional()?.ok_or(Error::NotFound)?;
-        let (mut info, white, black) = row;
-        info.white = white.map(|id| self.user(&id)).transpose()?;
-        info.black = black.map(|id| self.user(&id)).transpose()?;
-        Ok(info)
-    }
-
-    fn load(&mut self, id: &str) -> Result<()> {
-        if self.games.contains_key(id) {
-            return Ok(());
-        }
-        let save: String = self
-            .db
-            .query_row("SELECT initial_save FROM games WHERE id=?1", [id], |row| {
-                row.get(0)
-            })
-            .optional()?
-            .ok_or(Error::NotFound)?;
-        let mut game = Game::load_json(&save)?;
-        let events = self
-            .db
-            .prepare("SELECT event_json FROM events WHERE game_id=?1 ORDER BY seq")?
-            .query_map([id], |row| row.get::<_, String>(0))?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        for event in events {
-            if let EventAction::Move { board, uci } =
-                serde_json::from_str::<MatchEvent>(&event)?.action
-            {
-                game.play(board, &uci)?;
-            }
-        }
-        self.games.insert(id.into(), game);
+        Self::persist(db, info, EventAction::Joined, None, None, None).await?;
         Ok(())
     }
-
-    pub fn snapshot(&mut self, id: &str, user: &str, now: i64) -> Result<Snapshot> {
-        let info = self.info(id, now)?;
+    async fn lock_game(db: &mut PgConnection, id: &str) -> Result<()> {
+        sqlx::query("SELECT id FROM games WHERE id=$1 FOR UPDATE")
+            .bind(id)
+            .fetch_optional(db)
+            .await?
+            .ok_or(Error::NotFound)?;
+        Ok(())
+    }
+    pub(crate) async fn info_on(db: &mut PgConnection, id: &str, now: i64) -> Result<MatchInfo> {
+        let r=sqlx::query("SELECT id,seq,status,white_id,black_id,rated,size,layout,result,reason,white_ms,black_ms,increment_ms,running_since_ms,turn,ready_white,ready_black,created_ms FROM games WHERE id=$1").bind(id).fetch_optional(&mut *db).await?.ok_or(Error::NotFound)?;
+        let player = |row: &PgRow, key: &str| row.try_get::<Option<String>, _>(key);
+        let white = match player(&r, "white_id")? {
+            Some(id) => Some(Self::user_on(db, &id).await?),
+            None => None,
+        };
+        let black = match player(&r, "black_id")? {
+            Some(id) => Some(Self::user_on(db, &id).await?),
+            None => None,
+        };
+        Ok(MatchInfo {
+            id: r.try_get("id")?,
+            seq: r
+                .try_get::<i32, _>("seq")?
+                .try_into()
+                .map_err(|_| Error::Internal("Invalid match sequence.".into()))?,
+            status: r.try_get("status")?,
+            white,
+            black,
+            rated: r.try_get("rated")?,
+            size: r
+                .try_get::<i16, _>("size")?
+                .try_into()
+                .map_err(|_| Error::Internal("Invalid grid size.".into()))?,
+            layout: r.try_get("layout")?,
+            result: r.try_get("result")?,
+            reason: r.try_get("reason")?,
+            white_ms: r.try_get("white_ms")?,
+            black_ms: r.try_get("black_ms")?,
+            increment_ms: r.try_get("increment_ms")?,
+            running_since_ms: r.try_get("running_since_ms")?,
+            turn: color(&r.try_get::<String, _>("turn")?)?,
+            ready_white: r.try_get("ready_white")?,
+            ready_black: r.try_get("ready_black")?,
+            created_ms: r.try_get("created_ms")?,
+            server_ms: now,
+        })
+    }
+    pub async fn info(&self, id: &str, clock: impl Into<Clock>) -> Result<MatchInfo> {
+        let mut db = self.pool.acquire().await?;
+        let now = clock.into().resolve(&mut db).await?;
+        Self::info_on(&mut db, id, now).await
+    }
+    async fn load(db: &mut PgConnection, id: &str) -> Result<Game> {
+        let checkpoint: String = sqlx::query_scalar("SELECT checkpoint FROM games WHERE id=$1")
+            .bind(id)
+            .fetch_optional(db)
+            .await?
+            .ok_or(Error::NotFound)?;
+        Ok(Game::from_checkpoint_json(&checkpoint)?)
+    }
+    async fn snapshot_on(
+        db: &mut PgConnection,
+        id: &str,
+        user: &str,
+        now: i64,
+    ) -> Result<Snapshot> {
+        let info = Self::info_on(db, id, now).await?;
         let seat = info
             .seat(user)
             .ok_or_else(|| Error::Forbidden("Join this match before viewing it.".into()))?;
-        self.load(id)?;
-        let game = &self.games[id];
-        let closed = matches!(info.status.as_str(), "finished" | "cancelled");
-        let snapshot = Snapshot {
+        let game = Self::load(db, id).await?;
+        Ok(Snapshot {
             info,
             seat,
             save: game.save_json()?,
             state: game.state(),
-        };
-        if closed {
-            self.games.remove(id);
-        }
-        Ok(snapshot)
+        })
     }
-
-    pub fn subscribe(&mut self, id: &str, user: &str, now: i64) -> Result<Subscription> {
-        let snapshot = self.snapshot(id, user, now)?;
-        let updates = if matches!(snapshot.info.status.as_str(), "finished" | "cancelled") {
-            broadcast::channel(1).1
-        } else {
-            self.topics
-                .entry(id.into())
-                .or_insert_with(|| broadcast::channel(128).0)
-                .subscribe()
-        };
-        Ok(Subscription { snapshot, updates })
+    pub async fn snapshot(
+        &self,
+        id: &str,
+        user: &str,
+        clock: impl Into<Clock>,
+    ) -> Result<Snapshot> {
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            .execute(&mut *tx)
+            .await?;
+        let now = clock.into().resolve(&mut tx).await?;
+        let result = Self::snapshot_on(&mut tx, id, user, now).await?;
+        tx.commit().await?;
+        Ok(result)
     }
-
-    fn charge_clock(&self, info: &mut MatchInfo, now: i64) {
+    fn charge_clock(info: &mut MatchInfo, now: i64) {
         if info.running_since_ms.is_some() {
             let remaining = info.remaining_ms(info.turn, now);
             match info.turn {
@@ -392,31 +465,32 @@ impl Store {
             info.running_since_ms = Some(now);
         }
     }
-
     fn finish(info: &mut MatchInfo, result: &str, reason: &str) {
         info.status = "finished".into();
         info.result = Some(result.into());
         info.reason = Some(reason.into());
         info.running_since_ms = None;
     }
-
-    pub fn command(
-        &mut self,
+    pub async fn command(
+        &self,
         id: &str,
         user: &str,
         command: Command,
-        now: i64,
+        clock: impl Into<Clock>,
     ) -> Result<MatchEvent> {
         Uuid::parse_str(&command.request_id)
             .map_err(|_| Error::Invalid("Invalid request ID.".into()))?;
-        let mut info = self.info(id, now)?;
+        let mut tx = self.pool.begin().await?;
+        Self::lock_game(&mut tx, id).await?;
+        let now = clock.into().resolve(&mut tx).await?;
+        let mut info = Self::info_on(&mut tx, id, now).await?;
         let seat = info
             .seat(user)
             .ok_or_else(|| Error::Forbidden("You are not a player in this match.".into()))?;
         let request = serde_json::to_string(&command)?;
-        if let Some((actor,stored,event))=self.db.query_row("SELECT actor_id,request_json,event_json FROM events WHERE game_id=?1 AND request_id=?2",params![id,command.request_id],|row|Ok((row.get::<_,String>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).optional()? {
-            if actor != user || stored != request {return Err(Error::Conflict("That request ID was already used.".into()));}
-            return Ok(serde_json::from_str(&event)?);
+        if let Some(row)=sqlx::query("SELECT actor_id,request_json,event_json FROM events WHERE game_id=$1 AND request_id=$2").bind(id).bind(&command.request_id).fetch_optional(&mut *tx).await? {
+            if row.try_get::<String,_>("actor_id")?!=user||row.try_get::<String,_>("request_json")?!=request {return Err(Error::Conflict("That request ID was already used.".into()));}
+            return Ok(serde_json::from_str(&row.try_get::<String,_>("event_json")?)?);
         }
         if info.seq != command.expected_seq {
             return Err(Error::Conflict(
@@ -424,9 +498,11 @@ impl Store {
             ));
         }
         if info.status == "active" && info.remaining_ms(info.turn, now) == Some(0) {
-            self.expire(info, now)?;
+            Self::expire(&mut tx, info, now).await?;
+            tx.commit().await?;
             return Err(Error::Conflict("The match ended on time.".into()));
         }
+        let mut candidate = None;
         let action = match &command.action {
             Action::Move { board, uci } => {
                 if info.status != "active" {
@@ -435,32 +511,25 @@ impl Store {
                 if info.turn != seat {
                     return Err(Error::Forbidden("It is your opponent's turn.".into()));
                 }
-                self.load(id)?;
-                let mut candidate = self.games[id].clone();
-                candidate.play(*board, uci)?;
-                self.charge_clock(&mut info, now);
+                let mut game = Self::load(&mut tx, id).await?;
+                game.play(*board, uci)?;
+                Self::charge_clock(&mut info, now);
                 match seat {
                     Color::White => info.white_ms = info.white_ms.map(|v| v + info.increment_ms),
                     Color::Black => info.black_ms = info.black_ms.map(|v| v + info.increment_ms),
                 };
-                info.turn = candidate.turn();
-                match candidate.outcome() {
+                info.turn = game.turn();
+                match game.outcome() {
                     Outcome::White => Self::finish(&mut info, "white", "rules"),
                     Outcome::Black => Self::finish(&mut info, "black", "rules"),
                     Outcome::Draw => Self::finish(&mut info, "draw", "rules"),
                     Outcome::Ongoing => {}
                 }
-                let event = self.persist(
-                    info,
-                    EventAction::Move {
-                        board: *board,
-                        uci: uci.clone(),
-                    },
-                    Some(user),
-                    Some((&command.request_id, &request)),
-                    Some(candidate),
-                )?;
-                return Ok(event);
+                candidate = Some(game);
+                EventAction::Move {
+                    board: *board,
+                    uci: uci.clone(),
+                }
             }
             Action::Resign => match info.status.as_str() {
                 "waiting" => {
@@ -468,7 +537,7 @@ impl Store {
                     EventAction::Cancelled
                 }
                 "active" | "paused" => {
-                    self.charge_clock(&mut info, now);
+                    Self::charge_clock(&mut info, now);
                     Self::finish(&mut info, color_name(seat.other()), "resignation");
                     EventAction::Resigned { color: seat }
                 }
@@ -478,16 +547,14 @@ impl Store {
                 if info.status != "paused" {
                     return Err(Error::Conflict("The match is not paused.".into()));
                 }
-                if match seat {
-                    Color::White => info.ready_white,
-                    Color::Black => info.ready_black,
-                } {
+                let ready = match seat {
+                    Color::White => &mut info.ready_white,
+                    Color::Black => &mut info.ready_black,
+                };
+                if *ready {
                     return Err(Error::Conflict("You are already ready.".into()));
                 }
-                match seat {
-                    Color::White => info.ready_white = true,
-                    Color::Black => info.ready_black = true,
-                };
+                *ready = true;
                 if info.ready_white && info.ready_black {
                     info.status = "active".into();
                     info.running_since_ms = Some(now);
@@ -495,17 +562,20 @@ impl Store {
                 EventAction::Ready { color: seat }
             }
         };
-        self.persist(
+        let event = Self::persist(
+            &mut tx,
             info,
             action,
             Some(user),
             Some((&command.request_id, &request)),
-            None,
+            candidate,
         )
+        .await?;
+        tx.commit().await?;
+        Ok(event)
     }
-
-    fn persist(
-        &mut self,
+    pub(crate) async fn persist(
+        db: &mut PgConnection,
         mut info: MatchInfo,
         action: EventAction,
         actor: Option<&str>,
@@ -513,117 +583,172 @@ impl Store {
         candidate: Option<Game>,
     ) -> Result<MatchEvent> {
         info.seq += 1;
-        let mut event = MatchEvent {
-            seq: info.seq,
-            action,
-            info,
-        };
-        let tx = self.db.transaction()?;
-        if event.info.status == "finished" && event.info.rated {
-            let white = event
-                .info
-                .white
-                .as_ref()
-                .ok_or_else(|| Error::Internal("Missing White player.".into()))?;
-            let black = event
-                .info
-                .black
-                .as_ref()
-                .ok_or_else(|| Error::Internal("Missing Black player.".into()))?;
-            let score = match event.info.result.as_deref() {
+        if info.status == "finished" && info.rated {
+            let ids = [
+                info.white
+                    .as_ref()
+                    .ok_or_else(|| Error::Internal("Missing White player.".into()))?
+                    .id
+                    .clone(),
+                info.black
+                    .as_ref()
+                    .ok_or_else(|| Error::Internal("Missing Black player.".into()))?
+                    .id
+                    .clone(),
+            ];
+            sqlx::query("SELECT user_id FROM ratings WHERE user_id=ANY($1) AND pool=$2 ORDER BY user_id FOR UPDATE").bind(&ids[..]).bind(RATING_POOL).fetch_all(&mut *db).await?;
+            let white = Self::user_on(db, &ids[0]).await?;
+            let black = Self::user_on(db, &ids[1]).await?;
+            let score = match info.result.as_deref() {
                 Some("white") => 1.0,
                 Some("black") => 0.0,
                 Some("draw") => 0.5,
                 _ => return Err(Error::Internal("Missing rated result.".into())),
             };
-            let expected = 1.0 / (1.0 + 10_f64.powf((black.rating - white.rating) / 400.0));
-            let change = 32.0 * (score - expected);
-            for (player, delta) in [(white, change), (black, -change)] {
-                tx.execute(
-                    "INSERT INTO rating_changes(game_id,user_id,before,after) VALUES(?1,?2,?3,?4)",
-                    params![
-                        event.info.id,
-                        player.id,
-                        player.rating,
-                        player.rating + delta
-                    ],
-                )?;
-                tx.execute(
-                    "UPDATE ratings SET rating=?1,games=games+1 WHERE user_id=?2 AND pool=?3",
-                    params![player.rating + delta, player.id, RATING_POOL],
-                )?;
-            }
-            if let Some(player) = &mut event.info.white {
-                player.rating += change;
+            let change =
+                32.0 * (score - 1.0 / (1.0 + 10_f64.powf((black.rating - white.rating) / 400.0)));
+            for (mut player, delta) in [(white, change), (black, -change)] {
+                sqlx::query(
+                    "INSERT INTO rating_changes(game_id,user_id,before,after) VALUES($1,$2,$3,$4)",
+                )
+                .bind(&info.id)
+                .bind(&player.id)
+                .bind(player.rating)
+                .bind(player.rating + delta)
+                .execute(&mut *db)
+                .await?;
+                player.rating += delta;
                 player.rated_games += 1;
-            }
-            if let Some(player) = &mut event.info.black {
-                player.rating -= change;
-                player.rated_games += 1;
+                sqlx::query(
+                    "UPDATE ratings SET rating=$3,games=games+1 WHERE user_id=$1 AND pool=$2",
+                )
+                .bind(&player.id)
+                .bind(RATING_POOL)
+                .bind(player.rating)
+                .execute(&mut *db)
+                .await?;
+                if player.id == ids[0] {
+                    info.white = Some(player);
+                } else {
+                    info.black = Some(player);
+                }
             }
         }
-        let i = &event.info;
-        tx.execute("UPDATE games SET seq=?2,status=?3,white_id=?4,black_id=?5,result=?6,reason=?7,white_ms=?8,black_ms=?9,running_since_ms=?10,turn=?11,ready_white=?12,ready_black=?13 WHERE id=?1",params![i.id,i.seq,i.status,i.white.as_ref().map(|u|&u.id),i.black.as_ref().map(|u|&u.id),i.result,i.reason,i.white_ms,i.black_ms,i.running_since_ms,color_name(i.turn),i.ready_white,i.ready_black])?;
-        tx.execute("INSERT INTO events(game_id,seq,actor_id,request_id,request_json,event_json) VALUES(?1,?2,?3,?4,?5,?6)",params![i.id,i.seq,actor,request.map(|r|r.0),request.map(|r|r.1),serde_json::to_string(&event)?])?;
-        tx.commit()?;
+        let deadline = info.running_since_ms.and_then(|since| {
+            match info.turn {
+                Color::White => info.white_ms,
+                Color::Black => info.black_ms,
+            }
+            .map(|remaining| since + remaining)
+        });
+        sqlx::query("UPDATE games SET seq=$2,status=$3,white_id=$4,black_id=$5,result=$6,reason=$7,white_ms=$8,black_ms=$9,running_since_ms=$10,turn=$11,ready_white=$12,ready_black=$13,deadline_ms=$14 WHERE id=$1")
+            .bind(&info.id).bind(info.seq as i32).bind(&info.status).bind(info.white.as_ref().map(|u|&u.id)).bind(info.black.as_ref().map(|u|&u.id)).bind(&info.result).bind(&info.reason)
+            .bind(info.white_ms).bind(info.black_ms).bind(info.running_since_ms).bind(color_name(info.turn)).bind(info.ready_white).bind(info.ready_black).bind(deadline).execute(&mut *db).await?;
         if let Some(game) = candidate {
-            self.games.insert(i.id.clone(), game);
+            sqlx::query("UPDATE games SET checkpoint=$2 WHERE id=$1")
+                .bind(&info.id)
+                .bind(game.checkpoint_json()?)
+                .execute(&mut *db)
+                .await?;
         }
-        if let Some(topic) = self.topics.get(&i.id) {
-            let _ = topic.send(event.clone());
-        }
-        if matches!(i.status.as_str(), "finished" | "cancelled") {
-            self.games.remove(&i.id);
-            self.topics.remove(&i.id);
-        }
+        let event = MatchEvent {
+            seq: info.seq,
+            action,
+            info,
+        };
+        sqlx::query("INSERT INTO events(game_id,seq,actor_id,request_id,request_json,event_json) VALUES($1,$2,$3,$4,$5,$6)")
+            .bind(&event.info.id).bind(event.seq as i32).bind(actor).bind(request.map(|r|r.0)).bind(request.map(|r|r.1)).bind(serde_json::to_string(&event)?).execute(&mut *db).await?;
+        sqlx::query("SELECT pg_notify($1,$2)")
+            .bind(MATCH_CHANNEL)
+            .bind(format!("{}:{}", event.info.id, event.seq))
+            .execute(db)
+            .await?;
         Ok(event)
     }
-
-    fn expire(&mut self, mut info: MatchInfo, now: i64) -> Result<()> {
+    async fn expire(db: &mut PgConnection, mut info: MatchInfo, now: i64) -> Result<()> {
         let loser = info.turn;
-        self.charge_clock(&mut info, now);
+        Self::charge_clock(&mut info, now);
         Self::finish(&mut info, color_name(loser.other()), "timeout");
-        self.persist(
+        Self::persist(
+            db,
             info,
             EventAction::Timeout { color: loser },
             None,
             None,
             None,
-        )?;
+        )
+        .await?;
         Ok(())
     }
-
-    pub fn tick(&mut self, now: i64) -> Result<()> {
-        let ids = self
-            .ids("SELECT id FROM games WHERE status='active' AND running_since_ms IS NOT NULL")?;
-        for id in &ids {
-            let info = self.info(id, now)?;
-            if info.remaining_ms(info.turn, now) == Some(0) {
-                self.expire(info, now)?;
-            }
-        }
-        if !ids.is_empty() {
-            self.db.execute("INSERT INTO metadata(key,value) VALUES('heartbeat',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[now])?;
+    pub async fn tick(&self, clock: impl Into<Clock>) -> Result<()> {
+        let clock = clock.into();
+        for _ in 0..CLOCK_BATCH {
+            let mut tx = self.pool.begin().await?;
+            let now = clock.resolve(&mut tx).await?;
+            let id:Option<String>=sqlx::query_scalar("SELECT id FROM games WHERE status='active' AND deadline_ms<=$1 ORDER BY deadline_ms LIMIT 1 FOR UPDATE SKIP LOCKED").bind(now).fetch_optional(&mut *tx).await?;
+            let Some(id) = id else {
+                return Ok(());
+            };
+            let info = Self::info_on(&mut tx, &id, now).await?;
+            Self::expire(&mut tx, info, now).await?;
+            tx.commit().await?;
         }
         Ok(())
     }
-
-    pub fn open_games(&self, user: &str, now: i64) -> Result<Vec<MatchInfo>> {
-        let ids=self.db.prepare("SELECT id FROM games WHERE (white_id=?1 OR black_id=?1) AND status IN ('waiting','active','paused') ORDER BY created_ms DESC")?.query_map([user],|row|row.get::<_,String>(0))?.collect::<rusqlite::Result<Vec<_>>>()?;
-        ids.iter().map(|id| self.info(id, now)).collect()
+    pub async fn open_games(&self, user: &str, clock: impl Into<Clock>) -> Result<Vec<MatchInfo>> {
+        let mut db = self.pool.acquire().await?;
+        let now = clock.into().resolve(&mut db).await?;
+        let ids:Vec<String>=sqlx::query_scalar("SELECT id FROM games WHERE (white_id=$1 OR black_id=$1) AND status IN ('waiting','active','paused') ORDER BY ordinal DESC").bind(user).fetch_all(&mut *db).await?;
+        let mut result = Vec::new();
+        for id in ids {
+            result.push(Self::info_on(&mut db, &id, now).await?);
+        }
+        Ok(result)
     }
-
-    pub fn history(&self, user: &str, before: Option<i64>, now: i64) -> Result<Vec<HistoryEntry>> {
-        let entries=self.db.prepare("SELECT g.rowid,g.id,r.before,r.after FROM games g LEFT JOIN rating_changes r ON r.game_id=g.id AND r.user_id=?1 WHERE (g.white_id=?1 OR g.black_id=?1) AND g.status='finished' AND g.rowid<?2 ORDER BY g.rowid DESC LIMIT 20")?.query_map(params![user,before.unwrap_or(i64::MAX)],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,String>(1)?,row.get::<_,Option<f64>>(2)?,row.get::<_,Option<f64>>(3)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
-        entries
-            .into_iter()
-            .map(|(cursor, id, rating_before, rating_after)| {
-                Ok(HistoryEntry {
-                    cursor,
-                    info: self.info(&id, now)?,
-                    rating_before,
-                    rating_after,
-                })
+    pub async fn history(
+        &self,
+        user: &str,
+        before: Option<i64>,
+        clock: impl Into<Clock>,
+    ) -> Result<Vec<HistoryEntry>> {
+        let mut db = self.pool.acquire().await?;
+        let now = clock.into().resolve(&mut db).await?;
+        let rows=sqlx::query("SELECT g.ordinal,g.id,r.before,r.after FROM games g LEFT JOIN rating_changes r ON r.game_id=g.id AND r.user_id=$1 WHERE (g.white_id=$1 OR g.black_id=$1) AND g.status='finished' AND g.ordinal<$2 ORDER BY g.ordinal DESC LIMIT 20").bind(user).bind(before.unwrap_or(i64::MAX)).fetch_all(&mut *db).await?;
+        let mut result = Vec::new();
+        for row in rows {
+            result.push(HistoryEntry {
+                cursor: row.try_get("ordinal")?,
+                info: Self::info_on(&mut db, &row.try_get::<String, _>("id")?, now).await?,
+                rating_before: row.try_get("before")?,
+                rating_after: row.try_get("after")?,
+            });
+        }
+        Ok(result)
+    }
+    pub async fn events_after(&self, id: &str, seq: u32) -> Result<Vec<MatchEvent>> {
+        let rows: Vec<String> = sqlx::query_scalar(
+            "SELECT event_json FROM events WHERE game_id=$1 AND seq>$2 ORDER BY seq LIMIT 256",
+        )
+        .bind(id)
+        .bind(seq as i32)
+        .fetch_all(&self.pool)
+        .await?;
+        rows.into_iter()
+            .map(|value| serde_json::from_str(&value).map_err(Error::from))
+            .collect()
+    }
+    pub async fn versions(&self, ids: &[String]) -> Result<Vec<(String, u32)>> {
+        let rows: Vec<(String, i32)> = sqlx::query_as("SELECT id,seq FROM games WHERE id=ANY($1)")
+            .bind(ids)
+            .fetch_all(&self.pool)
+            .await?;
+        rows.into_iter()
+            .map(|(id, seq)| {
+                Ok((
+                    id,
+                    seq.try_into()
+                        .map_err(|_| Error::Internal("Invalid match sequence.".into()))?,
+                ))
             })
             .collect()
     }

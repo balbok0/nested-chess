@@ -1,8 +1,9 @@
 use crate::{
     auth::{Auth, ProviderView},
+    hub::Hub,
     mobile::{APP_CALLBACK, MobileSession},
     model::*,
-    store::{Store, Subscription, hash},
+    store::{Clock, Store, hash},
 };
 use axum::{
     Json, Router,
@@ -18,81 +19,39 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::{
-    path::PathBuf,
-    sync::{Arc, Mutex},
-    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
-};
-use tokio::sync::{Semaphore, broadcast, watch};
+use std::{path::PathBuf, sync::Arc, time::Duration};
+use tokio::sync::watch;
 use tower_http::{services::ServeDir, set_header::SetResponseHeaderLayer};
 
 pub struct App {
-    store: Arc<Mutex<Store>>,
-    permits: Arc<Semaphore>,
+    pub store: Store,
+    hub: Arc<Hub>,
     pub auth: Auth,
-    epoch_ms: i64,
-    started: Instant,
     shutdown: watch::Sender<bool>,
 }
-
 impl App {
-    pub fn new(
-        database: &std::path::Path,
+    pub async fn new(
+        database: &str,
         public_url: &str,
         credentials: Vec<(String, String, String)>,
     ) -> Result<Arc<Self>> {
         let auth = Auth::new(public_url, credentials)?;
-        let epoch_ms = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_err(|_| Error::Internal("System clock is invalid.".into()))?
-            .as_millis() as i64;
-        Ok(Arc::new(Self {
-            store: Arc::new(Mutex::new(Store::open(database, epoch_ms)?)),
-            permits: Arc::new(Semaphore::new(64)),
+        let app = Arc::new(Self {
+            store: Store::connect(database).await?,
+            hub: Arc::default(),
             auth,
-            epoch_ms,
-            started: Instant::now(),
             shutdown: watch::channel(false).0,
-        }))
-    }
-    pub fn now(&self) -> i64 {
-        self.epoch_ms + self.started.elapsed().as_millis() as i64
-    }
-    pub async fn timed<T: Send + 'static>(
-        &self,
-        f: impl FnOnce(&mut Store, i64) -> Result<T> + Send + 'static,
-    ) -> Result<T> {
-        let epoch = self.epoch_ms;
-        let started = self.started;
-        self.run(move |store| f(store, epoch + started.elapsed().as_millis() as i64))
-            .await
-    }
-    pub async fn run<T: Send + 'static>(
-        &self,
-        f: impl FnOnce(&mut Store) -> Result<T> + Send + 'static,
-    ) -> Result<T> {
-        let permit = self
-            .permits
-            .clone()
-            .try_acquire_owned()
-            .map_err(|_| Error::Conflict("Server is busy. Please retry shortly.".into()))?;
-        let store = self.store.clone();
-        tokio::task::spawn_blocking(move || {
-            let _permit = permit;
-            let mut store = store
-                .lock()
-                .map_err(|_| Error::Internal("Database worker stopped.".into()))?;
-            f(&mut store)
-        })
-        .await
-        .map_err(|_| Error::Internal("Database worker stopped.".into()))?
+        });
+        app.hub.start(app.store.clone(), app.stopped());
+        Ok(app)
     }
     async fn user(&self, headers: &HeaderMap) -> Result<User> {
-        let token = session_token(headers)
-            .ok_or(Error::Unauthorized)?
-            .to_owned();
-        let now = self.now();
-        self.run(move |store| store.session(&token, now)).await
+        self.store
+            .session(
+                session_token(headers).ok_or(Error::Unauthorized)?,
+                Clock::Database,
+            )
+            .await
     }
     async fn optional_user(&self, headers: &HeaderMap) -> Result<Option<User>> {
         match self.user(headers).await {
@@ -102,8 +61,7 @@ impl App {
         }
     }
     pub async fn stop(&self) -> Result<()> {
-        self.timed(move |store, now| store.tick(now)).await?;
-        let _ = self.shutdown.send(true);
+        self.shutdown.send_replace(true);
         Ok(())
     }
     pub fn stopped(&self) -> watch::Receiver<bool> {
@@ -115,7 +73,10 @@ impl App {
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(1));
             loop {
-                tokio::select! {_=stopped.changed()=>break,_=interval.tick()=>{if let Err(error)=app.timed(move|store,now|store.tick(now)).await{tracing::error!(%error,"clock update failed");}}}
+                tokio::select! {
+                    _=stopped.changed()=>break,
+                    _=interval.tick()=>if let Err(error)=app.store.tick(Clock::Database).await {tracing::error!(%error,"clock update failed");}
+                }
             }
         });
     }
@@ -209,6 +170,7 @@ pub fn router(app: Arc<App>, static_dir: PathBuf) -> Router {
             "/health",
             get(|| async { Json(json!({"ok":true,"api":1})) }),
         )
+        .route("/ready", get(ready))
         .route("/me", get(me))
         .route("/guest", post(guest))
         .route("/logout", post(logout))
@@ -259,7 +221,7 @@ async fn me(State(app): State<Arc<App>>, headers: HeaderMap) -> Result<Json<Acco
     let user = app.optional_user(&headers).await?;
     let identities = if let Some(user) = &user {
         let id = user.id.clone();
-        app.run(move|store|{Ok(store.db.prepare("SELECT DISTINCT CASE WHEN issuer='github' THEN 'github' WHEN issuer='https://accounts.google.com' THEN 'google' ELSE 'microsoft' END FROM identities WHERE user_id=?1")?.query_map([id],|row|row.get(0))?.collect::<rusqlite::Result<Vec<String>>>()?)}).await?
+        app.store.identities(&id).await?
     } else {
         Vec::new()
     };
@@ -273,8 +235,8 @@ async fn guest(State(app): State<Arc<App>>, headers: HeaderMap) -> Result<Respon
     if let Some(user) = app.optional_user(&headers).await? {
         return Ok(Json(user).into_response());
     }
-    let now = app.now();
-    let (user, token) = app.run(move |store| store.guest(now)).await?;
+    let now = Clock::Database;
+    let (user, token) = app.store.guest(now).await?;
     Ok((
         [(
             header::SET_COOKIE,
@@ -287,7 +249,7 @@ async fn guest(State(app): State<Arc<App>>, headers: HeaderMap) -> Result<Respon
 async fn logout(State(app): State<Arc<App>>, headers: HeaderMap) -> Result<Response> {
     if let Some(token) = session_token(&headers) {
         let token = token.to_owned();
-        app.run(move |store| store.logout(&token)).await?;
+        app.store.logout(&token).await?;
     }
     Ok((
         [(
@@ -309,10 +271,7 @@ async fn profile(
     Json(body): Json<Profile>,
 ) -> Result<Json<User>> {
     let user = app.user(&headers).await?;
-    Ok(Json(
-        app.run(move |store| store.rename(&user.id, &body.handle))
-            .await?,
-    ))
+    Ok(Json(app.store.rename(&user.id, &body.handle).await?))
 }
 async fn create(
     State(app): State<Arc<App>>,
@@ -321,8 +280,7 @@ async fn create(
 ) -> Result<Json<Snapshot>> {
     let user = app.user(&headers).await?;
     Ok(Json(
-        app.timed(move |store, now| store.create(&user.id, spec, now))
-            .await?,
+        app.store.create(&user.id, spec, Clock::Database).await?,
     ))
 }
 async fn join(
@@ -331,10 +289,7 @@ async fn join(
     Path(id): Path<String>,
 ) -> Result<Json<Snapshot>> {
     let user = app.user(&headers).await?;
-    Ok(Json(
-        app.timed(move |store, now| store.join(&id, &user.id, now))
-            .await?,
-    ))
+    Ok(Json(app.store.join(&id, &user.id, Clock::Database).await?))
 }
 async fn snapshot(
     State(app): State<Arc<App>>,
@@ -342,11 +297,8 @@ async fn snapshot(
     Path(id): Path<String>,
 ) -> Result<Json<Snapshot>> {
     let user = app.user(&headers).await?;
-    let now = app.now();
-    Ok(Json(
-        app.run(move |store| store.snapshot(&id, &user.id, now))
-            .await?,
-    ))
+    let now = Clock::Database;
+    Ok(Json(app.store.snapshot(&id, &user.id, now).await?))
 }
 async fn command(
     State(app): State<Arc<App>>,
@@ -356,7 +308,8 @@ async fn command(
 ) -> Result<Json<MatchEvent>> {
     let user = app.user(&headers).await?;
     Ok(Json(
-        app.timed(move |store, now| store.command(&id, &user.id, command, now))
+        app.store
+            .command(&id, &user.id, command, Clock::Database)
             .await?,
     ))
 }
@@ -365,18 +318,12 @@ async fn open_games(
     headers: HeaderMap,
 ) -> Result<Json<Vec<MatchInfo>>> {
     let user = app.user(&headers).await?;
-    let now = app.now();
-    Ok(Json(
-        app.run(move |store| store.open_games(&user.id, now))
-            .await?,
-    ))
+    let now = Clock::Database;
+    Ok(Json(app.store.open_games(&user.id, now).await?))
 }
 async fn queue(State(app): State<Arc<App>>, headers: HeaderMap) -> Result<Json<Snapshot>> {
     let user = app.user(&headers).await?;
-    Ok(Json(
-        app.timed(move |store, now| store.queue(&user.id, now))
-            .await?,
-    ))
+    Ok(Json(app.store.queue(&user.id, Clock::Database).await?))
 }
 #[derive(Deserialize)]
 struct HistoryQuery {
@@ -388,11 +335,8 @@ async fn history(
     Query(query): Query<HistoryQuery>,
 ) -> Result<Json<Vec<HistoryEntry>>> {
     let user = app.user(&headers).await?;
-    let now = app.now();
-    Ok(Json(
-        app.run(move |store| store.history(&user.id, query.before, now))
-            .await?,
-    ))
+    let now = Clock::Database;
+    Ok(Json(app.store.history(&user.id, query.before, now).await?))
 }
 
 async fn stream(
@@ -402,30 +346,23 @@ async fn stream(
     upgrade: WebSocketUpgrade,
 ) -> Result<Response> {
     let user = app.user(&headers).await?;
-    let now = app.now();
-    let game_id = id.clone();
-    let user_id = user.id.clone();
-    let subscription = app
-        .run(move |store| store.subscribe(&game_id, &user_id, now))
-        .await?;
+    let updates = app.hub.subscribe(&id);
+    let snapshot = app.store.snapshot(&id, &user.id, Clock::Database).await?;
     let token = hash(session_token(&headers).ok_or(Error::Unauthorized)?);
     Ok(upgrade
         .max_message_size(8192)
         .max_frame_size(8192)
-        .on_upgrade(move |socket| connection(socket, app, id, user.id, token, subscription)))
+        .on_upgrade(move |socket| connection(socket, app, id, token, snapshot, updates)))
 }
 async fn connection(
     mut socket: WebSocket,
     app: Arc<App>,
     id: String,
-    user: String,
     token: String,
-    subscription: Subscription,
+    snapshot: Snapshot,
+    mut updates: watch::Receiver<u32>,
 ) {
-    let Subscription {
-        snapshot,
-        mut updates,
-    } = subscription;
+    let mut cursor = snapshot.info.seq;
     if socket
         .send(Message::Text(
             json!({"kind":"snapshot","snapshot":snapshot})
@@ -442,22 +379,22 @@ async fn connection(
     loop {
         tokio::select! {
             _=stopped.changed()=>break,
-            incoming=socket.recv()=>{if matches!(incoming,None|Some(Err(_))|Some(Ok(Message::Close(_)))){break;}},
+            incoming=socket.recv()=>if matches!(incoming,None|Some(Err(_))|Some(Ok(Message::Close(_)))) {break;},
             _=heartbeat.tick()=>{
-                let token=token.clone();let now=app.now();
-                if app.run(move|store|store.session_hash(&token,now)).await.is_err(){break;}
-                if socket.send(Message::Ping(Vec::new().into())).await.is_err(){break;}
+                if app.store.session_hash(&token,Clock::Database).await.is_err() {break;}
+                if socket.send(Message::Ping(Vec::new().into())).await.is_err() {break;}
             },
-            update=updates.recv()=>{
-                let payload=match update {
-                    Ok(event)=>json!({"kind":"event","event":event}),
-                    Err(broadcast::error::RecvError::Closed)=>break,
-                    Err(broadcast::error::RecvError::Lagged(_))=>{
-                        let id=id.clone();let user=user.clone();let now=app.now();
-                        match app.run(move|store|store.snapshot(&id,&user,now)).await{Ok(snapshot)=>json!({"kind":"snapshot","snapshot":snapshot}),Err(_)=>break}
+            update=updates.changed()=>{
+                if update.is_err() {break;}
+                let target=*updates.borrow_and_update();
+                while cursor<target {
+                    let events=match app.store.events_after(&id,cursor).await {Ok(events)=>events,Err(_)=>return};
+                    if events.is_empty() {break;}
+                    for event in events {
+                        cursor=event.seq;
+                        if socket.send(Message::Text(json!({"kind":"event","event":event}).to_string().into())).await.is_err() {return;}
                     }
-                };
-                if socket.send(Message::Text(payload.to_string().into())).await.is_err(){break;}
+                }
             }
         }
     }
@@ -479,8 +416,9 @@ async fn begin(
     let cookie = session_cookie(app, "nc_auth", &start.browser_token, 600);
     let provider = provider.to_owned();
     let user = user.map(|u| u.id);
-    let now = app.now();
-    app.run(move |store| store.begin_auth(&start, &provider, user.as_deref(), linking, now))
+    let now = Clock::Database;
+    app.store
+        .begin_auth(&start, &provider, user.as_deref(), linking, now)
         .await?;
     if linking {
         Ok((
@@ -514,7 +452,7 @@ async fn mobile_guest(
             token: token.into(),
         }));
     }
-    let (user, token) = app.timed(move |store, now| store.guest(now)).await?;
+    let (user, token) = app.store.guest(Clock::Database).await?;
     Ok(Json(MobileSession { user, token }))
 }
 
@@ -537,16 +475,15 @@ async fn mobile_login(
     let token = session_token(&headers).map(str::to_owned);
     let name = provider.clone();
     let ticket = app
-        .timed(move |store, now| {
-            store.request_mobile_login(
-                &name,
-                &body.challenge,
-                &body.state,
-                token.as_deref(),
-                body.linking,
-                now,
-            )
-        })
+        .store
+        .request_mobile_login(
+            &name,
+            &body.challenge,
+            &body.state,
+            token.as_deref(),
+            body.linking,
+            Clock::Database,
+        )
         .await?;
     let mut url = app
         .auth
@@ -568,7 +505,8 @@ async fn mobile_browser(
     let start = app.auth.begin(&provider)?;
     let redirect = start.url.clone();
     let cookie = session_cookie(&app, "nc_auth", &start.browser_token, 600);
-    app.timed(move |store, now| store.start_mobile_login(&query.ticket, &provider, &start, now))
+    app.store
+        .start_mobile_login(&query.ticket, &provider, &start, Clock::Database)
         .await?;
     Ok((
         [
@@ -594,7 +532,8 @@ async fn mobile_exchange(
     Json(body): Json<MobileExchange>,
 ) -> Result<Json<MobileSession>> {
     Ok(Json(
-        app.timed(move |store, now| store.exchange_mobile_login(&body.code, &body.verifier, now))
+        app.store
+            .exchange_mobile_login(&body.code, &body.verifier, Clock::Database)
             .await?,
     ))
 }
@@ -607,7 +546,8 @@ async fn mobile_ticket(
         .ok_or(Error::Unauthorized)?
         .to_owned();
     let ticket = app
-        .timed(move |store, now| store.stream_ticket(&id, &token, now))
+        .store
+        .stream_ticket(&id, &token, Clock::Database)
         .await?;
     Ok(Json(json!({"ticket":ticket})))
 }
@@ -617,19 +557,18 @@ async fn mobile_stream(
     Query(query): Query<TicketQuery>,
     upgrade: WebSocketUpgrade,
 ) -> Result<Response> {
-    let game = id.clone();
-    let (user, token, subscription) = app
-        .timed(move |store, now| {
-            let (user, token) = store.take_stream_ticket(&game, &query.ticket, now)?;
-            let subscription = store.subscribe(&game, &user.id, now)?;
-            Ok((user, token, subscription))
-        })
+    let (user, token) = app
+        .store
+        .take_stream_ticket(&id, &query.ticket, Clock::Database)
         .await?;
+    let updates = app.hub.subscribe(&id);
+    let snapshot = app.store.snapshot(&id, &user.id, Clock::Database).await?;
     Ok(upgrade
         .max_message_size(8192)
         .max_frame_size(8192)
-        .on_upgrade(move |socket| connection(socket, app, id, user.id, token, subscription)))
+        .on_upgrade(move |socket| connection(socket, app, id, token, snapshot, updates)))
 }
+
 async fn login(
     State(app): State<Arc<App>>,
     headers: HeaderMap,
@@ -657,7 +596,7 @@ async fn callback(
     Query(query): Query<Callback>,
 ) -> Response {
     let state = query.state.clone();
-    let mobile = match app.run(move |store| store.mobile_login(&state)).await {
+    let mobile = match app.store.mobile_login(&state).await {
         Ok(mobile) => mobile,
         Err(error) => return error.into_response(),
     };
@@ -665,16 +604,15 @@ async fn callback(
         let browser = cookie(&headers, "nc_auth")
             .ok_or_else(|| Error::Forbidden("Sign-in expired.".into()))?
             .to_owned();
-        let now = app.now();
+        let now = Clock::Database;
         let flow = app
-            .run(move |store| store.take_auth(&query.state, &browser, &provider, now))
+            .store
+            .take_auth(&query.state, &browser, &provider, now)
             .await?;
         if let Some(mobile) = &mobile {
             if let Some(session) = &mobile.session_hash {
                 let session = session.clone();
-                let user = app
-                    .timed(move |store, now| store.session_hash(&session, now))
-                    .await?;
+                let user = app.store.session_hash(&session, Clock::Database).await?;
                 if Some(user.id.as_str()) != flow.user_id.as_deref() {
                     return Err(Error::Unauthorized);
                 }
@@ -698,17 +636,21 @@ async fn callback(
             .await?;
         let old = session_token(&headers).map(str::to_owned);
         let native = mobile.is_some();
-        app.timed(move |store, now| {
-            if native {
-                return Ok((store.identify(flow, identity, now)?, None));
-            }
-            let result = store.finish_auth(flow, identity, now)?;
+        if native {
+            Ok((
+                app.store.identify(flow, identity, Clock::Database).await?,
+                None,
+            ))
+        } else {
+            let (user, token) = app
+                .store
+                .finish_auth(flow, identity, Clock::Database)
+                .await?;
             if let Some(old) = old {
-                store.logout(&old)?;
+                app.store.logout(&old).await?;
             }
-            Ok((result.0, Some(result.1)))
-        })
-        .await
+            Ok((user, Some(token)))
+        }
     }
     .await;
     if let Some(mobile) = mobile {
@@ -727,9 +669,8 @@ async fn callback(
             }
         };
         let code = match app
-            .timed(move |store, now| {
-                store.complete_mobile_login(&mobile.id, user.as_deref(), error, now)
-            })
+            .store
+            .complete_mobile_login(&mobile.id, user.as_deref(), error, Clock::Database)
             .await
         {
             Ok(code) => code,
@@ -779,4 +720,9 @@ async fn callback(
                 .into_response()
         }
     }
+}
+
+async fn ready(State(app): State<Arc<App>>) -> Result<Json<serde_json::Value>> {
+    app.store.ready().await?;
+    Ok(Json(json!({"ok":true})))
 }

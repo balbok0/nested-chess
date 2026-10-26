@@ -149,6 +149,7 @@ impl fmt::Display for Move {
 
 /// A local king-capture position, without a local side to move.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "checkpoint", derive(Serialize, Deserialize))]
 pub struct Board {
     pub(crate) pieces: [u64; 12],
     pub(crate) castling: [Option<u8>; 4],

@@ -1,0 +1,12 @@
+{
+  "users": "id,handle,guest,created_ms",
+  "identities": "issuer,subject,user_id",
+  "sessions": "hash,user_id,expires_ms",
+  "auth_flows": "hash,browser_hash,provider,verifier,nonce,user_id,linking,expires_ms",
+  "ratings": "user_id,pool,rating,games",
+  "games": "id,ordinal,initial_save,checkpoint,white_id,black_id,seq,status,size,layout,rated,result,reason,white_ms,black_ms,increment_ms,running_since_ms,deadline_ms,turn,ready_white,ready_black,created_ms",
+  "events": "game_id,seq,actor_id,request_id,request_json,event_json",
+  "rating_changes": "game_id,user_id,before,after",
+  "mobile_auth": "hash,provider,challenge,client_state,user_id,session_hash,linking,state_hash,code_hash,result_user,error,expires_ms",
+  "stream_tickets": "hash,game_id,session_hash,expires_ms"
+}

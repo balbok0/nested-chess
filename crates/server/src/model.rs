@@ -169,7 +169,9 @@ pub enum Error {
     #[error("That login already belongs to another account.")]
     IdentityInUse,
     #[error("Database error: {0}")]
-    Database(#[from] rusqlite::Error),
+    Database(#[from] sqlx::Error),
+    #[error("Database migration failed: {0}")]
+    Migration(#[from] sqlx::migrate::MigrateError),
     #[error("Invalid saved match: {0}")]
     Engine(#[from] nested_chess::Error),
     #[error("Invalid stored JSON: {0}")]
