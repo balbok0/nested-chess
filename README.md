@@ -14,14 +14,14 @@ login require provider credentials. Guests can play unrated invitations immediat
 Local and browser-bot games continue to run on the device.
 
 ```sh
-npm ci
-npm run build
-npm run server
+cp .env.server.example .env
+# Set POSTGRES_PASSWORD in .env.
+docker compose up --build -d --wait
 ```
 
-Open <http://localhost:4180>, choose **Online**, create an invitation, and send its
-link to the other player. The server defaults to a persistent `nested-chess.sqlite`
-file in the repository root. See [server setup and API](docs/server.md) for login
+Open <http://localhost:8080>, choose **Online**, create an invitation, and send its
+link to the other player. Compose runs two interchangeable Rust replicas behind a load balancer,
+with shared PostgreSQL storage and notifications. See [server setup and API](docs/server.md) for login
 configuration, storage, clocks, deployment, and the protocol shared with mobile.
 The GitHub Pages demo remains client-side; it does not host the multiplayer API.
 

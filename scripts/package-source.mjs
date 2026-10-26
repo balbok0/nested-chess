@@ -19,5 +19,6 @@ execFileSync(process.platform === 'darwin' ? 'gtar' : 'tar', [
   'pyproject.toml', 'vite.config.js', 'LICENSE', 'LICENSE-MIT', 'LICENSING.md',
   'THIRD_PARTY.md', 'README.md', 'crates', 'web', 'scripts', 'variants', 'tests',
   'docs', 'third_party', 'benchmarks',
+  'Dockerfile', '.dockerignore', 'compose.yaml', 'deploy', '.env.server.example',
   'capacitor.config.json', 'mobile', '.github', '.env.mobile.example',
 ], { stdio: 'inherit' });

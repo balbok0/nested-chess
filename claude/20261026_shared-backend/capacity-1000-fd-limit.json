@@ -1,0 +1,11 @@
+{
+  "status": "failed_during_ramp",
+  "requested_games": 1000,
+  "sockets_per_game": 2,
+  "warmup_plies": 24,
+  "concurrency": 32,
+  "error": "HTTP ticket request timed out",
+  "observed_app_soft_nofile": 1024,
+  "observed_proxy_active_sessions_at_health_failure": 1019,
+  "fix": "Set app/proxy nofile soft/hard to 65536 in compose.yaml."
+}

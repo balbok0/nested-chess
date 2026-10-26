@@ -92,10 +92,8 @@ impl Store {
         })
     }
     pub async fn user(&self, id: &str) -> Result<User> {
-        {
-            let mut db = self.pool.acquire().await?;
-            Self::user_on(&mut db, id).await
-        }
+        let mut db = self.pool.acquire().await?;
+        Self::user_on(&mut db, id).await
     }
     pub(crate) async fn session_on(
         db: &mut PgConnection,

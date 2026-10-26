@@ -1,0 +1,31 @@
+{
+  "both_streams": {
+    "count": 300,
+    "max_ms": 7.728065999999999,
+    "p50_ms": 4.229823,
+    "p95_ms": 5.788364,
+    "p99_ms": 6.9454340000000006
+  },
+  "completed_moves": 300,
+  "completed_moves_per_second": 19.991465523419258,
+  "duration_seconds": 15.0,
+  "elapsed_seconds": 15.00640359,
+  "errors": 0,
+  "finished_matches": 0,
+  "games": 100,
+  "http": {
+    "count": 300,
+    "max_ms": 7.484355,
+    "p50_ms": 3.945622,
+    "p95_ms": 5.519534,
+    "p99_ms": 6.685954
+  },
+  "offered_moves_per_second": 20.0,
+  "replica_commands": {
+    "app-a": 150,
+    "app-b": 150
+  },
+  "setup_seconds": 2.445348374,
+  "sockets": 200,
+  "warmup_plies": 12
+}

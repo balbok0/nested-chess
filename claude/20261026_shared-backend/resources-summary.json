@@ -1,0 +1,110 @@
+{
+  "1000": {
+    "setup": {
+      "app-a": {
+        "samples": 8,
+        "cpu_percent_average": 39.231249999999996,
+        "cpu_percent_peak": 46.02,
+        "memory_mib_peak": 135.4
+      },
+      "app-b": {
+        "samples": 8,
+        "cpu_percent_average": 38.13125,
+        "cpu_percent_peak": 43.2,
+        "memory_mib_peak": 141.4
+      },
+      "db": {
+        "samples": 8,
+        "cpu_percent_average": 146.69375,
+        "cpu_percent_peak": 160.77,
+        "memory_mib_peak": 236.5
+      },
+      "proxy": {
+        "samples": 8,
+        "cpu_percent_average": 14.61375,
+        "cpu_percent_peak": 16.24,
+        "memory_mib_peak": 32.75
+      }
+    },
+    "measured": {
+      "app-a": {
+        "samples": 13,
+        "cpu_percent_average": 3.6546153846153846,
+        "cpu_percent_peak": 6.39,
+        "memory_mib_peak": 140
+      },
+      "app-b": {
+        "samples": 13,
+        "cpu_percent_average": 4.545384615384615,
+        "cpu_percent_peak": 11.12,
+        "memory_mib_peak": 148.4
+      },
+      "db": {
+        "samples": 13,
+        "cpu_percent_average": 13.58153846153846,
+        "cpu_percent_peak": 17.12,
+        "memory_mib_peak": 247.8
+      },
+      "proxy": {
+        "samples": 13,
+        "cpu_percent_average": 2.487692307692308,
+        "cpu_percent_peak": 13.39,
+        "memory_mib_peak": 33.44
+      }
+    }
+  },
+  "2000": {
+    "setup": {
+      "app-a": {
+        "samples": 19,
+        "cpu_percent_average": 34.316842105263156,
+        "cpu_percent_peak": 48.31,
+        "memory_mib_peak": 280.9
+      },
+      "app-b": {
+        "samples": 19,
+        "cpu_percent_average": 33.88210526315789,
+        "cpu_percent_peak": 47.55,
+        "memory_mib_peak": 279.2
+      },
+      "db": {
+        "samples": 19,
+        "cpu_percent_average": 127.06736842105266,
+        "cpu_percent_peak": 162.37,
+        "memory_mib_peak": 298.3
+      },
+      "proxy": {
+        "samples": 19,
+        "cpu_percent_average": 15.760000000000003,
+        "cpu_percent_peak": 24.56,
+        "memory_mib_peak": 54.49
+      }
+    },
+    "measured": {
+      "app-a": {
+        "samples": 12,
+        "cpu_percent_average": 8.349166666666667,
+        "cpu_percent_peak": 11.43,
+        "memory_mib_peak": 281.1
+      },
+      "app-b": {
+        "samples": 12,
+        "cpu_percent_average": 8.344166666666668,
+        "cpu_percent_peak": 11.85,
+        "memory_mib_peak": 279.8
+      },
+      "db": {
+        "samples": 12,
+        "cpu_percent_average": 28.594166666666666,
+        "cpu_percent_peak": 35.5,
+        "memory_mib_peak": 268.7
+      },
+      "proxy": {
+        "samples": 12,
+        "cpu_percent_average": 4.400833333333332,
+        "cpu_percent_peak": 5.23,
+        "memory_mib_peak": 54.64
+      }
+    }
+  }
+}

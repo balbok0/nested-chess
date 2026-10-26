@@ -3,20 +3,28 @@
 The Rust server owns online matches. Local two-player and browser-bot modes use
 the client engine and do not require an account or this backend.
 
-Build from the repository root, then run the server:
+Run the complete stack with Docker Compose:
 
 ```sh
-npm ci
-npm run build
-DATABASE_PATH=scratch/claude/online-data/app.sqlite cargo run -p nested-chess-server
+cp .env.server.example .env
+# Set POSTGRES_PASSWORD to a random URL-safe value in .env.
+docker compose up --build -d --wait
 ```
 
-Create the database's parent directory first. Open http://localhost:4180.
+Open http://localhost:8080. Compose runs PostgreSQL, two identical Rust servers,
+and an HAProxy load balancer with round-robin routing and no sticky sessions.
+Static assets use process liveness checks, while online routes use database
+readiness. Local games and bot assets remain available during a database outage.
+Only the proxy port is published. The named PostgreSQL volume persists across
+container replacement; `docker compose down` keeps it. `down -v` deletes it.
+
+For a native backend, set `DATABASE_URL=postgres://USER:PASSWORD@HOST/DB`,
+run `npm ci && npm run build`, then `cargo run -p nested-chess-server`.
+Migrations run at startup under PostgreSQL's migration lock.
 Guest sessions can create and join unrated invitations without provider setup.
-Guest accounts and their history persist in SQLite; sessions last 30 days.
-Signing in to a new provider account upgrades the guest account, retaining its
-matches. Signing in to an existing account switches accounts once open guest
-matches have been finished or cancelled.
+Sessions last 30 days. Signing in to a new provider account upgrades the guest
+account, retaining its matches. Switching to an existing account requires
+finishing or cancelling open guest matches.
 
 For frontend hot reload, run the backend with `PUBLIC_URL=http://localhost:4178`,
 then run `npm run dev -- --port 4178` in another terminal. Vite proxies API and
@@ -26,7 +34,7 @@ login requests to port 4180. The browser origin and `PUBLIC_URL` must match.
 | --- | --- |
 | `LISTEN_ADDR` | `127.0.0.1:4180` |
 | `PUBLIC_URL` | `http://localhost:4180`; public app origin, HTTPS outside localhost |
-| `DATABASE_PATH` | `nested-chess.sqlite`; persistent SQLite file |
+| `DATABASE_URL` | Required PostgreSQL connection URL; no embedded database |
 | `STATIC_DIR` | `dist`; built web assets |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google web OAuth application credentials |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | GitHub OAuth application credentials |
@@ -44,8 +52,9 @@ No credentials belong in the browser build or repository.
 
 Serve web assets and API from the same origin. The server sets the isolation
 headers required by the browser engine. Put HTTPS termination in front of its
-loopback listener in production. Back up SQLite using its online backup API or
-a consistent stopped database; copying only a live `.sqlite` file omits its WAL.
+listener in production. Set `PUBLIC_URL` to that exact HTTPS origin. The app does
+not trust forwarded headers for authentication or clock decisions. Configure the
+upstream load balancer for WebSocket upgrades and a long idle timeout.
 
 ## Match and rating rules
 
@@ -60,10 +69,10 @@ uses K=32, and marks the first 20 games provisional. The rating unit is permanen
 the whole match: local boards never receive independent ratings. Both players'
 updates and the final result commit in one transaction.
 
-A restarted server pauses timed games at its last persisted heartbeat, which
-normally runs every second. Both players must resume before clocks run again.
-Untimed matches resume directly from their log. A disconnect leaves an active
-clock running. These policies apply only to online games.
+Online clocks use PostgreSQL time and durable deadlines. Disconnects and app
+restarts keep clocks running, including when every app process is down. On recovery,
+workers settle expired matches once. Imported timed SQLite matches are paused
+until both players resume. These policies apply only to online games.
 
 ## Client protocol
 
@@ -76,6 +85,7 @@ provider secrets remain on the server.
 | Endpoint | Contract |
 | --- | --- |
 | `GET /health` | API version and liveness |
+| `GET /ready` | PostgreSQL readiness; used by the load balancer |
 | `GET /me` | Current account, available providers, linked provider names |
 | `POST /guest`, `POST /logout` | Create a genuine guest session / revoke session |
 | `PATCH /profile` | Set a 3–24 character username, letters/numbers/underscore |
@@ -97,24 +107,114 @@ Move command:
 `expected_seq` counts all online match events, not chess plies. Repeating the same
 request ID and payload returns its original event. Reusing it with a different
 payload or player is rejected. A stale sequence returns HTTP 409; fetch a fresh
-snapshot. Moves are validated against a candidate engine state, committed to
-SQLite, then broadcast and installed in the cache. Finished games leave the cache.
+snapshot. Each command locks its match row, validates the move, and commits the engine
+checkpoint, event, clocks, and any rating changes in one transaction. Conflicting
+commands serialize in PostgreSQL; retries return the original persisted event.
 
 WebSocket messages are `{kind:"snapshot", snapshot:...}` and
 `{kind:"event", event:...}`. A snapshot contains `info`, the player's `seat`,
 engine `state`, and replay `save`. An event contains `seq`, `action`, and `info`.
-Clients ignore already-applied sequences and resync on gaps. The server sends a
-new snapshot if a subscriber falls behind. During normal play, move events carry
+Clients ignore already-applied sequences and resync on gaps. The server catches subscribers up from the durable event log. During normal play, move events carry
 no full history. The same API is intended for web and mobile clients; see
 [mobile integration](mobile.md).
 
-The first server uses one SQLite writer with serialized commands on a bounded
-blocking pool. Its per-match broadcast channels preserve commit order. This
-process holds an exclusive database lease; a second server using the same file
-is rejected before it can change running matches. Keep the adjacent `.lock` file
-in place; the operating system releases the lease when the process exits. This
-keeps the initial deployment small; the native capacity trial is not a network
-or cloud-disk capacity guarantee.
+Each app process keeps only its local socket subscriptions. PostgreSQL
+`LISTEN/NOTIFY` wakes the relevant subscribers after a transaction commits;
+notifications carry a match ID and sequence. Every two seconds, servers also
+check subscribed match versions in one query and retrieve missing events in
+order. A lost notification or listener reconnection cannot lose a committed move.
+There is no designated match owner, game cache, or Redis service. Move transactions
+lock one match; timeout workers use `FOR UPDATE SKIP LOCKED`.
+
+The engine stores a versioned checkpoint alongside the replay save and event log,
+including en passant, castling rights, local move counts and repetition state.
+A move restores that checkpoint directly rather than replaying the whole match.
+Checkpoints are internal trusted storage; clients still use the validated replay
+save format. History and checkpoints grow with game length.
+
+Compose sets a 65,536-file-descriptor limit for app and proxy sockets. Preserve
+an adequate process limit in a different runtime; one socket uses one descriptor
+at the app and two at the proxy.
+
+Each replica uses at most 16 pooled SQL connections, including its LISTEN connection;
+WebSockets do not hold database connections. Leave PostgreSQL connection headroom
+when adding replicas. A transaction-pooling proxy must allow a separate
+session connection for LISTEN.
+
+## Hosting and scaling
+
+Compose defaults cap each Rust replica at 1 CPU / 384 MiB, PostgreSQL at 2 CPUs /
+768 MiB, and HAProxy at 0.5 CPU / 64 MiB. These are ceilings, not reservations or
+a minimum host size. Start with a 4 GB host and monitor memory, CPU, disk latency,
+database size, and connection count. The local trial in
+[capacity.md](capacity.md) records measured results; it is not a cloud SLA.
+
+For a single server, run this Compose stack behind a TLS endpoint. App containers
+are read-only and stateless. Use `docker compose logs`, `ps`, and `stats` for
+basic operations. SIGTERM stops new work and closes sockets; clients reconnect to
+another healthy replica. Deploy compatible schema changes before rolling app
+versions. Embedded migrations are serialized, not a substitute for reviewing
+backward compatibility.
+
+To move to multiple hosts or EKS, run the same image in a Deployment behind a
+Service/Ingress or AWS load balancer. Point every replica at one PostgreSQL
+primary, preferably managed, and use `/api/v1/ready` for readiness and
+`/api/v1/health` for liveness. Do not use sticky sessions or put a separate
+database beside each replica. Redis can be added if measured notification or
+database load warrants it. Neither Redis nor EKS removes the database's durability
+and backup responsibilities.
+
+## Backup and restore
+
+Write backups outside the host and test restores. The commands below write into
+the allowed local working directory; use your own secure backup destination in
+production. They contain account/session data.
+
+```sh
+mkdir -p scratch/claude/backups
+docker compose exec -T db pg_dump -U nested -d nested -Fc > scratch/claude/backups/nested.dump
+```
+
+Restore into a fresh database with app replicas stopped:
+
+```sh
+docker compose stop app-a app-b
+docker compose exec -T db pg_restore -U nested -d nested --exit-on-error < scratch/claude/backups/nested.dump
+docker compose up -d --wait
+```
+
+Use a fresh empty database for that restore; an existing database will produce
+conflicts. Cloud production should also use off-host backups and point-in-time
+recovery when available. One host remains one failure domain.
+
+## Import existing SQLite data
+
+Stop the old SQLite server first and keep its database/WAL as a backup. Use
+Node 24 to export a consistent read transaction; the export refuses to overwrite
+a file. Import into an empty PostgreSQL database before starting app replicas.
+
+```sh
+mkdir -p scratch/claude/migration
+node scripts/export-sqlite.mjs OLD.sqlite scratch/claude/migration/export.json
+DATABASE_URL=postgres://USER:PASSWORD@HOST/DB cargo run --release -p nested-chess-server -- --import-sqlite scratch/claude/migration/export.json
+```
+
+With Compose, start only `db`, then pass the private export through a read-only
+mount:
+
+```sh
+docker compose up -d --wait db
+docker compose run --rm -v "$PWD/scratch/claude/migration/export.json:/import.json:ro" app-a --import-sqlite /import.json
+docker compose up -d --wait
+```
+
+Accounts, provider identities, sessions, ratings, history cursors, event/request
+IDs and match states are preserved. The importer validates contiguous event logs,
+reconstructs checkpoints, and commits everything atomically. Active timed matches
+are imported paused at their last stored allowances and require both players to
+resume; migration time is not charged. In-flight provider logins may expire and
+can be restarted. Keep the original database until you have checked the import.
+Browser-local saved games need no migration.
 
 ## Verification
 
@@ -137,16 +237,17 @@ Browser WebSockets retain cookie authentication. Native clients request a
 30-second, single-use ticket with `POST /api/v1/mobile/games/{id}/ticket`, then
 connect to `/api/v1/mobile/games/{id}/stream?ticket=...`. Tickets are match/session
 bound and do not outlive session revocation. Redact ticket and OAuth query strings
-in reverse-proxy access logs. Schema version 2 adds the native handoff/ticket
-tables to existing databases; it preserves account and match tables.
+in reverse-proxy access logs. Native handoffs and tickets are shared PostgreSQL records and work across replicas.
 
 ### Checks
 
 ```sh
-cargo test -p nested-chess-server
+TEST_DATABASE_URL=postgres://USER:PASSWORD@localhost/TEST_DB cargo test --workspace --locked -- --test-threads=4
 ```
 
-Tests use the real Rust engine, SQLite files, HTTP clients, and WebSockets.
+Tests require a disposable PostgreSQL database and create isolated schemas. They
+use the real Rust engine, PostgreSQL transactions, HTTP clients, and WebSockets.
+Remove the test database/container after testing to remove those schemas.
 External provider sign-in requires registered apps and credentials; it is not
 replaced by a fake login endpoint. Cloud deployment and mobile app-store builds
 are separate from local verification.

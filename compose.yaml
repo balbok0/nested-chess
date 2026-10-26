@@ -1,0 +1,67 @@
+name: nested-chess
+x-app: &app
+  build: .
+  image: nested-chess:local
+  restart: unless-stopped
+  init: true
+  environment: &app-environment
+    DATABASE_URL: postgres://nested:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/nested
+    PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+    GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+    GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+    MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+    MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+  depends_on:
+    db:
+      condition: service_healthy
+  read_only: true
+  tmpfs: [/tmp]
+  ulimits:
+    nofile:
+      soft: 65536
+      hard: 65536
+  stop_grace_period: 15s
+  mem_limit: 384m
+  cpus: 1
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nested
+      POSTGRES_DB: nested
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes: [postgres:/var/lib/postgresql]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nested -d nested"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 768m
+    cpus: 2
+  app-a:
+    <<: *app
+  app-b:
+    <<: *app
+  proxy:
+    image: haproxy:3.2-alpine
+    restart: unless-stopped
+    ports: ["${HTTP_PORT:-8080}:8080"]
+    volumes: [./deploy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro]
+    depends_on:
+      app-a:
+        condition: service_healthy
+      app-b:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/run]
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    mem_limit: 64m
+    cpus: 0.5
+volumes:
+  postgres:

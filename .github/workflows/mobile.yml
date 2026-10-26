@@ -2,7 +2,7 @@ name: Mobile builds
 
 on:
   push:
-    branches: [feat/mobile-app, main]
+    branches: [feat/mobile-app, feat/shared-backend, main]
   workflow_dispatch:
     inputs:
       api_url:
@@ -19,9 +19,20 @@ concurrency:
 
 jobs:
   assets:
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: nested_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 3s --health-retries 10
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
+      TEST_DATABASE_URL: postgres://postgres:test_password@localhost:5432/nested_test
       NESTED_CHESS_API_URL: ${{ inputs.api_url || vars.MOBILE_API_URL || 'http://localhost:4180' }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -35,7 +46,7 @@ jobs:
       - run: npm ci
       - run: npm run build:mobile
       - run: npm test
-      - run: cargo test --workspace --locked
+      - run: cargo test --workspace --locked -- --test-threads=4
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: mobile-web

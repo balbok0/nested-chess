@@ -1,3 +1,6 @@
+> Earlier single-process investigation. The implemented shared PostgreSQL design
+> and Docker instructions are in [server.md](../server.md).
+
 # Online-play exploration
 
 Branch: `explore/online-play`. The main bot benchmark is independent and unchanged.

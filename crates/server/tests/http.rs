@@ -42,7 +42,12 @@ impl Server {
                 .await
                 .unwrap();
         });
-        Self { database,app,task,url }
+        Self {
+            database,
+            app,
+            task,
+            url,
+        }
     }
     async fn replica(&self) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();

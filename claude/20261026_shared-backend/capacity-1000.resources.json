@@ -1,0 +1,1052 @@
+[
+  {
+    "time": "2026-10-26T03:51:28.735Z",
+    "phase": "setup",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "40.03%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "3.24%",
+        "MemUsage": "12.43MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "7.74MB / 9.11MB",
+        "PIDs": "7"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "36.53%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "2.35%",
+        "MemUsage": "9.02MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "3.32MB / 3.97MB",
+        "PIDs": "9"
+      },
+      {
+        "BlockIO": "393kB / 772MB",
+        "CPUPerc": "154.43%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "25.09%",
+        "MemUsage": "192.7MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "390MB / 383MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "16.24%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "21.65%",
+        "MemUsage": "13.86MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "4.07MB / 4.1MB",
+        "PIDs": "3"
+      }
+    ]
+  },
+  {
+    "time": "2026-10-26T03:51:33.737Z",
+    "phase": "setup",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "41.14%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "7.87%",
+        "MemUsage": "30.23MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "33.4MB / 39.1MB",
+        "PIDs": "7"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "38.73%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "8.57%",
+        "MemUsage": "32.92MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "34.1MB / 39.7MB",
+        "PIDs": "9"
+      },
+      {
+        "BlockIO": "393kB / 904MB",
+        "CPUPerc": "148.23%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "26.17%",
+        "MemUsage": "201MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "441MB / 433MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "15.54%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "24.98%",
+        "MemUsage": "15.99MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "13.7MB / 13.8MB",
+        "PIDs": "3"
+      }
+    ]
+  },
+  {
+    "time": "2026-10-26T03:51:38.739Z",
+    "phase": "setup",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "40.96%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "12.08%",
+        "MemUsage": "46.39MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "61.3MB / 71.5MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "42.73%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "13.55%",
+        "MemUsage": "52.02MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "62.6MB / 72.8MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "393kB / 1.04GB",
+        "CPUPerc": "160.77%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "27.22%",
+        "MemUsage": "209MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "496MB / 487MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "15.18%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "29.43%",
+        "MemUsage": "18.84MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "26.2MB / 26.4MB",
+        "PIDs": "3"
+      }
+    ]
+  },
+  {
+    "time": "2026-10-26T03:51:43.744Z",
+    "phase": "setup",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "41.40%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "17.57%",
+        "MemUsage": "67.48MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "88MB / 103MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "43.20%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "19.63%",
+        "MemUsage": "75.37MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "89.5MB / 104MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "393kB / 1.15GB",
+        "CPUPerc": "159.08%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "27.86%",
+        "MemUsage": "214MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "537MB / 527MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "14.95%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "35.50%",
+        "MemUsage": "22.72MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "41.6MB / 42MB",
+        "PIDs": "3"
+      }
+    ]
+  },
+  {
+    "time": "2026-10-26T03:51:48.744Z",
+    "phase": "setup",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "46.02%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "21.35%",
+        "MemUsage": "81.97MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "110MB / 128MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "39.86%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "24.28%",
+        "MemUsage": "93.24MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "117MB / 136MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "393kB / 1.32GB",
+        "CPUPerc": "150.19%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "28.55%",
+        "MemUsage": "219.3MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "602MB / 590MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "14.94%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "39.78%",
+        "MemUsage": "25.46MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "54.1MB / 54.6MB",
+        "PIDs": "3"
+      }
+    ]
+  },
+  {
+    "time": "2026-10-26T03:51:53.745Z",
+    "phase": "setup",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "39.69%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "26.43%",
+        "MemUsage": "101.5MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "137MB / 159MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "41.08%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "29.05%",
+        "MemUsage": "111.6MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "144MB / 167MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "393kB / 1.45GB",
+        "CPUPerc": "155.68%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "29.23%",
+        "MemUsage": "224.5MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "654MB / 642MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "15.79%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "43.91%",
+        "MemUsage": "28.11MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "66.4MB / 67MB",
+        "PIDs": "3"
+      }
+    ]
+  },
+  {
+    "time": "2026-10-26T03:51:58.747Z",
+    "phase": "setup",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "42.65%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "32.73%",
+        "MemUsage": "125.7MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "168MB / 196MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "41.93%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "34.61%",
+        "MemUsage": "132.9MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "171MB / 199MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "393kB / 1.58GB",
+        "CPUPerc": "157.39%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "30.34%",
+        "MemUsage": "233MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "706MB / 693MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "16.12%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "48.20%",
+        "MemUsage": "30.85MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "76.5MB / 77.2MB",
+        "PIDs": "3"
+      }
+    ]
+  },
+  {
+    "time": "2026-10-26T03:52:03.753Z",
+    "phase": "setup",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "21.96%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "35.26%",
+        "MemUsage": "135.4MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "181MB / 211MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "20.99%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "36.82%",
+        "MemUsage": "141.4MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "187MB / 217MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "393kB / 1.66GB",
+        "CPUPerc": "87.78%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "30.79%",
+        "MemUsage": "236.5MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "737MB / 723MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "8.15%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "51.17%",
+        "MemUsage": "32.75MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "86.4MB / 87.2MB",
+        "PIDs": "3"
+      }
+    ]
+  },
+  {
+    "time": "2026-10-26T03:52:08.769Z",
+    "phase": "measured",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "3.71%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "36.37%",
+        "MemUsage": "139.7MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "195MB / 227MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "11.12%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "38.64%",
+        "MemUsage": "148.4MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "197MB / 229MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "393kB / 1.74GB",
+        "CPUPerc": "14.78%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "31.31%",
+        "MemUsage": "240.4MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "759MB / 744MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "1.53%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "52.25%",
+        "MemUsage": "33.44MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "91MB / 91.8MB",
+        "PIDs": "3"
+      }
+    ]
+  },
+  {
+    "time": "2026-10-26T03:52:13.754Z",
+    "phase": "measured",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "3.46%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "36.44%",
+        "MemUsage": "139.9MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "198MB / 231MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "3.63%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "38.57%",
+        "MemUsage": "148.1MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "201MB / 233MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "442kB / 1.75GB",
+        "CPUPerc": "13.54%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "31.46%",
+        "MemUsage": "241.6MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "765MB / 750MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "1.47%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "52.24%",
+        "MemUsage": "33.43MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "91.6MB / 92.5MB",
+        "PIDs": "3"
+      }
+    ]
+  },
+  {
+    "time": "2026-10-26T03:52:18.755Z",
+    "phase": "measured",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "3.99%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "36.44%",
+        "MemUsage": "139.9MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "202MB / 234MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "3.84%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "38.58%",
+        "MemUsage": "148.1MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "204MB / 237MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "442kB / 1.75GB",
+        "CPUPerc": "16.58%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "31.44%",
+        "MemUsage": "241.5MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "770MB / 755MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "1.65%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "52.24%",
+        "MemUsage": "33.43MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "92.5MB / 93.4MB",
+        "PIDs": "3"
+      }
+    ]
+  },
+  {
+    "time": "2026-10-26T03:52:23.761Z",
+    "phase": "measured",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "4.02%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "36.38%",
+        "MemUsage": "139.7MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "205MB / 238MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "4.07%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "38.58%",
+        "MemUsage": "148.1MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "208MB / 241MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "442kB / 1.76GB",
+        "CPUPerc": "14.82%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "31.48%",
+        "MemUsage": "241.8MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "778MB / 763MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "1.86%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "52.24%",
+        "MemUsage": "33.43MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "93.4MB / 94.3MB",
+        "PIDs": "3"
+      }
+    ]
+  },
+  {
+    "time": "2026-10-26T03:52:28.761Z",
+    "phase": "measured",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "3.63%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "36.38%",
+        "MemUsage": "139.7MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "208MB / 241MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "3.63%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "38.64%",
+        "MemUsage": "148.4MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "211MB / 244MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "664kB / 1.77GB",
+        "CPUPerc": "14.32%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "31.54%",
+        "MemUsage": "242.2MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "784MB / 769MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "1.76%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "52.25%",
+        "MemUsage": "33.44MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "94.3MB / 95.1MB",
+        "PIDs": "3"
+      }
+    ]
+  },
+  {
+    "time": "2026-10-26T03:52:33.761Z",
+    "phase": "measured",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "3.39%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "36.38%",
+        "MemUsage": "139.7MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "211MB / 245MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "3.62%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "38.64%",
+        "MemUsage": "148.4MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "214MB / 248MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "836kB / 1.78GB",
+        "CPUPerc": "17.12%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "31.77%",
+        "MemUsage": "244MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "790MB / 774MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "1.46%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "52.25%",
+        "MemUsage": "33.44MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "95.3MB / 96.2MB",
+        "PIDs": "3"
+      }
+    ]
+  },
+  {
+    "time": "2026-10-26T03:52:38.772Z",
+    "phase": "measured",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "3.50%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "36.39%",
+        "MemUsage": "139.7MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "215MB / 249MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "5.90%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "38.59%",
+        "MemUsage": "148.2MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "217MB / 251MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "836kB / 1.83GB",
+        "CPUPerc": "13.21%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "32.02%",
+        "MemUsage": "245.9MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "797MB / 782MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "1.42%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "52.23%",
+        "MemUsage": "33.43MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "96.2MB / 97.1MB",
+        "PIDs": "3"
+      }
+    ]
+  },
+  {
+    "time": "2026-10-26T03:52:43.766Z",
+    "phase": "measured",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "3.81%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "36.38%",
+        "MemUsage": "139.7MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "218MB / 252MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "4.26%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "38.58%",
+        "MemUsage": "148.2MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "221MB / 255MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "836kB / 1.85GB",
+        "CPUPerc": "14.74%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "32.07%",
+        "MemUsage": "246.3MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "804MB / 788MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "1.51%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "52.23%",
+        "MemUsage": "33.43MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "96.9MB / 97.8MB",
+        "PIDs": "3"
+      }
+    ]
+  },
+  {
+    "time": "2026-10-26T03:52:48.771Z",
+    "phase": "measured",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "6.39%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "36.40%",
+        "MemUsage": "139.8MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "220MB / 255MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "4.28%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "38.58%",
+        "MemUsage": "148.2MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "224MB / 259MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "836kB / 1.87GB",
+        "CPUPerc": "15.18%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "32.12%",
+        "MemUsage": "246.7MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "811MB / 795MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "1.76%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "52.23%",
+        "MemUsage": "33.43MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "98MB / 98.9MB",
+        "PIDs": "3"
+      }
+    ]
+  },
+  {
+    "time": "2026-10-26T03:52:53.775Z",
+    "phase": "measured",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "3.92%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "36.38%",
+        "MemUsage": "139.7MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "224MB / 260MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "4.14%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "38.58%",
+        "MemUsage": "148.2MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "227MB / 263MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "852kB / 1.88GB",
+        "CPUPerc": "14.93%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "32.15%",
+        "MemUsage": "246.9MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "818MB / 801MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "1.74%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "52.23%",
+        "MemUsage": "33.43MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "98.7MB / 99.6MB",
+        "PIDs": "3"
+      }
+    ]
+  },
+  {
+    "time": "2026-10-26T03:52:58.775Z",
+    "phase": "measured",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "3.89%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "36.38%",
+        "MemUsage": "139.7MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "228MB / 263MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "6.55%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "38.59%",
+        "MemUsage": "148.2MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "230MB / 266MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "860kB / 1.89GB",
+        "CPUPerc": "14.53%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "32.21%",
+        "MemUsage": "247.4MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "824MB / 808MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "1.40%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "52.23%",
+        "MemUsage": "33.43MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "99.7MB / 101MB",
+        "PIDs": "3"
+      }
+    ]
+  },
+  {
+    "time": "2026-10-26T03:53:03.778Z",
+    "phase": "measured",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "3.51%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "36.45%",
+        "MemUsage": "140MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "230MB / 266MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "3.65%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "38.58%",
+        "MemUsage": "148.2MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "234MB / 270MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "860kB / 1.9GB",
+        "CPUPerc": "12.64%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "32.26%",
+        "MemUsage": "247.8MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "831MB / 814MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "1.39%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "52.23%",
+        "MemUsage": "33.43MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "101MB / 101MB",
+        "PIDs": "3"
+      }
+    ]
+  },
+  {
+    "time": "2026-10-26T03:53:08.781Z",
+    "phase": "measured",
+    "containers": [
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "0.29%",
+        "Container": "nested-shared-test-app-a-1",
+        "ID": "2591e41b8574",
+        "MemPerc": "3.39%",
+        "MemUsage": "13.01MiB / 384MiB",
+        "Name": "nested-shared-test-app-a-1",
+        "NetIO": "233MB / 270MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "0.40%",
+        "Container": "nested-shared-test-app-b-1",
+        "ID": "734c0fb7e1e4",
+        "MemPerc": "3.55%",
+        "MemUsage": "13.62MiB / 384MiB",
+        "Name": "nested-shared-test-app-b-1",
+        "NetIO": "236MB / 272MB",
+        "PIDs": "3"
+      },
+      {
+        "BlockIO": "860kB / 1.91GB",
+        "CPUPerc": "0.17%",
+        "Container": "nested-shared-test-db-1",
+        "ID": "f4e89849584d",
+        "MemPerc": "32.15%",
+        "MemUsage": "246.9MiB / 768MiB",
+        "Name": "nested-shared-test-db-1",
+        "NetIO": "835MB / 818MB",
+        "PIDs": "41"
+      },
+      {
+        "BlockIO": "0B / 0B",
+        "CPUPerc": "13.39%",
+        "Container": "nested-shared-test-proxy-1",
+        "ID": "b111bf3feef9",
+        "MemPerc": "35.88%",
+        "MemUsage": "22.96MiB / 64MiB",
+        "Name": "nested-shared-test-proxy-1",
+        "NetIO": "102MB / 103MB",
+        "PIDs": "3"
+      }
+    ]
+  }
+]

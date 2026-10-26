@@ -1,0 +1,28 @@
+name: Shared server
+on:
+  push:
+    branches: [feat/shared-backend, main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: server-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  compose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      POSTGRES_PASSWORD: ci_compose_password
+      PUBLIC_URL: http://localhost:8080
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24
+      - run: docker compose up --build -d --wait
+      - run: node scripts/check-compose.mjs
+      - run: docker compose logs --tail 100
+        if: failure()
+      - run: docker compose down
+        if: always()
