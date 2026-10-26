@@ -10,7 +10,7 @@ const waitFor=async check=>{
   throw new Error('Timed out waiting for recovery');
 };
 async function request(path,token,body,method=body===undefined?'GET':'POST') {
-  const response=await fetch(origin+path,{method,headers:{...(token?{Authorization:`Bearer ${token}`}:{}),...(body===undefined?{}:{'Content-Type':'application/json'})},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(10_000)});
+  const response=await fetch(origin+path,{method,headers:{...(token?{Authorization:`Bearer ${token}`}:{}),...(body===undefined?{}:{'Content-Type':'application/json'})},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(10_000)}).catch(error=>{throw new Error(`${method} ${path} failed`,{cause:error});});
   const data=await response.json();
   return {status:response.status,data,replica:response.headers.get('x-nested-replica')};
 }

@@ -15,6 +15,8 @@ Open http://localhost:8080. Compose runs PostgreSQL, two identical Rust servers,
 and an HAProxy load balancer with round-robin routing and no sticky sessions.
 Static assets use process liveness checks, while online routes use database
 readiness. Local games and bot assets remain available during a database outage.
+Failed TCP connections retry another replica using
+[HAProxy redispatch](https://www.haproxy.com/documentation/haproxy-configuration-tutorials/reliability/retries/).
 Only the proxy port is published. The named PostgreSQL volume persists across
 container replacement; `docker compose down` keeps it. `down -v` deletes it.
 
@@ -138,8 +140,8 @@ at the app and two at the proxy.
 
 Each replica uses at most 16 pooled SQL connections, including its LISTEN connection;
 WebSockets do not hold database connections. Leave PostgreSQL connection headroom
-when adding replicas. A transaction-pooling proxy must allow a separate
-session connection for LISTEN.
+when adding replicas. Use a direct PostgreSQL endpoint or a session-pooling proxy; LISTEN requires a
+persistent session and cannot use transaction pooling.
 
 ## Hosting and scaling
 
