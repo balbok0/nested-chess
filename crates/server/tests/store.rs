@@ -1047,3 +1047,27 @@ async fn concurrent_native_stream_tickets_are_single_use() {
     );
     assert_eq!(usize::from(a.is_ok()) + usize::from(b.is_ok()), 1);
 }
+
+#[tokio::test]
+async fn rejoining_while_a_rated_match_finishes_does_not_deadlock() {
+    let (url, store) = database().await;
+    let other = Store::connect(&url).await.unwrap();
+    for _ in 0..12 {
+        let p = pair(
+            &store,
+            CreateGame {
+                rated: true,
+                clock: Some(TimeControl::default()),
+                ..Default::default()
+            },
+        )
+        .await;
+        let (joined, finished) = tokio::join!(
+            store.join(&p.id, &p.white, 1100),
+            other.command(&p.id, &p.black, command(1, Action::Resign), 1100)
+        );
+        joined.unwrap();
+        finished.unwrap();
+        assert_eq!(store.user(&p.white).await.unwrap().rated_games, 1);
+    }
+}

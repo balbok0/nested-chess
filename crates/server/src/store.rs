@@ -211,8 +211,8 @@ impl Store {
     pub async fn identities(&self, user: &str) -> Result<Vec<String>> {
         Ok(sqlx::query_scalar("SELECT DISTINCT CASE WHEN issuer='github' THEN 'github' WHEN issuer='https://accounts.google.com' THEN 'google' ELSE 'microsoft' END FROM identities WHERE user_id=$1").bind(user).fetch_all(&self.pool).await?)
     }
-    async fn lock_user(db: &mut PgConnection, user: &str) -> Result<()> {
-        sqlx::query("SELECT id FROM users WHERE id=$1 FOR UPDATE")
+    pub(crate) async fn lock_user(db: &mut PgConnection, user: &str) -> Result<()> {
+        sqlx::query("SELECT id FROM users WHERE id=$1 FOR NO KEY UPDATE")
             .bind(user)
             .fetch_optional(db)
             .await?

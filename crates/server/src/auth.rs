@@ -386,11 +386,7 @@ impl Store {
             .execute(&mut *db)
             .await?;
         if let Some(current) = &flow.user_id {
-            sqlx::query("SELECT id FROM users WHERE id=$1 FOR UPDATE")
-                .bind(current)
-                .fetch_optional(&mut *db)
-                .await?
-                .ok_or(Error::Unauthorized)?;
+            Self::lock_user(db, current).await?;
         }
         let existing: Option<String> =
             sqlx::query_scalar("SELECT user_id FROM identities WHERE issuer=$1 AND subject=$2")

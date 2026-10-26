@@ -75,7 +75,7 @@ The real Compose checks passed with no sticky sessions:
   restored into a fresh database with the expected 2 accounts, 2 matches, and
   11 events.
 
-There are 94 passing Rust contract/integration tests and 71 passing JS/WASM tests.
+There are 95 passing Rust contract/integration tests and 71 passing JS/WASM tests.
 The server tests require real PostgreSQL. Provider credentials, cloud deployment,
 and signed physical-device releases were outside this trial.
 
