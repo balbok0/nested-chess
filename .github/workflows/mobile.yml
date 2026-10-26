@@ -64,7 +64,6 @@ jobs:
           path: dist-mobile/
       - run: npm ci
       - run: npx cap sync android
-      - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
       - run: ./gradlew :app:assembleDebug --no-daemon
         working-directory: mobile/android
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

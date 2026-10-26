@@ -7,10 +7,11 @@ export default defineConfig(({ mode }) => {
   const mobile = mode === 'mobile';
   return {
     define: { 'import.meta.env.VITE_API_ORIGIN': JSON.stringify(mobile && env.NESTED_CHESS_API_URL ? apiOrigin(env.NESTED_CHESS_API_URL) : '') },
+    plugins: mobile ? [{ name: 'mobile-shell', transformIndexHtml: html => html.replace(/<script src="[^"]*coi-serviceworker\.js"><\/script>/, '') }] : [],
     root: 'web',
     publicDir: 'vendor',
     server: { headers, proxy: { '/api': { target: 'http://localhost:4180', ws: true }, '/auth': { target: 'http://localhost:4180' } } },
-    preview: { headers },
+    preview: { headers: mobile ? {} : headers },
     build: {
       outDir: mobile ? '../dist-mobile' : '../dist', emptyOutDir: true,
       rollupOptions: {

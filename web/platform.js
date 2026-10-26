@@ -85,10 +85,18 @@ export async function initializeMobile({ request, onlogin, onmatch, onback, oner
       const link = appLink(url);
       if (link.kind === 'match') { await onmatch(link.id); return; }
       const secure = await storage();
+      const handoff = await pkceChallenge(link.code);
+      if (await secure.get('last-handoff') === handoff) return;
       const pending = await secure.get('login');
       if (!pending || pending.expires <= Date.now() || pending.state !== link.state) throw new Error('Sign-in did not match this app. Please try again.');
-      const result = await request('/mobile/exchange', { method: 'POST', data: { code: link.code, verifier: pending.verifier } });
+      let result;
+      try { result = await request('/mobile/exchange', { method: 'POST', data: { code: link.code, verifier: pending.verifier } }); }
+      catch (error) {
+        if (error.status >= 400 && error.status < 500) { await secure.set('last-handoff', handoff); await secure.remove('login'); }
+        throw error;
+      }
       await saveSession(result.token);
+      await secure.set('last-handoff', handoff);
       await secure.remove('login');
       const { Browser } = await import('@capacitor/browser');
       await Browser.close();
