@@ -2,7 +2,7 @@ name: Mobile builds
 
 on:
   push:
-    branches: [feat/mobile-app, feat/shared-backend, feat/mobile-ux, main]
+    branches: [feat/mobile-app, feat/shared-backend, feat/mobile-ux, feat/elo-matchmaking, main]
   workflow_dispatch:
     inputs:
       api_url:

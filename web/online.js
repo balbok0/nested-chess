@@ -63,7 +63,7 @@ export function setupOnline({ enter, current, leave, onerror }) {
       const row = document.createElement('div'); row.className = 'online-game-row';
       const button = document.createElement('button'); button.className = 'text-button';
       const opponent = info.white?.id === account.user.id ? info.black : info.white;
-      button.textContent = `${info.status === 'waiting' ? 'Waiting for opponent' : opponent?.handle || 'Match'} · ${info.size} × ${info.size}`;
+      button.textContent = `${info.status === 'waiting' ? info.queue_started_ms != null ? 'Finding an opponent' : 'Waiting for opponent' : opponent?.handle || 'Match'} · ${info.size} × ${info.size}`;
       button.onclick = () => { void run(() => load(info.id)); }; row.append(button);
       if (info.status === 'waiting') {
         const cancel = document.createElement('button'); cancel.className = 'text-button'; cancel.textContent = 'Cancel';
@@ -157,11 +157,18 @@ export function setupOnline({ enter, current, leave, onerror }) {
   $('online-leave').onclick = leave;
   $('online-resign').onclick = () => { void run(async () => {
     const session = current(); if (session.kind !== 'online') return;
-    $('online-confirm-title').textContent = session.info.status === 'waiting' ? 'Cancel invitation?' : 'Resign this match?';
+    const { id, status } = session.info;
+    $('online-confirm-title').textContent = session.info.status === 'waiting' ? session.info.queue_started_ms != null ? 'Cancel search?' : 'Cancel invitation?' : 'Resign this match?';
+    $('online-confirm-yes').onclick = () => { $('online-confirm').close(); void run(async () => {
+      if (current() !== session || session.info.id !== id || session.info.status !== status) {
+        throw new Error('The match changed. Check it before confirming again.');
+      }
+      await session.send({ kind: 'resign' });
+    }); };
     $('online-confirm').showModal();
   }); };
+  $('online-cancel-search').onclick = () => $('online-resign').click();
   $('online-confirm-cancel').onclick = () => $('online-confirm').close();
-  $('online-confirm-yes').onclick = () => { $('online-confirm').close(); void run(async () => { await current().send({ kind: 'resign' }); }); };
   $('online-resume').onclick = () => { void current().send({ kind: 'resume' }).catch(error); };
   $('online-copy').onclick = () => { void copyText($('online-link').value).then(() => { $('online-copy').textContent = 'Copied'; }).catch(() => { $('online-link').select(); }); };
   $('online-share-native').hidden = !native;
@@ -281,6 +288,16 @@ export function renderOnline(session) {
   $('online-retry').hidden = session.connected;
   $('online-retry').onclick = () => { void session.recover(); };
   const now = Date.now() + session.serverOffset;
+  const searching = info.status === 'waiting' && info.queue_started_ms != null;
+  if (searching) {
+    const seconds = Math.floor(Math.max(0, now - info.queue_started_ms) / 1000);
+    const gap = Math.min(600, 150 + 50 * Math.floor(seconds / 15));
+    $('turn-label').textContent = 'Finding an opponent';
+    $('turn-detail').textContent = `Within ${gap} Elo · ${seconds}s waiting`;
+  } else if (info.matched_id) {
+    $('turn-label').textContent = 'Opponent found';
+    $('turn-detail').textContent = 'Joining your match…';
+  }
   for (const color of ['white', 'black']) {
     const element = $(`online-clock-${color}`), stored = info[`${color}_ms`];
     element.hidden = stored === null;
@@ -289,13 +306,15 @@ export function renderOnline(session) {
     element.textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
     element.classList.toggle('running', info.status === 'active' && info.turn === color);
   }
-  $('online-share').hidden = info.status !== 'waiting';
+  $('online-share').hidden = info.status !== 'waiting' || searching;
   const url = new URL(native ? onlineOrigin() : location.href); url.search = ''; url.hash = ''; url.searchParams.set('match', info.id);
   if ($('online-link').value !== url.href) { $('online-link').value = url.href; $('online-copy').textContent = 'Copy invite'; }
   $('online-resume').hidden = info.status !== 'paused';
   $('online-resume').disabled = !session.connected || info[`ready_${session.seat}`];
   $('online-resume').textContent = info[`ready_${session.seat}`] ? 'Ready' : 'Resume match';
-  $('online-resign').hidden = ['finished', 'cancelled'].includes(info.status);
+  $('online-cancel-search').hidden = !searching;
+  $('online-cancel-search').disabled = !session.connected || Boolean(session.pending);
+  $('online-resign').hidden = searching || ['finished', 'cancelled'].includes(info.status);
   $('online-resign').disabled = !session.connected || Boolean(session.pending);
-  $('online-resign').textContent = info.status === 'waiting' ? 'Cancel invitation' : 'Resign';
+  $('online-resign').textContent = info.status === 'waiting' ? searching ? 'Cancel search' : 'Cancel invitation' : 'Resign';
 }

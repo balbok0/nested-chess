@@ -346,7 +346,7 @@ function render() {
   if (online) {
     if (game.info.status === 'waiting') { $('turn-label').textContent = 'Waiting for opponent'; $('turn-detail').textContent = 'Share the invitation link.'; }
     if (game.info.status === 'paused') { $('turn-label').textContent = 'Match paused'; $('turn-detail').textContent = game.info[`ready_${game.seat}`] ? 'Waiting for opponent to resume.' : 'Both players must resume.'; }
-    if (game.info.status === 'cancelled') { $('turn-label').textContent = 'Invitation cancelled'; $('turn-detail').textContent = ''; }
+    if (game.info.status === 'cancelled') { $('turn-label').textContent = game.info.queue_started_ms != null ? 'Search cancelled' : 'Invitation cancelled'; $('turn-detail').textContent = ''; }
     if (finished && game.info.reason !== 'rules') $('turn-detail').textContent = `${state.outcome === 'white' ? 'Black' : 'White'} ${game.info.reason === 'timeout' ? 'ran out of time' : 'resigned'}.`;
   }
   $('undo').disabled = online || state.history.length === 0;
@@ -453,8 +453,18 @@ function newGame(size) {
 
 async function enterOnline(snapshot) {
   await rememberMatch(snapshot.info.id);
+  let rememberedId = snapshot.info.id;
   const remote = new RemoteSession(snapshot, {
-    onchange: json => { if (game === remote) acceptState(json); },
+    onchange: json => {
+      if (game !== remote) return;
+      if (remote.info.id !== rememberedId) {
+        rememberedId = remote.info.id;
+        setMatchURL(rememberedId);
+        flipped = remote.seat === 'black';
+        void rememberMatch(rememberedId).catch(showError);
+      }
+      acceptState(json);
+    },
     onerror: error => { if (game === remote) showError(error); },
   });
   resetOpponent(); clearError();

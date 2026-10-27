@@ -44,7 +44,7 @@ export class RemoteSession {
   }
 
   install(snapshot) {
-    if (this.info && snapshot.info.seq < this.info.seq) return;
+    if (this.info?.id === snapshot.info.id && snapshot.info.seq < this.info.seq) return;
     this.engine?.free();
     this.engine = NestedGame.load(snapshot.save);
     this.info = snapshot.info; this.seat = snapshot.seat;
@@ -71,8 +71,9 @@ export class RemoteSession {
       return;
     }
     const attempt = ++this.connectionGeneration;
+    const streamId = this.info.id;
     let url;
-    try { url = await streamURL(this.info.id); }
+    try { url = await streamURL(streamId); }
     catch (error) { this.connectionError(error); return; }
     if (this.closed || this.suspended || attempt !== this.connectionGeneration) return;
     this.closeSocket();
@@ -85,6 +86,7 @@ export class RemoteSession {
         if (body.kind === 'snapshot') {
           this.install(body.snapshot); this.connected = true; this.delay = 500; this.connectionIssue = '';
           this.onchange(this.state());
+          if (this.info.id !== streamId) { void this.connect().catch(error => this.connectionError(error)); return; }
           if (this.pending && !this.sending) void this.flush().catch(this.onerror);
         } else if (body.kind === 'event') this.apply(body.event);
       } catch (error) { this.onerror(error); socket.close(); }
@@ -118,6 +120,13 @@ export class RemoteSession {
   apply(event) {
     if (this.closed || event.seq <= this.info.seq) return;
     if (event.seq !== this.info.seq + 1) { void this.resync().catch(this.onerror); return; }
+    if (event.action.kind === 'matched') {
+      this.info = event.info;
+      this.connected = false;
+      this.onchange(this.state());
+      void this.recover();
+      return;
+    }
     if (event.action.kind === 'move') this.engine.play(event.action.board, event.action.uci);
     this.info = event.info; this.serverOffset = event.info.server_ms - Date.now();
     this.onchange(this.state());

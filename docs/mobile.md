@@ -96,6 +96,10 @@ the viewport height; desktop retains its three-column layout. Local new-match
 and grid changes ask before replacing a nonempty saved match. Selecting the
 current grid size leaves it unchanged.
 
+Online → Find rated opponent matches signed-in players within ±150 Elo, widening
+by 50 every 15 seconds up to ±600. The waiting view shows the current range;
+Cancel search leaves the queue. Searches and resulting matches reopen after relaunch.
+
 Select a piece, then hold a marked destination to preview the next board. Release
 without moving; a normal tap makes the move. Sliding or scrolling cancels the preview.
 
