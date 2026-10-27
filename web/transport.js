@@ -5,6 +5,10 @@ export class ApiError extends Error {
   constructor(message, status) { super(message); this.status = status; }
 }
 
+export function isTransientError(error) {
+  return !(error instanceof ApiError) || error.status === 0 || [408, 429].includes(error.status) || error.status >= 500;
+}
+
 export async function request(path, { method = 'GET', data } = {}) {
   if (native) {
     const response = await nativeRequest(path, method, data);

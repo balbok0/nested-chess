@@ -24,6 +24,7 @@ let game, state, viewing = 0, source = null, flipped = false, busy = false, oppo
 let localGame = null, localMode = 'bot', onlineControls;
 let localFlipped = false;
 let engineError = '';
+let resetSize = null;
 let botAnimations = [];
 let preferences = { theme: 'system', evaluations: false, animations: true, chess960: false, chess960Independent: false };
 let analyzer = null, evaluationGeneration = 0, evaluationError = '';
@@ -284,6 +285,7 @@ function renderHistory(history, board) {
 
 function render() {
   const online = game.kind === 'online';
+  document.documentElement.dataset.session = online ? 'online' : 'local';
   const finished = state.outcome !== 'ongoing';
   $('en-passant-rule').textContent = state.en_passant_rule === 'global'
     ? 'This saved match uses the original en passant rule: capture on the next global turn or the opportunity expires. Start a new match for local expiry.'
@@ -386,6 +388,17 @@ function createGame(size) {
     : NestedGame.chess960(size, randomStart()));
 }
 
+function requestNewGame(size, changingSize = false) {
+  if (game.kind === 'online') { void onlineControls.show(); return; }
+  if (changingSize && size === state.size) return;
+  if (state.history.length > 0) {
+    resetSize = size;
+    $('reset-confirm').showModal();
+    return;
+  }
+  newGame(size);
+}
+
 function newGame(size) {
   if (game.kind === 'online') { void onlineControls.show(); return; }
   resetOpponent(); clearError(); $('promotion').close(); $('draw-offer').close();
@@ -393,7 +406,8 @@ function newGame(size) {
   acceptState(game.state());
 }
 
-function enterOnline(snapshot) {
+async function enterOnline(snapshot) {
+  await rememberMatch(snapshot.info.id);
   const remote = new RemoteSession(snapshot, {
     onchange: json => { if (game === remote) acceptState(json); },
     onerror: error => { if (game === remote) showError(error); },
@@ -402,7 +416,6 @@ function enterOnline(snapshot) {
   if (game.kind === 'online') game.free();
   else { localGame = game; localMode = $('mode').value; localFlipped = flipped; }
   game = remote; $('mode').value = 'online'; viewing = 0; flipped = snapshot.seat === 'black';
-  void rememberMatch(snapshot.info.id).catch(showError);
   setMatchURL(snapshot.info.id);
   $('save-status').textContent = ''; applyPreferences(); acceptState(game.state());
 }
@@ -423,7 +436,7 @@ function setMatchURL(id) {
 }
 
 async function boot() {
-  try { await hydrateLocal([STORAGE_KEY, SETTINGS_KEY, 'nested-online-match']); }
+  try { await hydrateLocal([STORAGE_KEY, SETTINGS_KEY, 'nested-online-match', 'nested-online-creation']); }
   catch (error) { showError(`Could not restore device storage: ${error}`); }
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
@@ -452,8 +465,15 @@ async function boot() {
   localMode = $('mode').value;
   onlineControls = setupOnline({ enter: enterOnline, current: () => game, leave: leaveOnline, onerror: showError });
   acceptState(game.state());
-  $('grid-options').querySelectorAll('button').forEach(button => { button.onclick = () => newGame(Number(button.dataset.size)); });
-  $('new-game').onclick = () => newGame(state.size);
+  $('grid-options').querySelectorAll('button').forEach(button => { button.onclick = () => requestNewGame(Number(button.dataset.size), true); });
+  $('new-game').onclick = () => requestNewGame(state.size);
+  $('reset-cancel').onclick = () => $('reset-confirm').close();
+  $('reset-confirm').onclose = () => { resetSize = null; };
+  $('reset-yes').onclick = () => {
+    const size = resetSize;
+    $('reset-confirm').close();
+    if (size !== null) newGame(size);
+  };
   $('flip').onclick = () => { flipped = !flipped; renderBoard(); };
   $('undo').onclick = () => {
     resetOpponent(); clearError();

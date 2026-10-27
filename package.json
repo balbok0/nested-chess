@@ -18,7 +18,8 @@
     "mobile:ios": "cap open ios",
     "mobile:run:android": "cap run android",
     "mobile:run:ios": "cap run ios",
-    "mobile:icons": "node scripts/mobile-icons.mjs"
+    "mobile:icons": "node scripts/mobile-icons.mjs",
+    "test:ui": "playwright test"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "8.0.1",
@@ -36,6 +37,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "8.5.3",
+    "@playwright/test": "^1.64.1",
     "vite": "^7.1.0"
   },
   "overrides": {

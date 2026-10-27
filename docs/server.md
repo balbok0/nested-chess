@@ -100,6 +100,11 @@ provider secrets remain on the server.
 | `GET /history?before=CURSOR` | 20 completed matches and rating changes per page |
 | `POST /auth/{provider}/link` | Begin linking an identity to the current account |
 
+Invitation creation accepts an optional UUID `request_id` in its JSON body. Repeating
+the same account, request ID, and settings returns the same match with its current
+state, including after it has been joined or the server restarted. Reusing an ID
+with different settings returns HTTP 409. Older clients can omit this field.
+
 Move command:
 
 ```json
@@ -253,3 +258,16 @@ Remove the test database/container after testing to remove those schemas.
 External provider sign-in requires registered apps and credentials; it is not
 replaced by a fake login endpoint. Cloud deployment and mobile app-store builds
 are separate from local verification.
+
+Browser integration checks use the built app and real HTTP/WebSockets/PostgreSQL:
+
+```sh
+npm ci
+npx playwright install chromium
+UI_BASE_URL=http://localhost:8080 TEST_POSTGRES_CONTAINER=nested-chess-db-1 npm run test:ui
+```
+
+Run these against a disposable Compose stack: the outage checks stop/start the
+named PostgreSQL container. They cover phone/tablet/desktop sizing, reset
+confirmation, repeated invitations, uncertain moves, crash/reopen and startup
+outage recovery. Artifacts go under `scratch/claude/20261026_mobile-ux/playwright`.

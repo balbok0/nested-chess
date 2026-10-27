@@ -1,19 +1,36 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { request, guestSession, logoutSession } from './transport.js';
-import { native, nativeLogin, matchStorage, rememberMatch, onlineOrigin, copyText, shareInvite } from './platform.js';
+import { ApiError, isTransientError, request, guestSession, logoutSession } from './transport.js';
+import { native, nativeLogin, rememberedMatch, rememberMatch, saveLocal, onlineOrigin, copyText, shareInvite } from './platform.js';
 import { APP_SCHEME, invitationId } from './mobile-protocol.js';
 
 const $ = id => document.getElementById(id);
 const CLOCKS = { none: null, '15+10': { seconds: 900, increment: 10 }, '10+5': { seconds: 600, increment: 5 }, '30+0': { seconds: 1800, increment: 0 } };
+const CREATION_KEY = 'nested-online-creation';
 const LOGIN_ERRORS = new Map([['guest_matches', 'Finish your guest matches before switching accounts.'], ['identity_in_use', 'That login already belongs to another account. Sign in to that account instead.']]);
 
 export function setupOnline({ enter, current, leave, onerror }) {
-  let account = null, open = [], cursor = null;
+  let account = null, open = [], cursor = null, running = false;
+  const pendingCreation = () => {
+    const value = localStorage.getItem(CREATION_KEY);
+    if (!value) return null;
+    const creation = JSON.parse(value);
+    return creation.origin === onlineOrigin() && (!account?.user || creation.owner === account.user.id) ? creation : null;
+  };
   const error = value => { if (!$('online').open) { onerror(value); return; } $('online-error').textContent = value.message || String(value); $('online-error').hidden = false; };
   const clear = () => { $('online-error').hidden = true; };
   async function run(action) {
+    if (running) return;
+    running = true;
+    $('online-controls').disabled = true;
+    $('online-controls').setAttribute('aria-busy', 'true');
     clear();
     try { await action(); } catch (value) { error(value); }
+    finally {
+      running = false;
+      $('online-controls').disabled = false;
+      $('online-controls').setAttribute('aria-busy', 'false');
+      applyRatedSettings();
+    }
   }
   async function refresh() {
     account = await request('/me');
@@ -65,6 +82,7 @@ export function setupOnline({ enter, current, leave, onerror }) {
     if (!account?.user) { await guestSession(); await refresh(); }
   }
   async function load(id) {
+    cancelRecovery();
     await ensureGuest();
     const snapshot = await request(`/games/${encodeURIComponent(id)}/join`, { method: 'POST' });
     await enter(snapshot); $('online').close();
@@ -95,13 +113,39 @@ export function setupOnline({ enter, current, leave, onerror }) {
   $('online-logout').onclick = () => { void run(async () => { leave(); await logoutSession(); await refresh(); }); };
   $('online-create').onsubmit = event => { event.preventDefault(); void run(async () => {
     await ensureGuest();
-    const spec = { size: Number($('online-size').value), layout: $('online-layout').value, rated: $('online-rated').checked, clock: CLOCKS[$('online-clock').value] };
-    const snapshot = await request('/games', { method: 'POST', data: spec }); await enter(snapshot); $('online').close();
+    cancelRecovery();
+    let creation = pendingCreation();
+    if (!creation) {
+      creation = { owner: account.user.id, origin: onlineOrigin(), spec: {
+        request_id: crypto.randomUUID(), size: Number($('online-size').value), layout: $('online-layout').value,
+        rated: $('online-rated').checked, clock: CLOCKS[$('online-clock').value],
+      } };
+      await saveLocal(CREATION_KEY, JSON.stringify(creation));
+    }
+    try {
+      const snapshot = await request('/games', { method: 'POST', data: creation.spec });
+      await enter(snapshot);
+      await saveLocal(CREATION_KEY, null);
+      $('online').close();
+    } catch (value) {
+      if (!isTransientError(value)) await saveLocal(CREATION_KEY, null);
+      throw value;
+    }
   }); };
   function applyRatedSettings() {
+    const creation = pendingCreation();
+    if (creation) {
+      $('online-size').value = String(creation.spec.size);
+      $('online-layout').value = creation.spec.layout;
+      $('online-clock').value = Object.keys(CLOCKS).find(key => JSON.stringify(CLOCKS[key]) === JSON.stringify(creation.spec.clock)) || 'none';
+      $('online-rated').checked = creation.spec.rated;
+    }
+    $('online-create-submit').textContent = creation ? 'Retry invitation' : 'Create invitation';
+    $('online-create-status').textContent = creation ? 'Invitation not confirmed. Retry to recover the same match.' : '';
+    $('online-rated').disabled = Boolean(creation) || !account?.user || account.user.guest;
     const rated = $('online-rated').checked;
     if (rated) { $('online-size').value = '2'; $('online-layout').value = 'classical'; $('online-clock').value = '15+10'; }
-    for (const id of ['online-size', 'online-layout', 'online-clock']) $(id).disabled = rated;
+    for (const id of ['online-size', 'online-layout', 'online-clock']) $(id).disabled = rated || Boolean(creation);
   }
   $('online-rated').onchange = applyRatedSettings;
   $('online-queue').onclick = () => { void run(async () => { const snapshot = await request('/queue', { method: 'POST' }); await enter(snapshot); $('online').close(); }); };
@@ -126,31 +170,116 @@ export function setupOnline({ enter, current, leave, onerror }) {
   if (!native && invited) {
     try { $('online-open-app').href = `${APP_SCHEME}://match/${invitationId(invited)}`; $('online-open-app').hidden = false; } catch {}
   }
-  return {
-    show,
-    async loggedIn() { leave(); await show(); },
-    async invitation(id) { await run(async () => { await refresh(); await load(id); }); },
-    async restore(canEnter = () => true) {
-      const params = new URLSearchParams(location.search);
-      if (params.has('auth_error')) { await show(); error(new Error(LOGIN_ERRORS.get(params.get('auth_error')) || 'Sign-in was not completed. Please try again.')); return; }
-      if (params.has('match')) {
-        const id = params.get('match');
-        try { const snapshot = await request(`/games/${encodeURIComponent(id)}`); if (canEnter()) await enter(snapshot); return; }
-        catch { if (canEnter()) { await show(); $('online-invite').value = id; } return; }
+
+  let recovery = null, recoveryTimer = null, recoveryBusy = false, recoveryGeneration = 0, recoveryDelay = 500;
+  function cancelRecovery() {
+    recoveryGeneration += 1;
+    recovery = null;
+    clearTimeout(recoveryTimer);
+    $('match-recovery').hidden = true;
+    document.documentElement.dataset.restoring = 'false';
+  }
+  function recoveryMessage(title, detail, account = false) {
+    $('match-recovery').hidden = false;
+    document.documentElement.dataset.restoring = 'true';
+    $('recovery-title').textContent = title;
+    $('recovery-detail').textContent = detail;
+    $('recovery-account').hidden = !account;
+  }
+  async function resumeStored() {
+    if (!recovery || recoveryBusy) return;
+    recoveryBusy = true;
+    $('recovery-retry').disabled = true;
+    const ticket = recoveryGeneration, target = recovery;
+    try {
+      let snapshot;
+      if (target.creation) {
+        const me = await request('/me');
+        if (me.user?.id !== target.creation.owner) throw new ApiError('Sign in to the account that created this invitation.', 401);
+        snapshot = await request('/games', { method: 'POST', data: target.creation.spec });
+      } else snapshot = await request(`/games/${encodeURIComponent(target.id)}`);
+      if (ticket !== recoveryGeneration) return;
+      if (!target.canEnter()) { cancelRecovery(); return; }
+      await enter(snapshot);
+      if (target.creation) await saveLocal(CREATION_KEY, null);
+      cancelRecovery();
+    } catch (value) {
+      if (ticket !== recoveryGeneration) return;
+      if (isTransientError(value)) {
+        recoveryMessage('Reconnecting to your match…', 'Connection unavailable. Retrying automatically. Timed matches keep running.');
+        clearTimeout(recoveryTimer);
+        recoveryTimer = setTimeout(() => { void resumeStored(); }, recoveryDelay);
+        recoveryDelay = Math.min(recoveryDelay * 2, 8000);
+      } else if (value.status === 404) {
+        await rememberMatch(null);
+        cancelRecovery();
+        onerror(new Error('That online match is no longer available.'));
+      } else if (target.invitation && [401,403].includes(value.status)) {
+        cancelRecovery();
+        await show();
+        $('online-invite').value = target.id;
+      } else {
+        recoveryMessage('Your match is saved.', value.message, [401,403].includes(value.status));
       }
-      if (params.has('online')) { await show(); return; }
-      const id = matchStorage().getItem('nested-online-match');
-      if (id) { try { await refresh(); const snapshot = await request(`/games/${id}`); if (canEnter()) await enter(snapshot); } catch { await rememberMatch(null); } }
+    } finally {
+      recoveryBusy = false;
+      $('recovery-retry').disabled = false;
+      if (recovery && ticket !== recoveryGeneration) void resumeStored();
+    }
+  }
+  async function restore(canEnter = () => true) {
+    cancelRecovery();
+    if (!canEnter()) return;
+    const params = new URLSearchParams(location.search);
+    if (params.has('auth_error')) {
+      await show();
+      error(new Error(LOGIN_ERRORS.get(params.get('auth_error')) || 'Sign-in was not completed. Please try again.'));
+      return;
+    }
+    const creation = pendingCreation();
+    const id = params.get('match') || rememberedMatch();
+    if (creation || id) {
+      if (id) await rememberMatch(id);
+      recovery = { id, creation, canEnter, invitation: params.has('match') };
+      recoveryDelay = 500;
+      recoveryMessage('Reconnecting to your match…', 'Getting the latest position. Timed matches keep running.');
+      await resumeStored();
+      return;
+    }
+    if (params.has('online')) await show();
+  }
+  $('recovery-retry').onclick = () => { clearTimeout(recoveryTimer); void resumeStored(); };
+  $('recovery-local').onclick = cancelRecovery;
+  $('recovery-account').onclick = () => { void show(); };
+  window.addEventListener('online', () => { if (recovery) { clearTimeout(recoveryTimer); void resumeStored(); } });
+  window.addEventListener('native-state', ({detail}) => {
+    if (!recovery) return;
+    if (detail.active) void resumeStored(); else clearTimeout(recoveryTimer);
+  });
+  return {
+    show, restore,
+    async loggedIn() {
+      leave();
+      if (pendingCreation() || rememberedMatch()) { await restore(); if (current().kind === 'online') { $('online').close(); return; } }
+      await show();
     },
+    async invitation(id) { cancelRecovery(); await run(async () => { await refresh(); await load(id); }); },
   };
 }
 
 export function renderOnline(session) {
-  const online = session?.kind === 'online'; $('online-match').hidden = !online;
+  const online = session?.kind === 'online'; $('online-match').hidden = !online; $('online-actions').hidden = !online;
   if (!online) return;
   const info = session.info;
   $('online-white').textContent = info.white?.handle || 'Open seat'; $('online-black').textContent = info.black?.handle || 'Open seat';
-  $('online-connection').textContent = session.pending ? 'Confirming move…' : !session.connected ? 'Reconnecting…' : `You play ${session.seat === 'white' ? 'White' : 'Black'} · ${info.rated ? 'Rated' : 'Unrated'}`;
+  $('online-label-white').textContent = session.seat === 'white' ? 'White · You' : 'White';
+  $('online-label-black').textContent = session.seat === 'black' ? 'Black · You' : 'Black';
+  $('online-white').title = info.white?.handle || 'Open seat';
+  $('online-black').title = info.black?.handle || 'Open seat';
+  const connection = session.connectionIssue || (session.pending ? 'Confirming move…' : !session.connected ? 'Reconnecting…' : `You play ${session.seat === 'white' ? 'White' : 'Black'} · ${info.rated ? 'Rated' : 'Unrated'}`);
+  if ($('online-connection').textContent !== connection) $('online-connection').textContent = connection;
+  $('online-retry').hidden = session.connected;
+  $('online-retry').onclick = () => { void session.recover(); };
   const now = Date.now() + session.serverOffset;
   for (const color of ['white', 'black']) {
     const element = $(`online-clock-${color}`), stored = info[`${color}_ms`];
@@ -161,7 +290,8 @@ export function renderOnline(session) {
     element.classList.toggle('running', info.status === 'active' && info.turn === color);
   }
   $('online-share').hidden = info.status !== 'waiting';
-  const url = new URL(native ? onlineOrigin() : location.href); url.search = ''; url.hash = ''; url.searchParams.set('match', info.id); $('online-link').value = url.href;
+  const url = new URL(native ? onlineOrigin() : location.href); url.search = ''; url.hash = ''; url.searchParams.set('match', info.id);
+  if ($('online-link').value !== url.href) { $('online-link').value = url.href; $('online-copy').textContent = 'Copy invite'; }
   $('online-resume').hidden = info.status !== 'paused';
   $('online-resume').disabled = !session.connected || info[`ready_${session.seat}`];
   $('online-resume').textContent = info[`ready_${session.seat}`] ? 'Ready' : 'Resume match';

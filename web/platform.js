@@ -44,11 +44,14 @@ export function onlineOrigin() {
   if (!configuredOrigin) throw new Error('Online play needs a server address configured for this app build.');
   return apiOrigin(configuredOrigin);
 }
-export function matchStorage() { return native ? localStorage : sessionStorage; }
+export function rememberedMatch() {
+  const id = localStorage.getItem('nested-online-match') || (!native ? sessionStorage.getItem('nested-online-match') : null);
+  if (id && !native) { localStorage.setItem('nested-online-match', id); sessionStorage.removeItem('nested-online-match'); }
+  return id;
+}
 export function rememberMatch(id) {
-  if (native) return saveLocal('nested-online-match', id);
-  if (id === null) sessionStorage.removeItem('nested-online-match'); else sessionStorage.setItem('nested-online-match', id);
-  return Promise.resolve();
+  if (!native) sessionStorage.removeItem('nested-online-match');
+  return saveLocal('nested-online-match', id);
 }
 export async function saveSession(token) { await (await storage()).set('session', token); }
 export async function clearSession() { await (await storage()).remove('session'); }

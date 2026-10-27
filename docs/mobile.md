@@ -75,7 +75,11 @@ linking is tied to the original app session and logout invalidates the attempt.
 
 WebSocket URLs carry single-use 30-second tickets, not session tokens. On background
 the app disconnects; on foreground it fetches the authoritative state and reconnects.
-Match clocks continue on the server while the app is backgrounded. Android Back
+Match clocks continue on the server while the app is backgrounded. A cold launch
+restores the last selected online match from the server, including moves made
+while the app was closed. Temporary outages keep that reference and show automatic
+retry plus a local-play option. Invitation retries retain one request ID across
+restarts, so a lost response does not create another match. Android Back
 closes a dialog first, then returns from online play, then minimizes the app.
 
 Share produces the backend's HTTPS invitation link. Paste it into Online in either
@@ -83,6 +87,14 @@ app, or follow its **Open in app** link in the browser invitation dialog. Direct
 `io.github.balbok0.nestedchess://match/<match-id>` links also work. Both cold-launch
 and already-running app links are handled. Universal/app links need a deployed
 domain and platform association files; they are not configured here.
+
+## Play layout
+
+Phones show online players, clocks, connection state, and invitations above the
+board, with a compact board selector below it. Landscape constrains the board to
+the viewport height; desktop retains its three-column layout. Local new-match
+and grid changes ask before replacing a nonempty saved match. Selecting the
+current grid size leaves it unchanged.
 
 ## Build checks
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { NestedGame } from './pkg/nested_chess_wasm.js';
-import { ApiError, request, streamURL } from './transport.js';
+import { ApiError, isTransientError, request, streamURL } from './transport.js';
 
 export class LocalSession {
   kind = 'local';
@@ -25,6 +25,7 @@ export class RemoteSession {
   delay = 500;
   suspended = false;
   connectionGeneration = 0;
+  connectionIssue = '';
 
   constructor(snapshot, { onchange, onerror }) {
     this.onchange = onchange; this.onerror = onerror;
@@ -37,6 +38,8 @@ export class RemoteSession {
       if (!this.suspended) void this.recover();
     };
     window.addEventListener('native-state', this.onNativeState);
+    this.onOnline = () => { if (!this.connected) void this.recover(); };
+    window.addEventListener('online', this.onOnline);
     void this.connect().catch(error => this.connectionError(error));
   }
 
@@ -63,6 +66,7 @@ export class RemoteSession {
     if (this.closed || this.suspended) return;
     if (['finished', 'cancelled'].includes(this.info.status)) {
       this.connected = true;
+      this.connectionIssue = '';
       if (this.pending && !this.sending) void this.flush().catch(this.onerror);
       return;
     }
@@ -79,7 +83,7 @@ export class RemoteSession {
       try {
         const body = JSON.parse(event.data);
         if (body.kind === 'snapshot') {
-          this.install(body.snapshot); this.connected = true; this.delay = 500;
+          this.install(body.snapshot); this.connected = true; this.delay = 500; this.connectionIssue = '';
           this.onchange(this.state());
           if (this.pending && !this.sending) void this.flush().catch(this.onerror);
         } else if (body.kind === 'event') this.apply(body.event);
@@ -101,8 +105,10 @@ export class RemoteSession {
   closeSocket() { const socket = this.socket; this.socket = null; socket?.close(); }
   connectionError(error) {
     if (this.closed || this.suspended) return;
-    if (error instanceof ApiError && [401, 403, 404].includes(error.status)) this.onerror(error);
+    this.connected = false;
+    if (!isTransientError(error)) { this.connectionIssue = error.message; this.onerror(error); }
     else this.scheduleReconnect();
+    this.onchange(this.state());
   }
   async recover() {
     try { await this.resync(); await this.connect(); }
@@ -128,6 +134,7 @@ export class RemoteSession {
     if (!this.connected || this.closed) throw new Error('Wait for the connection to return.');
     if (this.pending) throw new Error('Waiting for move confirmation.');
     this.pending = { request_id: crypto.randomUUID(), expected_seq: this.info.seq, action };
+    this.onchange(this.state());
     return this.flush();
   }
 
@@ -139,13 +146,17 @@ export class RemoteSession {
       this.pending = null;
       if (!this.closed) this.apply(event);
     } catch (error) {
-      if (error instanceof ApiError) {
+      if (error instanceof ApiError && !isTransientError(error)) {
         this.pending = null;
         if (error.status === 409) await this.resync();
         throw error;
       }
-      if (!this.closed) { this.connected = false; this.socket?.close(); }
-      throw new Error('Move not confirmed. Reconnecting to check it.');
+      if (!this.closed) {
+        this.connected = false;
+        this.connectionIssue = 'Move not confirmed. Reconnecting to check it.';
+        this.closeSocket();
+        this.scheduleReconnect();
+      }
     } finally {
       this.sending = false;
       if (!this.closed) this.onchange(this.state());
@@ -154,5 +165,5 @@ export class RemoteSession {
   }
 
   play(board, uci) { return this.send({ kind: 'move', board, uci }); }
-  free() { this.closed = true; window.removeEventListener('native-state', this.onNativeState); clearTimeout(this.reconnect); this.closeSocket(); this.engine.free(); }
+  free() { this.closed = true; window.removeEventListener('native-state', this.onNativeState); window.removeEventListener('online', this.onOnline); clearTimeout(this.reconnect); this.closeSocket(); this.engine.free(); }
 }

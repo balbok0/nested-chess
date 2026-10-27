@@ -23,7 +23,18 @@
       <div class="grid-control"><span>Boards</span><div class="segmented" id="grid-options"><button data-size="2" class="active" aria-pressed="true">2 × 2</button><button data-size="4" aria-pressed="false">4 × 4</button><button data-size="8" aria-pressed="false">8 × 8</button></div></div>
       <button id="new-game" class="outline-button">New match</button>
     </section>
+    <section id="match-recovery" class="match-recovery" role="status" hidden><div><strong id="recovery-title">Reconnecting to your match…</strong><p id="recovery-detail"></p></div><div class="online-actions"><button id="recovery-retry" class="outline-button">Retry now</button><button id="recovery-local" class="text-button">Play locally</button><button id="recovery-account" class="text-button" hidden>Sign in</button></div></section>
+    <div id="error" class="error" role="alert" hidden></div>
     <div class="workspace">
+      <section id="online-match" aria-label="Online match" hidden>
+        <div class="online-players">
+          <div class="online-player"><span><small id="online-label-white">White</small><strong id="online-white"></strong></span><output id="online-clock-white" aria-label="White clock" aria-live="off" hidden></output></div>
+          <div class="online-player"><span><small id="online-label-black">Black</small><strong id="online-black"></strong></span><output id="online-clock-black" aria-label="Black clock" aria-live="off" hidden></output></div>
+        </div>
+        <div class="connection-row"><p id="online-connection" class="small-note" role="status"></p><button id="online-retry" class="text-button" hidden>Retry connection</button></div>
+        <div id="online-share" hidden><label class="sr-only" for="online-link">Invite link</label><div class="online-link-row"><input id="online-link" readonly /><button id="online-copy" class="text-button">Copy invite</button><button id="online-share-native" class="text-button" hidden>Share</button></div></div>
+      </section>
+
       <aside class="overview">
         <div class="section-heading"><h2>Boards</h2><span id="board-count">4 boards</span></div>
         <p class="section-note" id="routing-note">Choose a board.</p>
@@ -44,13 +55,7 @@
         <div class="board-tools"><button id="offer-draw" class="text-button" hidden>Offer draw</button><button id="undo" class="text-button">Undo</button><span id="local-counts">White: 0 moves · Black: 0 moves</span><button id="flip" class="text-button">Flip board</button></div>
       </section>
       <aside class="sidebar">
-        <div id="online-match" hidden>
-          <div class="online-player"><span>White · <strong id="online-white"></strong></span><output id="online-clock-white" hidden></output></div>
-          <div class="online-player"><span>Black · <strong id="online-black"></strong></span><output id="online-clock-black" hidden></output></div>
-          <p id="online-connection" class="small-note" role="status"></p>
-          <div id="online-share" hidden><label for="online-link">Invite link</label><div class="online-link-row"><input id="online-link" readonly /><button id="online-copy" class="text-button">Copy</button><button id="online-share-native" class="text-button" hidden>Share</button></div></div>
-          <div class="online-actions"><button id="online-resume" class="outline-button" hidden>Resume match</button><button id="online-resign" class="text-button">Resign</button><button id="online-leave" class="text-button">Back to local</button></div>
-        </div>
+        <div id="online-actions" class="online-actions" hidden><button id="online-resume" class="outline-button" hidden>Resume match</button><button id="online-resign" class="text-button">Resign</button><button id="online-leave" class="text-button">Back to local</button></div>
         <div class="section-heading"><h2>Opponent</h2></div>
         <label class="sr-only" for="mode">Opponent</label><select id="mode"><option value="bot">Fairy-Stockfish</option><option value="local">Local two-player</option><option value="online">Online player</option></select>
         <div id="bot-settings"><label for="difficulty">Difficulty</label><select id="difficulty"></select><p class="small-note">Skill presets; no calibrated Elo.</p></div>
@@ -65,7 +70,6 @@
         <div class="save-tools"><button id="export" class="text-button">Export match</button><button id="import" class="text-button">Import match</button><input id="import-file" type="file" accept="application/json,.json" hidden /></div><p id="save-status" class="small-note"></p>
       </aside>
     </div>
-    <div id="error" class="error" role="alert" hidden></div>
     <footer class="site-footer"><a href="https://www.buymeacoffee.com/balbok0" target="_blank" rel="noopener noreferrer">Buy me a coffee</a></footer>
   </main>
   <dialog id="settings" aria-labelledby="settings-title">
@@ -106,20 +110,24 @@
   <dialog id="draw-offer" aria-labelledby="draw-offer-title"><h2 id="draw-offer-title">Draw board?</h2><p id="draw-offer-detail" class="small-note"></p><div class="draw-actions"><button id="accept-draw" class="outline-button">Accept draw</button><button id="decline-draw" class="text-button">Decline</button></div></dialog>
   <dialog id="online" aria-labelledby="online-title">
     <div class="dialog-heading"><h2 id="online-title">Online play</h2><button id="online-close" class="dialog-close" aria-label="Close online play">×</button></div>
+    <div id="online-error" class="error" role="alert" hidden></div>
+    <fieldset id="online-controls" class="online-controls">
     <div class="online-account-row"><strong id="online-account"></strong><button id="online-logout" class="text-button" hidden>Sign out</button></div>
     <div id="online-providers" class="online-actions"></div><p id="online-signin-note" class="small-note"></p>
     <form id="online-profile" class="online-link-row" hidden><label class="sr-only" for="online-handle">Username</label><input id="online-handle" minlength="3" maxlength="24" pattern="[A-Za-z0-9_]+" required /><button class="text-button">Save username</button></form>
-    <div id="online-error" class="error" role="alert" hidden></div>
     <section id="online-open-section" class="online-section" hidden><h3>Open matches</h3><div id="online-open"></div></section>
     <form id="online-create" class="online-section"><h3>Create invitation</h3><div class="online-fields">
       <label for="online-size">Boards<select id="online-size"><option value="2">2 × 2</option><option value="4">4 × 4</option><option value="8">8 × 8</option></select></label>
       <label for="online-layout">Start<select id="online-layout"><option value="classical">Classical</option><option value="chess960">Chess960</option><option value="independent960">Chess960ⁿ</option></select></label>
       <label for="online-clock">Clock<select id="online-clock"><option value="none">No clock</option><option value="15+10">15 + 10</option><option value="10+5">10 + 5</option><option value="30+0">30 + 0</option></select></label>
-    </div><label class="checkbox-label"><input id="online-rated" type="checkbox" />Rated · classical 2×2, 15+10</label><div class="online-actions"><button class="outline-button">Create invitation</button><button id="online-queue" type="button" class="text-button">Find rated opponent</button></div></form>
+    </div><label class="checkbox-label"><input id="online-rated" type="checkbox" />Rated · classical 2×2, 15+10</label><div class="online-actions"><button id="online-create-submit" class="outline-button">Create invitation</button><button id="online-queue" type="button" class="text-button">Find rated opponent</button></div></form>
+    <p id="online-create-status" class="small-note" role="status"></p>
     <form id="online-join" class="online-section"><label for="online-invite">Join an invitation</label><div class="online-link-row"><input id="online-invite" placeholder="Invite link or match ID" required /><button class="outline-button">Join</button></div><a id="online-open-app" class="text-button" hidden>Open in app</a></form>
     <details id="online-history-section" class="online-section"><summary>Match history</summary><div id="online-history"></div><button id="online-history-more" class="text-button" hidden>More matches</button></details>
+    </fieldset>
   </dialog>
   <dialog id="online-confirm" aria-labelledby="online-confirm-title"><h2 id="online-confirm-title">Resign this match?</h2><div class="online-actions"><button id="online-confirm-yes" class="outline-button">Confirm</button><button id="online-confirm-cancel" class="text-button">Keep playing</button></div></dialog>
+  <dialog id="reset-confirm" aria-labelledby="reset-title"><h2 id="reset-title">Start a new match?</h2><p class="small-note">This replaces the current local match and its saved position.</p><div class="online-actions"><button id="reset-cancel" class="outline-button" autofocus>Keep playing</button><button id="reset-yes" class="text-button">Start new match</button></div></dialog>
   <dialog id="promotion" aria-labelledby="promotion-title"><h2 id="promotion-title">Promote pawn</h2><div id="promotion-options"></div><button id="promotion-cancel" class="text-button">Cancel</button></dialog>
   <script type="module" src="/main.js"></script>
 </body>

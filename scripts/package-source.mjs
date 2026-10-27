@@ -16,7 +16,7 @@ execFileSync(process.platform === 'darwin' ? 'gtar' : 'tar', [
   '--exclude=mobile/ios/App/DerivedData', '--exclude=mobile/ios/App/CapApp-SPM/.build',
   '-czf', `${output}/nested-chess.tar.gz`,
   '.gitignore', '.gitattributes', 'Cargo.toml', 'Cargo.lock', 'package.json', 'package-lock.json',
-  'pyproject.toml', 'vite.config.js', 'LICENSE', 'LICENSE-MIT', 'LICENSING.md',
+  'pyproject.toml', 'vite.config.js', 'playwright.config.mjs', 'LICENSE', 'LICENSE-MIT', 'LICENSING.md',
   'THIRD_PARTY.md', 'README.md', 'crates', 'web', 'scripts', 'variants', 'tests',
   'docs', 'third_party', 'benchmarks',
   'Dockerfile', '.dockerignore', 'compose.yaml', 'deploy', '.env.server.example',
