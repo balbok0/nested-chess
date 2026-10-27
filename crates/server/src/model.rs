@@ -34,7 +34,10 @@ impl Default for TimeControl {
 pub struct CreateGame {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_id: Option<String>,
+    #[serde(alias = "columns")]
     pub size: u8,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rows: Option<u8>,
     pub layout: String,
     pub rated: bool,
     pub clock: Option<TimeControl>,
@@ -45,6 +48,7 @@ impl Default for CreateGame {
         Self {
             request_id: None,
             size: 2,
+            rows: None,
             layout: "classical".into(),
             rated: false,
             clock: None,
@@ -90,6 +94,8 @@ pub struct MatchInfo {
     pub black: Option<User>,
     pub rated: bool,
     pub size: u8,
+    #[serde(default)]
+    pub rows: Option<u8>,
     pub layout: String,
     pub result: Option<String>,
     pub reason: Option<String>,

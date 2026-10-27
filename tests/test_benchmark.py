@@ -3,6 +3,7 @@ import math
 import pytest
 
 from scripts.benchmark_results import binomial_interval, paired_interval, summarize
+from scripts.run_rectangular_benchmark import jobs
 
 
 @pytest.mark.parametrize(
@@ -46,3 +47,18 @@ def test_color_pairs_require_matching_starts(field, first, second):
     ]
     with pytest.raises(ValueError, match="different openings"):
         summarize(rows)
+
+
+@pytest.mark.parametrize("pairs,expected_count", [
+    pytest.param(5, 120, id="ten_pilots_per_condition"),
+    pytest.param(50, 1200, id="hundred_scored_games_per_condition"),
+])
+def test_rectangular_jobs_have_balanced_conditions(pairs, expected_count):
+    actual = jobs(pairs, "test")
+    assert len(actual) == expected_count
+    assert len({job["id"] for job in actual}) == expected_count
+    for columns, rows in ((4, 2), (4, 4)):
+        for family in ("global", "local"):
+            for a, b in ((1, 3), (3, 5), (5, 5)):
+                for color in ("white", "black"):
+                    assert sum((job["columns"], job["rows"], job["family"], job["a_level"], job["b_level"], job["a_color"]) == (columns, rows, family, a, b, color) for job in actual) == pairs

@@ -37,6 +37,11 @@ pub fn destination_board(size: u8, square: u8) -> Result<usize, JsValue> {
 }
 
 #[wasm_bindgen]
+pub fn destination_board_rectangular(columns: u8, rows: u8, square: u8) -> Result<usize, JsValue> {
+    nested_chess::route_rectangular(columns, rows, square).map_err(js_error)
+}
+
+#[wasm_bindgen]
 pub struct NestedGame {
     game: Game,
 }
@@ -63,6 +68,25 @@ impl NestedGame {
     pub fn new(size: u8) -> Result<NestedGame, JsValue> {
         Ok(Self {
             game: Game::new(size).map_err(js_error)?,
+        })
+    }
+    pub fn rectangular(columns: u8, rows: u8) -> Result<NestedGame, JsValue> {
+        Ok(Self {
+            game: Game::rectangular(columns, rows).map_err(js_error)?,
+        })
+    }
+    pub fn chess960_rectangular(columns: u8, rows: u8, index: u16) -> Result<NestedGame, JsValue> {
+        Ok(Self {
+            game: Game::chess960_rectangular(columns, rows, index).map_err(js_error)?,
+        })
+    }
+    pub fn chess960_boards_rectangular(
+        columns: u8,
+        rows: u8,
+        indices: &[u16],
+    ) -> Result<NestedGame, JsValue> {
+        Ok(Self {
+            game: Game::chess960_boards_rectangular(columns, rows, indices).map_err(js_error)?,
         })
     }
     pub fn chess960(size: u8, index: u16) -> Result<NestedGame, JsValue> {

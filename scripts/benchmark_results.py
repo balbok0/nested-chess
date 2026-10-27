@@ -76,9 +76,9 @@ def summarize(rows: list[dict]) -> list[dict]:
         if job["id"] in ids:
             raise ValueError(f"duplicate game {job['id']}")
         ids.add(job["id"])
-        groups[(job["family"], job["a_level"], job["b_level"])].append(row)
+        groups[(job.get("columns", 2), job.get("rows", 2), job["family"], job["a_level"], job["b_level"])].append(row)
     results = []
-    for (family, a_level, b_level), games in sorted(groups.items()):
+    for (columns, grid_rows, family, a_level, b_level), games in sorted(groups.items()):
         pairs = defaultdict(list)
         for game in games:
             pairs[game["job"]["pair"]].append(game)
@@ -102,6 +102,7 @@ def summarize(rows: list[dict]) -> list[dict]:
         a_metrics = {key: sum(game["a"][key] for game in complete) for key in ("moves", "elapsed_ms", "engine_calls", "search_nodes", "cutoffs", "cache_hits", "completed_depth_sum", "fallback_moves")}
         b_metrics = {key: sum(game["b"][key] for game in complete) for key in ("moves", "elapsed_ms", "engine_calls")}
         results.append({
+            "columns": columns, "rows": grid_rows,
             "family": family, "a_level": a_level, "b_level": b_level,
             "games": len(complete), "pairs": len(paired_wins), "wins": wins, "draws": draws, "losses": len(complete) - wins - draws,
             "win_rate": wins / len(complete), "score_rate": (wins + draws / 2) / len(complete),
@@ -118,7 +119,7 @@ def write_report(directory: Path, output: Path, archive: Path | None) -> None:
     """Write summary data and optional complete-game archives."""
     records = read_records(directory / "results.jsonl")
     protocol = json.loads((directory / "protocol.json").read_text())
-    summary = {"protocol": protocol, "levels": LEVELS, "completed_games": len(records), "target_games": 4200, "results": summarize(records)}
+    summary = {"protocol": protocol, "levels": LEVELS, "completed_games": len(records), "target_games": protocol.get("target_games", 4200), "results": summarize(records)}
     finished = protocol.get("finished_utc")
     resources = [row for row in read_records(directory / "resources.jsonl") if finished is None or row["utc"] <= finished]
     telemetry = [row for row in resources if row["utc"] >= protocol["started_utc"]]
@@ -136,7 +137,8 @@ def write_report(directory: Path, output: Path, archive: Path | None) -> None:
         grouped = defaultdict(list)
         for record in records:
             job = record["job"]
-            grouped[f"{job['family']}-{job['a_level']}-{job['b_level']}.jsonl.gz"].append(record)
+            prefix = f"{job['columns']}x{job['rows']}-" if "grids" in protocol else ""
+            grouped[f"{prefix}{job['family']}-{job['a_level']}-{job['b_level']}.jsonl.gz"].append(record)
         for filename, games in grouped.items():
             with gzip.GzipFile(filename=str(archive / filename), mode="wb", mtime=0) as stream:
                 for game in sorted(games, key=lambda row: row["job"]["id"]):

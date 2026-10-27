@@ -281,12 +281,16 @@ impl Store {
         now: i64,
     ) -> Result<String> {
         let player = Self::user_on(db, user).await?;
-        if !matches!(spec.size, 2 | 4 | 8) {
-            return Err(Error::Invalid("Choose a 2×2, 4×4, or 8×8 grid.".into()));
+        let rows = spec.rows.unwrap_or(spec.size);
+        if !matches!((spec.size, rows), (2, 2) | (4, 2) | (4, 4)) {
+            return Err(Error::Invalid(
+                "Choose a 2×2, 4×2, or 4×4 grid (columns × rows).".into(),
+            ));
         }
         if spec.rated
             && (player.guest
                 || spec.size != 2
+                || rows != 2
                 || spec.layout != "classical"
                 || spec.clock != Some(TimeControl::default()))
         {
@@ -303,11 +307,16 @@ impl Store {
         }
         Self::check_open(db, user, spec.rated).await?;
         let game = match spec.layout.as_str() {
-            "classical" => Game::new(spec.size)?,
-            "chess960" => Game::chess960(spec.size, (Uuid::new_v4().as_u128() % 960) as u16)?,
-            "independent960" => Game::chess960_boards(
+            "classical" => Game::rectangular(spec.size, rows)?,
+            "chess960" => Game::chess960_rectangular(
                 spec.size,
-                &(0..usize::from(spec.size).pow(2))
+                rows,
+                (Uuid::new_v4().as_u128() % 960) as u16,
+            )?,
+            "independent960" => Game::chess960_boards_rectangular(
+                spec.size,
+                rows,
+                &(0..usize::from(spec.size) * usize::from(rows))
                     .map(|_| (Uuid::new_v4().as_u128() % 960) as u16)
                     .collect::<Vec<_>>(),
             )?,
@@ -315,9 +324,9 @@ impl Store {
         };
         let id = Uuid::new_v4().to_string();
         let white = Uuid::new_v4().as_u128() & 1 == 0;
-        sqlx::query("INSERT INTO games(id,initial_save,checkpoint,white_id,black_id,status,size,layout,rated,white_ms,black_ms,increment_ms,created_ms) VALUES($1,$2,$3,$4,$5,'waiting',$6,$7,$8,$9,$9,$10,$11)")
+        sqlx::query("INSERT INTO games(id,initial_save,checkpoint,white_id,black_id,status,size,layout,rated,white_ms,black_ms,increment_ms,created_ms,rows) VALUES($1,$2,$3,$4,$5,'waiting',$6,$7,$8,$9,$9,$10,$11,$12)")
             .bind(&id).bind(game.save_json()?).bind(game.checkpoint_json()?).bind(if white {Some(user)}else{None}).bind(if white {None}else{Some(user)})
-            .bind(i16::from(spec.size)).bind(&spec.layout).bind(spec.rated).bind(spec.clock.map(|c|i64::from(c.seconds)*1000)).bind(spec.clock.map_or(0,|c|i64::from(c.increment)*1000)).bind(now).execute(db).await?;
+            .bind(i16::from(spec.size)).bind(&spec.layout).bind(spec.rated).bind(spec.clock.map(|c|i64::from(c.seconds)*1000)).bind(spec.clock.map_or(0,|c|i64::from(c.increment)*1000)).bind(now).bind(i16::from(rows)).execute(db).await?;
         Ok(id)
     }
     pub async fn queue(&self, user: &str, clock: impl Into<Clock>) -> Result<Snapshot> {
@@ -465,7 +474,7 @@ impl Store {
         Ok(())
     }
     pub(crate) async fn info_on(db: &mut PgConnection, id: &str, now: i64) -> Result<MatchInfo> {
-        let r=sqlx::query("SELECT id,seq,status,white_id,black_id,rated,size,layout,result,reason,white_ms,black_ms,increment_ms,running_since_ms,turn,ready_white,ready_black,created_ms,queue_started_ms,matched_id FROM games WHERE id=$1").bind(id).fetch_optional(&mut *db).await?.ok_or(Error::NotFound)?;
+        let r=sqlx::query("SELECT id,seq,status,white_id,black_id,rated,size,rows,layout,result,reason,white_ms,black_ms,increment_ms,running_since_ms,turn,ready_white,ready_black,created_ms,queue_started_ms,matched_id FROM games WHERE id=$1").bind(id).fetch_optional(&mut *db).await?.ok_or(Error::NotFound)?;
         let player = |row: &PgRow, key: &str| row.try_get::<Option<String>, _>(key);
         let white = match player(&r, "white_id")? {
             Some(id) => Some(Self::user_on(db, &id).await?),
@@ -490,6 +499,11 @@ impl Store {
                 .try_into()
                 .map_err(|_| Error::Internal("Invalid grid size.".into()))?,
             layout: r.try_get("layout")?,
+            rows: Some(
+                r.try_get::<i16, _>("rows")?
+                    .try_into()
+                    .map_err(|_| Error::Internal("Invalid grid rows.".into()))?,
+            ),
             result: r.try_get("result")?,
             reason: r.try_get("reason")?,
             white_ms: r.try_get("white_ms")?,

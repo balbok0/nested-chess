@@ -10,13 +10,13 @@ pub use board::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-const SAVE_VERSION: u8 = 3;
+const SAVE_VERSION: u8 = 4;
 const REPETITION_LIMIT: u8 = 3;
 const DRAW_POINTS: f32 = 0.5;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("grid width must be 2, 4, or 8")]
+    #[error("grid must be 2×2, 4×2, 4×4, or legacy 8×8 (columns × rows)")]
     InvalidGrid,
     #[error("Chess960 starting position must be between 0 and 959")]
     InvalidChess960,
@@ -97,7 +97,10 @@ pub struct BoardView {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct State {
+    /// Legacy column count; rectangular consumers should use columns and rows.
     pub size: u8,
+    pub columns: u8,
+    pub rows: u8,
     pub turn: Color,
     pub forced_board: Option<usize>,
     pub requested_board: Option<usize>,
@@ -116,6 +119,21 @@ pub struct State {
 #[serde(deny_unknown_fields)]
 struct Save {
     version: u8,
+    columns: u8,
+    rows: u8,
+    first_player: Color,
+    initial_fens: Vec<String>,
+    finish_rule: FinishRule,
+    events: Vec<Action>,
+    start_position: Option<u16>,
+    en_passant_rule: EnPassantRule,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LegacySave {
+    #[serde(rename = "version")]
+    _version: u8,
     size: u8,
     first_player: Color,
     initial_fens: Vec<String>,
@@ -163,7 +181,7 @@ struct VersionOneMove {
 /// A routed match whose players alternate globally and capture kings to win boards.
 #[derive(Debug, Clone)]
 pub struct Game {
-    size: u8,
+    grid: Grid,
     turn: Color,
     boards: Vec<Board>,
     outcomes: Vec<Outcome>,
@@ -178,7 +196,8 @@ pub struct Game {
 #[derive(Serialize, Deserialize)]
 struct Checkpoint {
     version: u8,
-    size: u8,
+    columns: u8,
+    rows: u8,
     turn: Color,
     boards: Vec<Board>,
     outcomes: Vec<Outcome>,
@@ -194,8 +213,9 @@ impl Game {
     /// Encode an engine checkpoint for trusted persistent storage.
     pub fn checkpoint_json(&self) -> Result<String, Error> {
         serde_json::to_string(&Checkpoint {
-            version: 1,
-            size: self.size,
+            version: 2,
+            columns: self.grid.columns,
+            rows: self.grid.rows,
             turn: self.turn,
             boards: self.boards.clone(),
             outcomes: self.outcomes.clone(),
@@ -214,13 +234,23 @@ impl Game {
 
     /// Restore an engine checkpoint from trusted storage without replaying moves.
     pub fn from_checkpoint_json(json: &str) -> Result<Self, Error> {
-        let value: Checkpoint =
+        let mut value: serde_json::Value =
             serde_json::from_str(json).map_err(|error| Error::InvalidSave(error.to_string()))?;
-        validate_size(value.size)?;
-        let count = usize::from(value.size).pow(2);
-        if value.version != 1
+        if value.get("version").and_then(serde_json::Value::as_u64) == Some(1) {
+            value["columns"] = value["size"].clone();
+            value["rows"] = value["size"].clone();
+            value["save"] = serde_json::to_value(decode_save(value["save"].take())?)
+                .map_err(|error| Error::InvalidSave(error.to_string()))?;
+            value["version"] = 2.into();
+        }
+        let value: Checkpoint =
+            serde_json::from_value(value).map_err(|error| Error::InvalidSave(error.to_string()))?;
+        let grid = Grid::new(value.columns, value.rows)?;
+        let count = grid.count();
+        if value.version != 2
             || value.save.version != SAVE_VERSION
-            || value.save.size != value.size
+            || value.save.columns != value.columns
+            || value.save.rows != value.rows
             || value.boards.len() != count
             || value.outcomes.len() != count
             || value.counts.len() != count
@@ -234,7 +264,7 @@ impl Game {
             return Err(Error::InvalidSave("invalid engine checkpoint".into()));
         }
         Ok(Self {
-            size: value.size,
+            grid,
             turn: value.turn,
             boards: value.boards,
             outcomes: value.outcomes,
@@ -249,30 +279,54 @@ impl Game {
 
 /// Map a destination square to a macro board; both use a1 as the lower left.
 pub fn route(size: u8, square: u8) -> Result<usize, Error> {
-    validate_size(size)?;
-    if square >= SQUARES as u8 {
-        return Err(Error::InvalidSquare);
-    }
-    let block = BOARD_WIDTH / size;
-    Ok(((square / BOARD_WIDTH / block) * size + square % BOARD_WIDTH / block) as usize)
+    route_rectangular(size, size, square)
 }
 
-fn validate_size(size: u8) -> Result<(), Error> {
-    if matches!(size, 2 | 4 | 8) {
-        Ok(())
-    } else {
-        Err(Error::InvalidGrid)
+/// Map a destination square to a board in a columns-by-rows grid.
+pub fn route_rectangular(columns: u8, rows: u8, square: u8) -> Result<usize, Error> {
+    Grid::new(columns, rows)?.route(square)
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Grid {
+    columns: u8,
+    rows: u8,
+}
+
+impl Grid {
+    fn new(columns: u8, rows: u8) -> Result<Self, Error> {
+        if matches!((columns, rows), (2, 2) | (4, 2) | (4, 4) | (8, 8)) {
+            Ok(Self { columns, rows })
+        } else {
+            Err(Error::InvalidGrid)
+        }
+    }
+    fn count(self) -> usize {
+        usize::from(self.columns) * usize::from(self.rows)
+    }
+    fn route(self, square: u8) -> Result<usize, Error> {
+        if square >= SQUARES as u8 {
+            return Err(Error::InvalidSquare);
+        }
+        Ok(usize::from(
+            (square / BOARD_WIDTH / (BOARD_WIDTH / self.rows)) * self.columns
+                + square % BOARD_WIDTH / (BOARD_WIDTH / self.columns),
+        ))
     }
 }
 
 impl Game {
     /// Create a match with the same Chess960 arrangement on every local board.
     pub fn chess960(size: u8, index: u16) -> Result<Self, Error> {
-        validate_size(size)?;
-        let mut game = Self::from_fens(
-            size,
+        Self::chess960_rectangular(size, size, index)
+    }
+
+    pub fn chess960_rectangular(columns: u8, rows: u8, index: u16) -> Result<Self, Error> {
+        let grid = Grid::new(columns, rows)?;
+        let mut game = Self::from_grid_fens(
+            grid,
             Color::White,
-            &vec![Board::chess960(index)?.fen(Color::White); usize::from(size).pow(2)],
+            &vec![Board::chess960(index)?.fen(Color::White); grid.count()],
         )?;
         game.save.start_position = Some(index);
         Ok(game)
@@ -280,26 +334,50 @@ impl Game {
 
     /// Create a match with one Chess960 starting index per board, in board-ID order.
     pub fn chess960_boards(size: u8, indices: &[u16]) -> Result<Self, Error> {
-        validate_size(size)?;
+        Self::chess960_boards_rectangular(size, size, indices)
+    }
+
+    pub fn chess960_boards_rectangular(
+        columns: u8,
+        rows: u8,
+        indices: &[u16],
+    ) -> Result<Self, Error> {
+        let grid = Grid::new(columns, rows)?;
         let fens = indices
             .iter()
             .map(|index| Ok(Board::chess960(*index)?.fen(Color::White)))
             .collect::<Result<Vec<_>, Error>>()?;
-        Self::from_fens(size, Color::White, &fens)
+        Self::from_grid_fens(grid, Color::White, &fens)
     }
     pub fn new(size: u8) -> Result<Self, Error> {
-        validate_size(size)?;
-        Self::from_fens(
-            size,
+        Self::rectangular(size, size)
+    }
+
+    pub fn rectangular(columns: u8, rows: u8) -> Result<Self, Error> {
+        let grid = Grid::new(columns, rows)?;
+        Self::from_grid_fens(
+            grid,
             Color::White,
-            &vec![Board::default().fen(Color::White); usize::from(size).pow(2)],
+            &vec![Board::default().fen(Color::White); grid.count()],
         )
     }
 
     /// Start a match from one FEN per board, ordered from macro a1 upward.
     pub fn from_fens(size: u8, turn: Color, fens: &[String]) -> Result<Self, Error> {
-        validate_size(size)?;
-        let count = usize::from(size).pow(2);
+        Self::from_fens_rectangular(size, size, turn, fens)
+    }
+
+    pub fn from_fens_rectangular(
+        columns: u8,
+        rows: u8,
+        turn: Color,
+        fens: &[String],
+    ) -> Result<Self, Error> {
+        Self::from_grid_fens(Grid::new(columns, rows)?, turn, fens)
+    }
+
+    fn from_grid_fens(grid: Grid, turn: Color, fens: &[String]) -> Result<Self, Error> {
+        let count = grid.count();
         if fens.len() != count {
             return Err(Error::InvalidBoard);
         }
@@ -309,7 +387,7 @@ impl Game {
             .collect::<Result<Vec<_>, _>>()?;
         let outcomes = boards.iter().map(Board::outcome).collect();
         let mut game = Self {
-            size,
+            grid,
             turn,
             boards,
             outcomes,
@@ -319,7 +397,8 @@ impl Game {
             repetitions: HashMap::new(),
             save: Save {
                 version: SAVE_VERSION,
-                size,
+                columns: grid.columns,
+                rows: grid.rows,
                 first_player: turn,
                 initial_fens: fens.to_vec(),
                 finish_rule: FinishRule::Majority,
@@ -398,7 +477,7 @@ impl Game {
             uci: mv.to_string(),
         });
         self.turn = self.turn.other();
-        self.requested_board = Some(route(self.size, destination)?);
+        self.requested_board = Some(self.grid.route(destination)?);
         self.resolve_turn();
         let key = self.position_key();
         let count = self.repetitions.entry(key).or_default();
@@ -517,7 +596,9 @@ impl Game {
 
     pub fn state(&self) -> State {
         State {
-            size: self.size,
+            size: self.grid.columns,
+            columns: self.grid.columns,
+            rows: self.grid.rows,
             turn: self.turn,
             forced_board: self.forced_board,
             requested_board: self.requested_board,
@@ -580,33 +661,13 @@ impl Game {
     pub fn load_json(json: &str) -> Result<Self, Error> {
         let value: serde_json::Value =
             serde_json::from_str(json).map_err(|error| Error::InvalidSave(error.to_string()))?;
-        let save: Save = match value.get("version").and_then(serde_json::Value::as_u64) {
-            Some(1) => {
-                let old: VersionOneSave = serde_json::from_value(value)
-                    .map_err(|error| Error::InvalidSave(error.to_string()))?;
-                Save {
-                    version: SAVE_VERSION,
-                    size: old.size,
-                    first_player: old.first_player,
-                    initial_fens: old.initial_fens,
-                    finish_rule: FinishRule::AllBoards,
-                    events: old
-                        .moves
-                        .into_iter()
-                        .map(|event| Action::Move {
-                            board: event.board,
-                            uci: event.uci,
-                        })
-                        .collect(),
-                    start_position: None,
-                    en_passant_rule: EnPassantRule::Global,
-                }
-            }
-            Some(2 | 3) => serde_json::from_value(value)
-                .map_err(|error| Error::InvalidSave(error.to_string()))?,
-            _ => return Err(Error::InvalidSave("unsupported version".into())),
-        };
-        let mut game = Self::from_fens(save.size, save.first_player, &save.initial_fens)?;
+        let save = decode_save(value)?;
+        let mut game = Self::from_fens_rectangular(
+            save.columns,
+            save.rows,
+            save.first_player,
+            &save.initial_fens,
+        )?;
         game.save.finish_rule = save.finish_rule;
         game.save.en_passant_rule = save.en_passant_rule;
         if save
@@ -633,4 +694,51 @@ impl Game {
         )?;
         Ok(())
     }
+}
+
+fn decode_save(value: serde_json::Value) -> Result<Save, Error> {
+    Ok(
+        match value.get("version").and_then(serde_json::Value::as_u64) {
+            Some(1) => {
+                let old: VersionOneSave = serde_json::from_value(value)
+                    .map_err(|error| Error::InvalidSave(error.to_string()))?;
+                Save {
+                    version: SAVE_VERSION,
+                    columns: old.size,
+                    rows: old.size,
+                    first_player: old.first_player,
+                    initial_fens: old.initial_fens,
+                    finish_rule: FinishRule::AllBoards,
+                    events: old
+                        .moves
+                        .into_iter()
+                        .map(|event| Action::Move {
+                            board: event.board,
+                            uci: event.uci,
+                        })
+                        .collect(),
+                    start_position: None,
+                    en_passant_rule: EnPassantRule::Global,
+                }
+            }
+            Some(2 | 3) => {
+                let old: LegacySave = serde_json::from_value(value)
+                    .map_err(|error| Error::InvalidSave(error.to_string()))?;
+                Save {
+                    version: SAVE_VERSION,
+                    columns: old.size,
+                    rows: old.size,
+                    first_player: old.first_player,
+                    initial_fens: old.initial_fens,
+                    finish_rule: old.finish_rule,
+                    events: old.events,
+                    start_position: old.start_position,
+                    en_passant_rule: old.en_passant_rule,
+                }
+            }
+            Some(4) => serde_json::from_value(value)
+                .map_err(|error| Error::InvalidSave(error.to_string()))?,
+            _ => return Err(Error::InvalidSave("unsupported version".into())),
+        },
+    )
 }

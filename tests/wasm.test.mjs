@@ -1,9 +1,36 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { initSync, NestedGame, destination_board } from '../web/pkg/nested_chess_wasm.js';
+import { initSync, NestedGame, destination_board, destination_board_rectangular } from '../web/pkg/nested_chess_wasm.js';
 
 initSync({ module: readFileSync(new URL('../web/pkg/nested_chess_wasm_bg.wasm', import.meta.url)) });
+
+test('4x2 exposes eight boards and routes with four columns and two rows', () => {
+  const game = NestedGame.rectangular(4, 2);
+  let state = JSON.parse(game.state());
+  assert.equal(state.columns, 4);
+  assert.equal(state.rows, 2);
+  assert.equal(state.boards.length, 8);
+  assert.equal(game.piece_planes().length, 8 * 12 * 64);
+  assert.equal(destination_board_rectangular(4, 2, 28), 2);
+  game.play(0, 'e2e4');
+  state = JSON.parse(game.play(2, 'e7e5'));
+  assert.equal(state.forced_board, 6);
+  assert.equal(state.boards[2].white_moves, 0);
+  assert.equal(state.boards[2].black_moves, 1);
+  const restored = NestedGame.load(game.save());
+  assert.deepEqual(JSON.parse(restored.state()), state);
+  assert.equal(JSON.parse(restored.undo()).forced_board, 2);
+  restored.free(); game.free();
+});
+
+test('rectangular Chess960 exposes eight shared or independent starts', () => {
+  const shared = NestedGame.chess960_rectangular(4, 2, 123);
+  const independent = NestedGame.chess960_boards_rectangular(4, 2, Uint16Array.from([0,1,2,3,4,5,6,7]));
+  assert.equal(new Set(JSON.parse(shared.state()).boards.map(board => board.fen)).size, 1);
+  assert.equal(new Set(JSON.parse(independent.state()).boards.map(board => board.fen)).size, 8);
+  shared.free(); independent.free();
+});
 
 for (const size of [2, 4, 8]) {
   test(`${size}x${size} exposes the complete opening state`, () => {
@@ -116,7 +143,7 @@ test('new games save the local en passant rule explicitly', () => {
   const game = new NestedGame(2);
   assert.equal(JSON.parse(game.state()).en_passant_rule, 'local');
   const save = JSON.parse(game.save());
-  assert.equal(save.version, 3);
+  assert.equal(save.version, 4);
   assert.equal(save.en_passant_rule, 'local');
   game.free();
 });

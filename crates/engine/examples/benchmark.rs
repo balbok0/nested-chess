@@ -35,8 +35,16 @@ struct Job {
     a_color: Color,
     pair: usize,
     opening: Vec<OpeningMove>,
+    #[serde(default = "default_dimension")]
+    columns: u8,
+    #[serde(default = "default_dimension")]
+    rows: u8,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     initial_fens: Option<Vec<String>>,
+}
+
+fn default_dimension() -> u8 {
+    2
 }
 
 #[derive(Default, Serialize)]
@@ -90,8 +98,8 @@ fn play(job: Job) -> Result<Record, Box<dyn std::error::Error>> {
     let mut b_engine = engine(&root)?;
     a_engine.set_analysis_nodes(GLOBAL_NODES[job.a_level])?;
     let mut game = match &job.initial_fens {
-        Some(fens) => Game::from_fens(2, Color::White, fens)?,
-        None => Game::new(2)?,
+        Some(fens) => Game::from_fens_rectangular(job.columns, job.rows, Color::White, fens)?,
+        None => Game::rectangular(job.columns, job.rows)?,
     };
     for mv in &job.opening {
         game.play(mv.board, &mv.uci)?;

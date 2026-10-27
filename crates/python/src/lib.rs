@@ -30,6 +30,23 @@ impl PyGame {
             game: Game::chess960_boards(size, &indices).map_err(py_error)?,
         })
     }
+    #[staticmethod]
+    #[pyo3(signature = (columns, rows, chess960=None))]
+    fn rectangular(columns: u8, rows: u8, chess960: Option<u16>) -> PyResult<Self> {
+        Ok(Self {
+            game: match chess960 {
+                Some(index) => Game::chess960_rectangular(columns, rows, index),
+                None => Game::rectangular(columns, rows),
+            }
+            .map_err(py_error)?,
+        })
+    }
+    #[staticmethod]
+    fn chess960_boards_rectangular(columns: u8, rows: u8, indices: Vec<u16>) -> PyResult<Self> {
+        Ok(Self {
+            game: Game::chess960_boards_rectangular(columns, rows, &indices).map_err(py_error)?,
+        })
+    }
     fn move_details(&self, board: usize, uci: &str) -> PyResult<String> {
         serde_json::to_string(&self.game.move_details(board, uci).map_err(py_error)?)
             .map_err(py_error)

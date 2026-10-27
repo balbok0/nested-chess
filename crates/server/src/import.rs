@@ -104,6 +104,9 @@ impl Store {
                 .execute(&mut *tx)
                 .await?;
         }
+        sqlx::query("UPDATE games SET rows=size")
+            .execute(&mut *tx)
+            .await?;
         sqlx::query("SELECT setval(pg_get_serial_sequence('games','ordinal'),COALESCE(MAX(ordinal),1),MAX(ordinal) IS NOT NULL) FROM games").execute(&mut *tx).await?;
         let now = Clock::Database.resolve(&mut tx).await?;
         for id in games.keys() {

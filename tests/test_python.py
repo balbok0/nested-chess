@@ -4,6 +4,28 @@ import nested_chess
 import pytest
 
 
+@pytest.mark.parametrize("chess960", [pytest.param(None, id="classical"), pytest.param(123, id="shared_chess960")])
+def test_rectangular_state_routes_and_round_trips(chess960):
+    game = nested_chess.Game.rectangular(4, 2, chess960=chess960)
+    actual = json.loads(game.state())
+    assert (actual["columns"], actual["rows"]) == (4, 2)
+    assert len(actual["boards"]) == 8
+    assert len(game.piece_planes()) == 8 * 12 * 64
+    game.play(0, "e2e4")
+    actual = json.loads(game.play(2, "e7e5"))
+    assert actual["forced_board"] == 6
+    assert actual["boards"][2]["black_moves"] == 1
+    restored = nested_chess.Game.load(game.save())
+    assert json.loads(restored.state()) == actual
+    assert json.loads(restored.undo())["forced_board"] == 2
+
+
+def test_rectangular_independent_chess960_has_one_start_per_board():
+    game = nested_chess.Game.chess960_boards_rectangular(4, 2, list(range(8)))
+    actual = json.loads(game.state())
+    assert len({board["fen"] for board in actual["boards"]}) == 8
+
+
 @pytest.mark.parametrize("size", [pytest.param(2, id="four_boards"), pytest.param(4, id="sixteen_boards"), pytest.param(8, id="sixty_four_boards")])
 def test_opening_state(size):
     game = nested_chess.Game(size)

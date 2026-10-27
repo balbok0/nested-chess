@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { initSync, NestedGame } from '../web/pkg/nested_chess_wasm.js';
 
 initSync({ module: readFileSync('web/pkg/nested_chess_wasm_bg.wasm') });
+const [columns = 2, rows = 2] = process.argv.slice(2).map(Number);
 let seed = 20261025;
 const random = limit => {
   seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
@@ -10,7 +11,7 @@ const random = limit => {
 const openings = [];
 const seen = new Set();
 while (openings.length < 50) {
-  const game = new NestedGame(2);
+  const game = NestedGame.rectangular(columns, rows);
   const opening = [];
   for (let ply = 0; ply < 2; ply++) {
     const boards = JSON.parse(game.state()).legal_boards;

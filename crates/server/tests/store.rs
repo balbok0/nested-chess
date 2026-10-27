@@ -547,6 +547,70 @@ async fn set_rating(url: &str, user: &str, rating: f64) {
 }
 
 #[tokio::test]
+async fn rectangular_invitations_preserve_shape_and_routes_after_restart() {
+    for layout in ["classical", "chess960", "independent960"] {
+        let (url, store) = database().await;
+        let game = pair(
+            &store,
+            CreateGame {
+                size: 4,
+                rows: Some(2),
+                layout: layout.into(),
+                ..Default::default()
+            },
+        )
+        .await;
+        store
+            .command(
+                &game.id,
+                &game.white,
+                command(
+                    1,
+                    Action::Move {
+                        board: 0,
+                        uci: "e2e4".into(),
+                    },
+                ),
+                1100,
+            )
+            .await
+            .unwrap();
+        drop(store);
+        let restored = Store::connect(&url).await.unwrap();
+        let actual = restored
+            .snapshot(&game.id, &game.black, 1200)
+            .await
+            .unwrap();
+        assert_eq!((actual.state.columns, actual.state.rows), (4, 2));
+        assert_eq!(actual.state.boards.len(), 8);
+        assert_eq!(actual.info.rows, Some(2));
+        assert_eq!(actual.state.forced_board, Some(2));
+    }
+}
+
+#[tokio::test]
+async fn invitations_reject_removed_and_unsupported_new_grid_shapes() {
+    let (_url, store) = database().await;
+    let user = store.guest(1000).await.unwrap().0;
+    for (columns, rows) in [(8, 8), (2, 4), (4, 3)] {
+        assert!(matches!(
+            store
+                .create(
+                    &user.id,
+                    CreateGame {
+                        size: columns,
+                        rows: Some(rows),
+                        ..Default::default()
+                    },
+                    1100
+                )
+                .await,
+            Err(Error::Invalid(_))
+        ));
+    }
+}
+
+#[tokio::test]
 async fn matchmaking_obeys_each_widening_boundary_and_the_cap() {
     for (gap, elapsed, matched) in [
         (150.0, 0, true),
