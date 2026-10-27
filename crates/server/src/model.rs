@@ -32,6 +32,8 @@ impl Default for TimeControl {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct CreateGame {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_id: Option<String>,
     pub size: u8,
     pub layout: String,
     pub rated: bool,
@@ -41,6 +43,7 @@ pub struct CreateGame {
 impl Default for CreateGame {
     fn default() -> Self {
         Self {
+            request_id: None,
             size: 2,
             layout: "classical".into(),
             rated: false,

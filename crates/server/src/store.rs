@@ -239,10 +239,31 @@ impl Store {
         spec: CreateGame,
         clock: impl Into<Clock>,
     ) -> Result<Snapshot> {
+        if let Some(id) = &spec.request_id {
+            Uuid::parse_str(id)
+                .map_err(|_| Error::Invalid("Invalid invitation request ID.".into()))?;
+        }
         let mut tx = self.pool.begin().await?;
         Self::lock_user(&mut tx, user).await?;
         let now = clock.into().resolve(&mut tx).await?;
+        let request_id = spec.request_id.clone();
+        let spec_json = serde_json::to_string(&spec)?;
+        if let Some(request_id) = &request_id {
+            if let Some(row) = sqlx::query("SELECT spec_json,game_id FROM invitation_requests WHERE user_id=$1 AND request_id=$2")
+                .bind(user).bind(request_id).fetch_optional(&mut *tx).await? {
+                if row.try_get::<String,_>("spec_json")? != spec_json {
+                    return Err(Error::Conflict("That invitation request ID was already used with different settings.".into()));
+                }
+                let result = Self::snapshot_on(&mut tx,&row.try_get::<String,_>("game_id")?,user,now).await?;
+                tx.commit().await?;
+                return Ok(result);
+            }
+        }
         let id = Self::create_on(&mut tx, user, spec, now).await?;
+        if let Some(request_id) = request_id {
+            sqlx::query("INSERT INTO invitation_requests(user_id,request_id,spec_json,game_id) VALUES($1,$2,$3,$4)")
+                .bind(user).bind(request_id).bind(spec_json).bind(&id).execute(&mut *tx).await?;
+        }
         let result = Self::snapshot_on(&mut tx, &id, user, now).await?;
         tx.commit().await?;
         Ok(result)

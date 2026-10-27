@@ -1071,3 +1071,70 @@ async fn rejoining_while_a_rated_match_finishes_does_not_deadlock() {
         assert_eq!(store.user(&p.white).await.unwrap().rated_games, 1);
     }
 }
+
+#[tokio::test]
+async fn concurrent_invitation_retries_create_one_match_across_replicas() {
+    let (url, store) = database().await;
+    let other = Store::connect(&url).await.unwrap();
+    let user = store.guest(1000).await.unwrap().0;
+    let spec = CreateGame {
+        request_id: Some(Uuid::new_v4().to_string()),
+        ..Default::default()
+    };
+    let (a, b) = tokio::join!(
+        store.create(&user.id, spec.clone(), 1000),
+        other.create(&user.id, spec, 1100)
+    );
+    assert_eq!(a.unwrap().info.id, b.unwrap().info.id);
+    assert_eq!(store.open_games(&user.id, 1200).await.unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn an_invitation_retry_returns_the_joined_match_after_restart() {
+    let (url, store) = database().await;
+    let owner = store.guest(1000).await.unwrap().0;
+    let guest = store.guest(1000).await.unwrap().0;
+    let spec = CreateGame {
+        request_id: Some(Uuid::new_v4().to_string()),
+        ..Default::default()
+    };
+    let created = store.create(&owner.id, spec.clone(), 1000).await.unwrap();
+    store.join(&created.info.id, &guest.id, 1100).await.unwrap();
+    drop(store);
+    let store = Store::connect(&url).await.unwrap();
+    let retried = store.create(&owner.id, spec, 1200).await.unwrap();
+    assert_eq!(retried.info.id, created.info.id);
+    assert_eq!(retried.info.status, "active");
+    assert_eq!(retried.info.seq, 1);
+}
+
+#[tokio::test]
+async fn invitation_request_ids_cannot_change_settings() {
+    let (_, store) = database().await;
+    let user = store.guest(1000).await.unwrap().0;
+    let mut spec = CreateGame {
+        request_id: Some(Uuid::new_v4().to_string()),
+        ..Default::default()
+    };
+    store.create(&user.id, spec.clone(), 1000).await.unwrap();
+    spec.size = 4;
+    assert!(matches!(
+        store.create(&user.id, spec, 1100).await,
+        Err(Error::Conflict(_))
+    ));
+    assert_eq!(store.open_games(&user.id, 1200).await.unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn invitation_request_ids_are_scoped_to_the_account() {
+    let (_, store) = database().await;
+    let a = store.guest(1000).await.unwrap().0;
+    let b = store.guest(1000).await.unwrap().0;
+    let spec = CreateGame {
+        request_id: Some(Uuid::new_v4().to_string()),
+        ..Default::default()
+    };
+    let a = store.create(&a.id, spec.clone(), 1000).await.unwrap();
+    let b = store.create(&b.id, spec, 1000).await.unwrap();
+    assert_ne!(a.info.id, b.info.id);
+}
