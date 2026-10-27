@@ -187,3 +187,35 @@ test('startup_outage_keeps_the_match_and_resumes_when_the_database_returns', asy
     await game.peer.dispose();
   }
 });
+
+test('an_invalid_invitation_does_not_replace_the_remembered_match', async ({ page, playwright, baseURL }) => {
+  const game = await match(page, playwright, baseURL);
+  try {
+    await page.goto(`/?match=${game.id}`);
+    await expect(page.locator('#online-connection')).toContainText('You play');
+    await page.goto(`/?match=${randomUUID()}`);
+    await expect(page.locator('#error')).toContainText('no longer available');
+    expect(await page.evaluate(() => localStorage.getItem('nested-online-match'))).toBe(game.id);
+    await page.goto('/');
+    await expect(page.locator('#online-connection')).toContainText('You play');
+    expect(new URL(page.url()).searchParams.get('match')).toBe(game.id);
+  } finally { await game.peer.dispose(); }
+});
+
+test('reopening_a_match_that_ended_while_closed_shows_its_result', async ({ page, context, playwright, baseURL }) => {
+  const game = await match(page, playwright, baseURL);
+  try {
+    await page.goto(`/?match=${game.id}`);
+    await expect(page.locator('#online-connection')).toContainText('You play');
+    await page.close();
+    await post(context.request, baseURL, `/api/v1/games/${game.id}/commands`, {
+      request_id: randomUUID(), expected_seq: 1, action: { kind: 'resign' },
+    });
+    const reopened = await context.newPage();
+    await reopened.goto('/');
+    const white = game.info.white.id === game.owner.id;
+    await expect(reopened.locator('#turn-label')).toHaveText(white ? 'Black wins the match' : 'White wins the match');
+    await expect(reopened.locator('#turn-detail')).toHaveText(white ? 'White resigned.' : 'Black resigned.');
+    await expect(reopened.locator('#error')).not.toBeVisible();
+  } finally { await game.peer.dispose(); }
+});

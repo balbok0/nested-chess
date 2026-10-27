@@ -210,8 +210,8 @@ export function setupOnline({ enter, current, leave, onerror }) {
         clearTimeout(recoveryTimer);
         recoveryTimer = setTimeout(() => { void resumeStored(); }, recoveryDelay);
         recoveryDelay = Math.min(recoveryDelay * 2, 8000);
-      } else if (value.status === 404) {
-        await rememberMatch(null);
+      } else if (value.status === 404 && !target.creation) {
+        if (target.saved) await rememberMatch(null);
         cancelRecovery();
         onerror(new Error('That online match is no longer available.'));
       } else if (target.invitation && [401,403].includes(value.status)) {
@@ -237,10 +237,10 @@ export function setupOnline({ enter, current, leave, onerror }) {
       return;
     }
     const creation = pendingCreation();
-    const id = params.get('match') || rememberedMatch();
+    const saved = rememberedMatch();
+    const id = params.get('match') || saved;
     if (creation || id) {
-      if (id) await rememberMatch(id);
-      recovery = { id, creation, canEnter, invitation: params.has('match') };
+      recovery = { id, creation, canEnter, invitation: params.has('match'), saved: id === saved };
       recoveryDelay = 500;
       recoveryMessage('Reconnecting to your match…', 'Getting the latest position. Timed matches keep running.');
       await resumeStored();
