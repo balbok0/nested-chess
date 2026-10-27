@@ -1,7 +1,7 @@
 name: Shared server
 on:
   push:
-    branches: [feat/shared-backend, feat/mobile-ux, feat/elo-matchmaking, main]
+    branches: [feat/shared-backend, feat/mobile-ux, feat/elo-matchmaking, feat/rectangular-grid, main]
   workflow_dispatch:
 permissions:
   contents: read

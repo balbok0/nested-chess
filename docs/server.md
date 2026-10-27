@@ -65,6 +65,13 @@ layout, and optional global clock. Colors are assigned randomly. A running clock
 belongs to the global player, regardless of the routed board. Increment applies
 after an accepted move. Resignation and timeout end the whole online match.
 
+New invitations support 2×2, 4×2, and 4×4 (columns × rows). Creation accepts
+`columns` (or the legacy `size`) plus `rows`; omitting rows keeps the square API.
+For eight boards, send `{"columns":4,"rows":2}`. Snapshot `state` includes explicit
+dimensions; match metadata retains `size` as columns and adds `rows`. Existing
+8×8 matches and old square checkpoints remain resumable, but new 8×8 invitations
+are rejected. Rated matchmaking remains classical 2×2, 15+10.
+
 Rated matchmaking uses classical 2×2, 15 minutes + 10 seconds increment, and
 signed-in accounts. Guests and other settings are unrated. Elo starts at 1500,
 uses K=32, and marks the first 20 games provisional. The rating unit is permanently

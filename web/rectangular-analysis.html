@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en" data-theme="classic">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>4×2 and 4×4 benchmark · Nested chess</title>
+  <link rel="stylesheet" href="./style.css" />
+  <style>
+    main { max-width: 1200px; margin: auto; padding: 28px 20px 60px; }
+    h1 { margin: 24px 0 16px; } h2 { margin: 32px 0 16px; }
+    p { line-height: 1.6; max-width: 85ch; } .muted { color: var(--muted); }
+    .table-wrap { overflow-x: auto; margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    th { color: var(--muted); font-weight: 600; } td small { display: block; color: var(--muted); margin-top: 4px; }
+    footer { margin-top: 32px; }
+  </style>
+</head>
+<body><main>
+  <a href="./">Nested chess</a> · <a href="./analysis.html">2×2 benchmark</a>
+  <h1>4×2 and 4×4 benchmark</h1>
+  <p>Global negamax versus local-only Fairy-Stockfish, with matching local-only controls. Four columns in both layouts: eight boards on 4×2, sixteen on 4×4.</p>
+  <p id="status" role="status"></p>
+  <div id="results"></div>
+  <h2>Method</h2>
+  <p>Each condition has 100 games, split evenly by color. A win earns one point, a draw half a point. Win rate and match score have conservative 95% bounds based on color-swapped pairs.</p>
+  <p>The current bots use the same presets as the 2×2 study. Global search keeps all legal moves, with a 100,000-node cap. Games end under the actual rules, without evaluation adjudication or a move-limit draw.</p>
+  <p id="pilots"></p>
+  <p id="resources"></p>
+  <p class="muted">Intervals describe these runs under shared machine load. They are per condition, assume independent color pairs, and do not establish optimal play or calibrated Elo.</p>
+  <footer><a href="https://github.com/balbok0/nested-chess/tree/feat/rectangular-grid/benchmarks/rectangular">Games, protocol, and telemetry</a></footer>
+</main>
+<script type="module">
+  import data from './rectangular-benchmark-results.json';
+  const percent = value => `${(100 * value).toFixed(1)}%`;
+  const bounded = (value, interval) => `${percent(value)}<small>${percent(interval.low)}–${percent(interval.high)}</small>`;
+  document.getElementById('status').textContent = `${data.completed_games.toLocaleString()} / ${data.target_games.toLocaleString()} scored games complete${data.completed_games === data.target_games ? '.' : ' · Running.'}`;
+  for (const rows of [2, 4]) {
+    const heading = document.createElement('h2'); heading.textContent = `4 × ${rows}`;
+    document.getElementById('results').append(heading);
+    for (const family of ['global', 'local']) {
+      const wrap = document.createElement('div'); wrap.className = 'table-wrap';
+      const results = data.results.filter(result => result.columns === 4 && result.rows === rows && result.family === family);
+      wrap.innerHTML = `<table><thead><tr><th>${family === 'global' ? 'Global' : 'Local'} vs Local</th><th>Games · W–D–L</th><th>Win rate · 95% bounds</th><th>Match score · 95% bounds</th><th>Depth / fallback</th><th>Engine calls / move</th><th>Row / opponent ms per move</th></tr></thead><tbody>${results.map(result => {
+        const a = result.a_metrics, b = result.b_metrics;
+        return `<tr><td>${data.levels[result.a_level]} vs ${data.levels[result.b_level]}</td><td>${result.games} · ${result.wins}–${result.draws}–${result.losses}</td><td>${bounded(result.win_rate, result.win_ci95)}</td><td>${bounded(result.score_rate, result.score_ci95)}</td><td>${family === 'global' ? `${(a.completed_depth_sum / a.moves).toFixed(2)} / ${percent(a.fallback_moves / a.moves)}` : '—'}</td><td>${(a.engine_calls / a.moves).toFixed(1)}</td><td>${(a.elapsed_ms / a.moves).toFixed(0)} / ${(b.elapsed_ms / b.moves).toFixed(0)}</td></tr>`;
+      }).join('') || '<tr><td colspan="7">Waiting for completed color pairs.</td></tr>'}</tbody></table>`;
+      document.getElementById('results').append(wrap);
+    }
+  }
+  const conditions = data.protocol.conditions;
+  document.getElementById('pilots').textContent = `Each condition first gets ten unscored determinism pilots. Forced two-ply openings are used only if all five traces repeat within each color. ${conditions.filter(condition => condition.forced_openings).length} of ${conditions.length} completed pilot conditions required forced openings.`;
+  if (data.resources) {
+    const resources = data.resources;
+    document.getElementById('resources').textContent = `${data.protocol.workers} parallel games. System CPU: ${resources.mean_system_cpu_percent.toFixed(1)}% mean, ${resources.peak_system_cpu_percent.toFixed(1)}% peak. Peak summed benchmark RSS: ${(resources.peak_benchmark_rss_bytes / 2**30).toFixed(1)} GiB; peak system memory use: ${resources.peak_system_memory_percent.toFixed(1)}%. Summed RSS includes shared pages.`;
+  }
+</script>
+</body></html>

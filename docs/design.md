@@ -16,8 +16,8 @@ and history, which grow separately.
 | Grid | Local games | Local board storage | Binary 12-plane features | Float32 119-plane features |
 | --- | ---: | ---: | ---: | ---: |
 | 2×2 | 4 | 448 B | 3 KiB | 119 KiB |
+| 4×2 | 8 | 896 B | 6 KiB | 238 KiB |
 | 4×4 | 16 | 1,792 B | 12 KiB | 476 KiB |
-| 8×8 | 64 | 7,168 B | 48 KiB | 1.86 MiB |
 
 The final column is a hypothetical AlphaZero-style input for all boards; it is
 not the engine's storage format or a model implemented here. It excludes extra
@@ -49,16 +49,16 @@ are B boards, S^B is a crude Cartesian-product bound before routing, global-turn
 and reachability constraints. That enormous count does not require an enormous
 tensor or a table of all positions.
 
-Likewise, a flat macro action head would have B×4,672 entries: 18,688, 74,752, or
-299,008. Most turns permit only one board, so allocating and learning a full flat
+Likewise, a flat macro action head would have B×4,672 entries: 18,688, 37,376, or
+74,752. Most turns permit only one board, so allocating and learning a full flat
 head is avoidable. A shared local policy head plus a board-selection head is a
 more natural future design.
 
 ## Search cost and feasibility
 
-At the initial free turn there are exactly 80, 320, or 1,280 legal actions for the
+At the initial free turn there are exactly 80, 160, or 320 legal actions for the
 three grid sizes. A forced turn has only one board's moves; it does not multiply
-the branch count by 64. Later free turns can still be much wider than ordinary
+the branch count by the number of boards. Later free turns can still be much wider than ordinary
 chess. The match also lasts many local games, with routing coupling their tactics.
 
 Storage and browser play are straightforward. An optimal solver is unrealistic.

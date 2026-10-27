@@ -1,6 +1,6 @@
 # Nested chess
 
-A Rust king-capture chess engine on a routed 2×2, 4×4, or 8×8 grid of games,
+A Rust king-capture chess engine on a routed 2×2, 4×2, or 4×4 grid of games,
 with a playable browser UI, WebAssembly bindings, Python bindings, and a
 global Rust negamax opponent using Fairy-Stockfish for local analysis.
 
@@ -105,8 +105,8 @@ backend, accounts, or external inference service is needed.
   deciding who may move. Black can open an untouched board, and either color may
   move repeatedly on a local board across separate global turns.
 - The first move can use any board. The landing square routes the opponent to a
-  board in the macro grid: quadrants for 2×2, 2×2 square regions for 4×4, individual
-  squares for 8×8.
+  board in the macro grid: quadrants for 2×2, two-file/four-rank regions for 4×2,
+  and 2×2 square regions for 4×4. Dimensions mean columns × rows.
 - All routing coordinates use White's orientation, independent of UI flipping.
   Both local squares and macro boards run left to right, bottom to top. Board 0 is
   A1. For 2×2, `e4` routes to B1 (index 1), `d5` to A2 (index 2).
@@ -149,6 +149,16 @@ game.play(1, "e7e5")?; // Black opens an untouched board.
 let restored = Game::load_json(&game.save_json()?)?;
 # Ok::<(), nested_chess::Error>(())
 ```
+
+`Game::rectangular(4, 2)` creates eight boards in four columns and two rows;
+`route_rectangular(4, 2, square)` maps a destination to its board. JavaScript uses
+`NestedGame.rectangular(4, 2)` and Python uses `Game.rectangular(4, 2)`.
+Rectangular Chess960 constructors are `chess960_rectangular` and
+`chess960_boards_rectangular` in Rust/WASM; Python accepts
+`Game.rectangular(4, 2, chess960=index)` or `Game.chess960_boards_rectangular`.
+State includes explicit `columns` and `rows`; `size` remains the legacy column
+count. Existing square constructors and 8×8 saves remain compatible, while new-game
+controls offer 2×2, 4×2, and 4×4.
 
 `crates/engine` owns move generation, routing, scoring, draws, replay saves,
 and feature planes. `Board` uses twelve bitboards and has **no local side to move**.
@@ -213,6 +223,10 @@ games whose history continued past a majority; new matches use early completion.
 Version-3 saves record the en passant expiry rule. Existing version-1/2 matches
 retain global expiry for replay and undo; new matches use local expiry. Start a new
 match to use the updated rule.
+
+Version-4 saves record columns and rows explicitly. Versions 1–3 load with their
+original square dimensions and rule semantics. Server checkpoints also migrate
+older square positions without discarding their repetition history.
 
 For a native Fairy-Stockfish binary, use
 `Opponent("/path/to/fairy-stockfish", [], "/absolute/path/to/variants/nested.ini")`.

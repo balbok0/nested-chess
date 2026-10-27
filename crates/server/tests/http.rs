@@ -22,6 +22,26 @@ struct Player {
     cookie: String,
     client: Client,
 }
+
+#[tokio::test]
+async fn invitations_accept_explicit_columns_and_rows() {
+    let server = Server::start().await;
+    let player = server.player().await;
+    let response = player
+        .client
+        .post(format!("{}/api/v1/games", server.url))
+        .json(&json!({"columns":4,"rows":2}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200);
+    let actual: Value = response.json().await.unwrap();
+    assert_eq!(actual["state"]["columns"], 4);
+    assert_eq!(actual["state"]["rows"], 2);
+    assert_eq!(actual["state"]["boards"].as_array().unwrap().len(), 8);
+    assert_eq!(actual["info"]["rows"], 2);
+    server.stop().await;
+}
 impl Server {
     async fn start() -> Self {
         Self::configured(Vec::new()).await

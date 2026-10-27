@@ -2,14 +2,15 @@ use nested_chess::{Board, Game};
 
 fn main() {
     println!("Local Board: {} bytes", std::mem::size_of::<Board>());
-    for size in [2, 4, 8] {
-        let game = Game::new(size).unwrap();
+    for (columns, rows) in [(2, 2), (4, 2), (4, 4)] {
+        let game = Game::rectangular(columns, rows).unwrap();
+        let boards = usize::from(columns) * usize::from(rows);
         println!(
-            "{size}x{size}: {} boards, {} board bytes, {} binary piece-plane bytes, {} AlphaZero-style float32 bytes",
-            usize::from(size).pow(2),
-            usize::from(size).pow(2) * std::mem::size_of::<Board>(),
+            "{columns}x{rows}: {} boards, {} board bytes, {} binary piece-plane bytes, {} AlphaZero-style float32 bytes",
+            boards,
+            boards * std::mem::size_of::<Board>(),
             game.piece_planes().len(),
-            usize::from(size).pow(2) * 119 * 64 * 4
+            boards * 119 * 64 * 4
         );
     }
 }

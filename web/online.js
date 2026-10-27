@@ -63,7 +63,7 @@ export function setupOnline({ enter, current, leave, onerror }) {
       const row = document.createElement('div'); row.className = 'online-game-row';
       const button = document.createElement('button'); button.className = 'text-button';
       const opponent = info.white?.id === account.user.id ? info.black : info.white;
-      button.textContent = `${info.status === 'waiting' ? info.queue_started_ms != null ? 'Finding an opponent' : 'Waiting for opponent' : opponent?.handle || 'Match'} · ${info.size} × ${info.size}`;
+      button.textContent = `${info.status === 'waiting' ? info.queue_started_ms != null ? 'Finding an opponent' : 'Waiting for opponent' : opponent?.handle || 'Match'} · ${info.size} × ${info.rows ?? info.size}`;
       button.onclick = () => { void run(() => load(info.id)); }; row.append(button);
       if (info.status === 'waiting') {
         const cancel = document.createElement('button'); cancel.className = 'text-button'; cancel.textContent = 'Cancel';
@@ -95,7 +95,7 @@ export function setupOnline({ enter, current, leave, onerror }) {
       const result = info.result === 'draw' ? 'Draw' : info.result === (white ? 'white' : 'black') ? 'Won' : 'Lost';
       const opponent = white ? info.black : info.white;
       const button = document.createElement('button'); button.className = 'online-game-row';
-      const text = document.createElement('span'); text.textContent = `${result} vs ${opponent.handle} · ${info.size} × ${info.size} · ${new Date(info.created_ms).toLocaleDateString()}`;
+      const text = document.createElement('span'); text.textContent = `${result} vs ${opponent.handle} · ${info.size} × ${info.rows ?? info.size} · ${new Date(info.created_ms).toLocaleDateString()}`;
       const rating = document.createElement('span');
       if (row.rating_after !== null) { const delta = Math.round(row.rating_after - row.rating_before); rating.textContent = `${Math.round(row.rating_after)} (${delta >= 0 ? '+' : ''}${delta})`; }
       else rating.textContent = 'Unrated';
@@ -116,8 +116,9 @@ export function setupOnline({ enter, current, leave, onerror }) {
     cancelRecovery();
     let creation = pendingCreation();
     if (!creation) {
+      const [columns, rows] = $('online-size').value.split('x').map(Number);
       creation = { owner: account.user.id, origin: onlineOrigin(), spec: {
-        request_id: crypto.randomUUID(), size: Number($('online-size').value), layout: $('online-layout').value,
+        request_id: crypto.randomUUID(), size: columns, rows, layout: $('online-layout').value,
         rated: $('online-rated').checked, clock: CLOCKS[$('online-clock').value],
       } };
       await saveLocal(CREATION_KEY, JSON.stringify(creation));
@@ -135,7 +136,7 @@ export function setupOnline({ enter, current, leave, onerror }) {
   function applyRatedSettings() {
     const creation = pendingCreation();
     if (creation) {
-      $('online-size').value = String(creation.spec.size);
+      $('online-size').value = `${creation.spec.size}x${creation.spec.rows ?? creation.spec.size}`;
       $('online-layout').value = creation.spec.layout;
       $('online-clock').value = Object.keys(CLOCKS).find(key => JSON.stringify(CLOCKS[key]) === JSON.stringify(creation.spec.clock)) || 'none';
       $('online-rated').checked = creation.spec.rated;
@@ -144,7 +145,7 @@ export function setupOnline({ enter, current, leave, onerror }) {
     $('online-create-status').textContent = creation ? 'Invitation not confirmed. Retry to recover the same match.' : '';
     $('online-rated').disabled = Boolean(creation) || !account?.user || account.user.guest;
     const rated = $('online-rated').checked;
-    if (rated) { $('online-size').value = '2'; $('online-layout').value = 'classical'; $('online-clock').value = '15+10'; }
+    if (rated) { $('online-size').value = '2x2'; $('online-layout').value = 'classical'; $('online-clock').value = '15+10'; }
     for (const id of ['online-size', 'online-layout', 'online-clock']) $(id).disabled = rated || Boolean(creation);
   }
   $('online-rated').onchange = applyRatedSettings;

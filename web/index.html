@@ -20,7 +20,7 @@
   <main>
     <section class="matchbar" aria-label="Match controls">
       <div class="turn"><span id="turn-disc" class="turn-disc" aria-hidden="true"></span><div><strong id="turn-label">Loading game…</strong><span id="turn-detail"></span></div></div>
-      <div class="grid-control"><span>Boards</span><div class="segmented" id="grid-options"><button data-size="2" class="active" aria-pressed="true">2 × 2</button><button data-size="4" aria-pressed="false">4 × 4</button><button data-size="8" aria-pressed="false">8 × 8</button></div></div>
+      <div class="grid-control"><span>Boards</span><div class="segmented" id="grid-options"><button data-grid="2x2" class="active" aria-pressed="true">2 × 2</button><button data-grid="4x2" aria-pressed="false">4 × 2</button><button data-grid="4x4" aria-pressed="false">4 × 4</button></div></div>
       <button id="new-game" class="outline-button">New match</button>
     </section>
     <section id="match-recovery" class="match-recovery" role="status" hidden><div><strong id="recovery-title">Reconnecting to your match…</strong><p id="recovery-detail"></p></div><div class="online-actions"><button id="recovery-retry" class="outline-button">Retry now</button><button id="recovery-local" class="text-button">Play locally</button><button id="recovery-account" class="text-button" hidden>Sign in</button></div></section>
@@ -94,7 +94,7 @@
     <div class="dialog-heading"><h2 id="rules-title">Rules</h2><button id="rules-close" class="dialog-close" aria-label="Close rules">×</button></div>
     <ol>
       <li><strong>Players alternate globally.</strong> White, Black, White, Black—even when one board gets several moves by the same color.</li>
-      <li><strong>The landing square selects the next board.</strong> On a 2 × 2 grid, a quadrant selects a board. On 4 × 4, each 2 × 2 region does. On 8 × 8, every square has its own board. Coordinates use White’s orientation.</li>
+      <li><strong>The landing square selects the next board.</strong> On a 2 × 2 grid, a quadrant selects a board. On 4 × 2 (four columns), each two-file, four-rank region selects a board. On 4 × 4, each 2 × 2 region does. Coordinates use White’s orientation.</li>
       <li><strong>Capture a king to win a board.</strong> There is no check or checkmate. Kings can stand next to each other. Castling ignores attacks.</li>
       <li><strong>An unavailable destination gives a free choice.</strong> If the destination is finished or has no moves for you, choose any board where you can move.</li>
       <li><strong>Scoring.</strong> A win earns 1 point; a draw earns ½ point for each player. The match ends when one score exceeds half the total boards, or all boards finish. Equal final scores draw the match.</li>
@@ -117,7 +117,7 @@
     <form id="online-profile" class="online-link-row" hidden><label class="sr-only" for="online-handle">Username</label><input id="online-handle" minlength="3" maxlength="24" pattern="[A-Za-z0-9_]+" required /><button class="text-button">Save username</button></form>
     <section id="online-open-section" class="online-section" hidden><h3>Open matches</h3><div id="online-open"></div></section>
     <form id="online-create" class="online-section"><h3>Create invitation</h3><div class="online-fields">
-      <label for="online-size">Boards<select id="online-size"><option value="2">2 × 2</option><option value="4">4 × 4</option><option value="8">8 × 8</option></select></label>
+      <label for="online-size">Boards<select id="online-size"><option value="2x2">2 × 2</option><option value="4x2">4 × 2 (four columns)</option><option value="4x4">4 × 4</option></select></label>
       <label for="online-layout">Start<select id="online-layout"><option value="classical">Classical</option><option value="chess960">Chess960</option><option value="independent960">Chess960ⁿ</option></select></label>
       <label for="online-clock">Clock<select id="online-clock"><option value="none">No clock</option><option value="15+10">15 + 10</option><option value="10+5">10 + 5</option><option value="30+0">30 + 0</option></select></label>
     </div><label class="checkbox-label"><input id="online-rated" type="checkbox" />Rated · classical 2×2, 15+10</label><div class="online-actions"><button id="online-create-submit" class="outline-button">Create invitation</button><button id="online-queue" type="button" class="text-button">Find rated opponent</button></div></form>

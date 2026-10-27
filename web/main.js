@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (c) 2026 nested-chess contributors
 
-import init, { NestedGame, destination_board } from './pkg/nested_chess_wasm.js';
+import init, { NestedGame, destination_board_rectangular } from './pkg/nested_chess_wasm.js';
 import { LEVELS, Opponent } from './bot.js';
 import { describeEvaluation } from './evaluation.js';
 import { resolveTheme, THEMES } from './theme.js';
@@ -26,7 +26,7 @@ let game, state, viewing = 0, source = null, flipped = false, busy = false, oppo
 let localGame = null, localMode = 'bot', onlineControls;
 let localFlipped = false;
 let engineError = '';
-let resetSize = null;
+let resetGrid = null;
 let routePress = null, suppressRouteClick = false;
 let botAnimations = [];
 let preferences = { theme: 'system', evaluations: false, animations: true, chess960: false, chess960Independent: false };
@@ -36,7 +36,8 @@ const evaluations = new Map();
 const colorOf = piece => piece === piece.toUpperCase() ? 'white' : 'black';
 const squareName = square => `${String.fromCharCode(97 + square % 8)}${1 + Math.floor(square / 8)}`;
 const squareIndex = name => (Number(name[1]) - 1) * 8 + name.charCodeAt(0) - 97;
-const boardName = id => `${String.fromCharCode(65 + id % state.size)}${1 + Math.floor(id / state.size)}`;
+const boardName = id => `${String.fromCharCode(65 + id % state.columns)}${1 + Math.floor(id / state.columns)}`;
+const currentGrid = () => `${state.columns}x${state.rows}`;
 const capitalize = value => value[0].toUpperCase() + value.slice(1);
 const humanTurn = () => game.kind === 'online' ? game.canPlay() : $('mode').value === 'local' || state.turn === 'white';
 const movesOnView = () => state.legal_boards.includes(viewing) ? JSON.parse(game.legal_moves(viewing)) : [];
@@ -98,7 +99,7 @@ function updateEvaluations() {
     element.hidden = !enabled;
     if (!enabled) return;
     const description = evaluationFor(state.boards[Number(element.dataset.evaluation)]);
-    element.textContent = state.size === 8 ? description.label.replace(' capture', ' cap') : description.label;
+    element.textContent = state.columns === 8 ? description.label.replace(' capture', ' cap') : description.label;
     element.title = description.title;
     element.setAttribute('aria-label', description.title);
   });
@@ -188,12 +189,12 @@ function acceptState(json) {
 
 function renderMacro() {
   const grid = $('macro-grid');
-  grid.className = `macro-grid ${state.size === 4 ? 'dense' : state.size === 8 ? 'ultra' : ''}`;
-  grid.style.gridTemplateColumns = `repeat(${state.size}, minmax(0, 1fr))`;
+  grid.className = `macro-grid ${state.columns === 4 ? 'dense' : state.columns === 8 ? 'ultra' : ''}`;
+  grid.style.gridTemplateColumns = `repeat(${state.columns}, minmax(0, 1fr))`;
   grid.replaceChildren();
-  for (let rank = state.size - 1; rank >= 0; rank--) {
-    for (let file = 0; file < state.size; file++) {
-      const id = rank * state.size + file, board = state.boards[id];
+  for (let rank = state.rows - 1; rank >= 0; rank--) {
+    for (let file = 0; file < state.columns; file++) {
+      const id = rank * state.columns + file, board = state.boards[id];
       const button = document.createElement('button');
       button.className = `macro-cell ${state.legal_boards.includes(id) ? 'playable' : ''} ${state.forced_board === id ? 'forced' : ''} ${viewing === id ? 'viewing' : ''} ${board.outcome !== 'ongoing' ? 'closed' : ''}`;
       button.dataset.board = id;
@@ -201,7 +202,7 @@ function renderMacro() {
       button.setAttribute('aria-pressed', String(viewing === id));
       const outcome = board.outcome === 'ongoing' ? '' : board.outcome === 'draw' ? '½' : board.outcome === 'white' ? 'W' : 'B';
       let tiny = '';
-      if (state.size < 8) for (let row = 7; row >= 0; row--) for (let column = 0; column < 8; column++) {
+      if (state.columns < 8) for (let row = 7; row >= 0; row--) for (let column = 0; column < 8; column++) {
         const piece = board.squares[row * 8 + column];
         tiny += `<span class="tiny-square ${(row + column) % 2 === 0 ? 'dark' : ''} ${piece !== '.' ? `${colorOf(piece)}-piece` : ''}">${GLYPHS[piece.toLowerCase()] ?? ''}</span>`;
       }
@@ -254,7 +255,7 @@ function renderBoard() {
 function previewRoute(square) {
   const move = source === null ? null : movesOnView().find(move => squareIndex(move.slice(0, 2)) === source && squareIndex(move.slice(2, 4)) === square);
   const destination = move ? JSON.parse(game.move_details(viewing, move)).destination : square;
-  const id = destination_board(state.size, destination);
+  const id = destination_board_rectangular(state.columns, state.rows, destination);
   document.querySelector(`[data-board="${id}"]`)?.classList.add('next');
   const open = state.boards[id].outcome === 'ongoing';
   $('route-title').textContent = `${squareName(destination)} → Board ${boardName(id)}`;
@@ -358,7 +359,7 @@ function render() {
   $('retry-bot').hidden = !engineError || $('mode').value === 'local';
   $('engine-status').textContent = $('mode').value === 'local' ? 'Two players on this device.' : engineError || (busy ? 'Fairy-Stockfish is thinking…' : 'You: White · Fairy-Stockfish: Black');
   $('engine-status').hidden = online;
-  $('grid-options').querySelectorAll('button').forEach(button => { button.disabled = online; button.classList.toggle('active', Number(button.dataset.size) === state.size); button.setAttribute('aria-pressed', String(Number(button.dataset.size) === state.size)); });
+  $('grid-options').querySelectorAll('button').forEach(button => { button.disabled = online; button.classList.toggle('active', button.dataset.grid === currentGrid()); button.setAttribute('aria-pressed', String(button.dataset.grid === currentGrid())); });
   $('ply-count').textContent = `${state.ply} ${state.ply === 1 ? 'move' : 'moves'}`;
   const localMoves = state.boards[viewing].white_moves + state.boards[viewing].black_moves;
   $('local-history-title').textContent = `Local · ${boardName(viewing)}`;
@@ -425,29 +426,30 @@ async function maybeBot() {
   }
 }
 
-function createGame(size) {
-  if (!preferences.chess960) return new LocalSession(new NestedGame(size));
+function createGame(grid) {
+  const [columns, rows] = grid.split('x').map(Number);
+  if (!preferences.chess960) return new LocalSession(NestedGame.rectangular(columns, rows));
   const randomStart = () => Math.floor(Math.random() * CHESS960_POSITIONS);
   return new LocalSession(preferences.chess960Independent
-    ? NestedGame.chess960_boards(size, Uint16Array.from({ length: size * size }, randomStart))
-    : NestedGame.chess960(size, randomStart()));
+    ? NestedGame.chess960_boards_rectangular(columns, rows, Uint16Array.from({ length: columns * rows }, randomStart))
+    : NestedGame.chess960_rectangular(columns, rows, randomStart()));
 }
 
-function requestNewGame(size, changingSize = false) {
+function requestNewGame(grid, changingSize = false) {
   if (game.kind === 'online') { void onlineControls.show(); return; }
-  if (changingSize && size === state.size) return;
+  if (changingSize && grid === currentGrid()) return;
   if (state.history.length > 0) {
-    resetSize = size;
+    resetGrid = grid;
     $('reset-confirm').showModal();
     return;
   }
-  newGame(size);
+  newGame(grid);
 }
 
-function newGame(size) {
+function newGame(grid) {
   if (game.kind === 'online') { void onlineControls.show(); return; }
   resetOpponent(); clearError(); $('promotion').close(); $('draw-offer').close();
-  game.free(); game = createGame(size); viewing = 0;
+  game.free(); game = createGame(grid); viewing = 0;
   acceptState(game.state());
 }
 
@@ -501,7 +503,7 @@ async function boot() {
   systemAppearance.addEventListener('change', () => { if (preferences.theme === 'system') applyPreferences(); });
   reducedMotion.addEventListener('change', applyPreferences);
   await init();
-  game = createGame(2);
+  game = createGame('2x2');
   LEVELS.forEach((level, index) => $('difficulty').add(new Option(level.label, index)));
   $('difficulty').value = '2';
   try {
@@ -521,14 +523,14 @@ async function boot() {
   setupRouteTouch();
   onlineControls = setupOnline({ enter: enterOnline, current: () => game, leave: leaveOnline, onerror: showError });
   acceptState(game.state());
-  $('grid-options').querySelectorAll('button').forEach(button => { button.onclick = () => requestNewGame(Number(button.dataset.size), true); });
-  $('new-game').onclick = () => requestNewGame(state.size);
+  $('grid-options').querySelectorAll('button').forEach(button => { button.onclick = () => requestNewGame(button.dataset.grid, true); });
+  $('new-game').onclick = () => requestNewGame(state.columns === 8 ? '4x2' : currentGrid());
   $('reset-cancel').onclick = () => $('reset-confirm').close();
-  $('reset-confirm').onclose = () => { resetSize = null; };
+  $('reset-confirm').onclose = () => { resetGrid = null; };
   $('reset-yes').onclick = () => {
-    const size = resetSize;
+    const grid = resetGrid;
     $('reset-confirm').close();
-    if (size !== null) newGame(size);
+    if (grid !== null) newGame(grid);
   };
   $('flip').onclick = () => { flipped = !flipped; renderBoard(); };
   $('undo').onclick = () => {
@@ -575,7 +577,7 @@ async function boot() {
   $('export').onclick = () => {
     if (native) { void shareSave(game.save()).catch(showError); return; }
     const url = URL.createObjectURL(new Blob([game.save()], { type: 'application/json' }));
-    const link = document.createElement('a'); link.href = url; link.download = `nested-${state.size}x${state.size}-ply${state.ply}.json`; link.click(); URL.revokeObjectURL(url);
+    const link = document.createElement('a'); link.href = url; link.download = `nested-${currentGrid()}-ply${state.ply}.json`; link.click(); URL.revokeObjectURL(url);
   };
   $('import').onclick = () => $('import-file').click();
   $('import-file').onchange = async event => {
