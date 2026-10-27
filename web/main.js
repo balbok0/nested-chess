@@ -17,6 +17,8 @@ const STORAGE_KEY = 'nested-chess-v1';
 const SETTINGS_KEY = 'nested-chess-settings';
 const BOT_TURN_MIN_MS = 650;
 const BOT_MOVE_DURATION_MS = 400;
+const ROUTE_HOLD_MS = 450;
+const ROUTE_TOUCH_SLOP_PX = 12;
 const CHESS960_POSITIONS = 960;
 const systemAppearance = window.matchMedia('(prefers-color-scheme: dark)');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -25,6 +27,7 @@ let localGame = null, localMode = 'bot', onlineControls;
 let localFlipped = false;
 let engineError = '';
 let resetSize = null;
+let routePress = null, suppressRouteClick = false;
 let botAnimations = [];
 let preferences = { theme: 'system', evaluations: false, animations: true, chess960: false, chess960Independent: false };
 let analyzer = null, evaluationGeneration = 0, evaluationError = '';
@@ -210,6 +213,7 @@ function renderMacro() {
 }
 
 function renderBoard() {
+  cancelRoutePress();
   const board = state.boards[viewing], container = $('chessboard');
   $('focus-title').textContent = `Board ${boardName(viewing)}`;
   const playable = state.legal_boards.includes(viewing);
@@ -236,9 +240,9 @@ function renderBoard() {
       button.setAttribute('aria-pressed', String(source === square));
       if (piece !== '.') button.innerHTML = `<span class="piece ${colorOf(piece)}-piece" aria-hidden="true">${GLYPHS[piece.toLowerCase()]}</span>`;
       button.onclick = () => clickSquare(square);
-      button.onmouseenter = () => { if (destination) previewRoute(square); };
-      button.onmouseleave = clearRoute;
-      button.onfocus = button.onmouseenter;
+      button.onpointerenter = event => { if (destination && event.pointerType !== 'touch') previewRoute(square); };
+      button.onpointerleave = event => { if (event.pointerType !== 'touch') clearRoute(); };
+      button.onfocus = () => { if (destination && button.matches(':focus-visible')) previewRoute(square); };
       button.onblur = clearRoute;
       container.append(button);
     }
@@ -259,7 +263,48 @@ function previewRoute(square) {
 function clearRoute() {
   document.querySelectorAll('.macro-cell.next').forEach(element => element.classList.remove('next'));
   $('route-title').textContent = source === null ? 'Next board' : `From ${squareName(source)}`;
-  $('route-detail').textContent = source === null ? 'Select a piece to preview the route.' : 'Point to a marked square to preview the next board.';
+  $('route-detail').textContent = source === null ? 'Select a piece to preview the route.' : navigator.maxTouchPoints > 0 ? 'Hold a marked square to preview. Tap to move.' : 'Point to a marked square to preview the next board.';
+}
+
+function cancelRoutePress() {
+  if (!routePress) return;
+  clearTimeout(routePress.timer);
+  routePress.button.classList.remove('route-preview');
+  routePress = null;
+  clearRoute();
+}
+
+function setupRouteTouch() {
+  const board = $('chessboard');
+  board.onpointerdown = event => {
+    cancelRoutePress();
+    suppressRouteClick = false;
+    const button = event.target.closest('.square.legal');
+    if (event.pointerType !== 'touch' || !event.isPrimary || !button) return;
+    button.setPointerCapture(event.pointerId);
+    routePress = { button, pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+    routePress.timer = setTimeout(() => {
+      suppressRouteClick = true;
+      button.classList.add('route-preview');
+      previewRoute(squareIndex(button.dataset.square));
+    }, ROUTE_HOLD_MS);
+  };
+  board.onpointermove = event => {
+    if (!routePress || event.pointerId !== routePress.pointerId) return;
+    if (Math.hypot(event.clientX - routePress.x, event.clientY - routePress.y) > ROUTE_TOUCH_SLOP_PX) {
+      suppressRouteClick = true;
+      cancelRoutePress();
+    }
+  };
+  board.onpointerup = board.onpointercancel = board.onlostpointercapture = cancelRoutePress;
+  board.oncontextmenu = event => { if (event.target.closest('.square')) event.preventDefault(); };
+  board.addEventListener('click', event => {
+    if (suppressRouteClick && event.detail !== 0) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      suppressRouteClick = false;
+    }
+  }, true);
 }
 
 function renderHistory(history, board) {
@@ -463,6 +508,7 @@ async function boot() {
     $('mobile-engine-note').hidden = false;
   }
   localMode = $('mode').value;
+  setupRouteTouch();
   onlineControls = setupOnline({ enter: enterOnline, current: () => game, leave: leaveOnline, onerror: showError });
   acceptState(game.state());
   $('grid-options').querySelectorAll('button').forEach(button => { button.onclick = () => requestNewGame(Number(button.dataset.size), true); });

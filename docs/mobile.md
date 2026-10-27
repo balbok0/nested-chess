@@ -96,6 +96,9 @@ the viewport height; desktop retains its three-column layout. Local new-match
 and grid changes ask before replacing a nonempty saved match. Selecting the
 current grid size leaves it unchanged.
 
+Select a piece, then hold a marked destination to preview the next board. Release
+without moving; a normal tap makes the move. Sliding or scrolling cancels the preview.
+
 ## Build checks
 
 The **Mobile builds** GitHub Actions workflow compiles an Android debug APK and an
