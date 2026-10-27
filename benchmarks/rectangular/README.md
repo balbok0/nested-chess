@@ -5,6 +5,20 @@ in four columns/four rows. It compares Casual vs Strong, Strong vs Maximum, and
 Maximum vs Maximum, with global-vs-local and local-vs-local controls on each grid.
 Each condition has 100 scored games, 50 per color: 1,200 games total.
 
+All 1,200 games completed and passed replay validation. None of the 120 pilots
+required forced openings. The scored phase took 4 hours 48 minutes with 24 workers.
+
+On 4×4, Casual global scored 83.0% against Strong local (95% score bounds:
+63.3–90.9%), versus 4.0% for its local-only control. All three global presets have
+score intervals above 50% there. On 4×2, all three intervals include 50% against
+their opponents. Full win rates, paired score bounds, color scores, depth and cost
+are in `summary.json` and the HTML report.
+
+Casual global completed no depth on 95.2% of 4×4 moves. Its fallback ranks king
+captures highest, then uses the capture/promotion priority. These results therefore
+do not isolate the contribution of negamax; testing that fallback alone is the
+next useful control. The bot/search code was unchanged from the preceding study.
+
 The bots, local board-choice policy, leaf-node limits, time budgets, and 100,000
 global-node cap match the [2×2 protocol](../classical-2x2/README.md). The engine adds
 rectangular routing; it does not change the search or evaluation heuristic.

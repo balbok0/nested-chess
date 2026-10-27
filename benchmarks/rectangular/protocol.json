@@ -1,0 +1,244 @@
+{
+  "grids": [
+    {
+      "columns": 4,
+      "rows": 2
+    },
+    {
+      "columns": 4,
+      "rows": 4
+    }
+  ],
+  "start": "classical",
+  "workers": 24,
+  "pilot_workers": 24,
+  "target_games": 1200,
+  "games_per_pairing": 100,
+  "colors_per_pairing": 50,
+  "pilot_games": 120,
+  "pilot_policy": "Five games per color; force a two-ply classical opening only if both colors repeat all five complete traces. Exclude pilots from scored results.",
+  "conditions": [
+    {
+      "columns": 4,
+      "rows": 2,
+      "family": "global",
+      "a_level": 1,
+      "b_level": 3,
+      "pilot_unique_traces": {
+        "white": 5,
+        "black": 5
+      },
+      "forced_openings": false
+    },
+    {
+      "columns": 4,
+      "rows": 2,
+      "family": "global",
+      "a_level": 3,
+      "b_level": 5,
+      "pilot_unique_traces": {
+        "white": 5,
+        "black": 5
+      },
+      "forced_openings": false
+    },
+    {
+      "columns": 4,
+      "rows": 2,
+      "family": "global",
+      "a_level": 5,
+      "b_level": 5,
+      "pilot_unique_traces": {
+        "white": 5,
+        "black": 5
+      },
+      "forced_openings": false
+    },
+    {
+      "columns": 4,
+      "rows": 2,
+      "family": "local",
+      "a_level": 1,
+      "b_level": 3,
+      "pilot_unique_traces": {
+        "white": 5,
+        "black": 5
+      },
+      "forced_openings": false
+    },
+    {
+      "columns": 4,
+      "rows": 2,
+      "family": "local",
+      "a_level": 3,
+      "b_level": 5,
+      "pilot_unique_traces": {
+        "white": 5,
+        "black": 5
+      },
+      "forced_openings": false
+    },
+    {
+      "columns": 4,
+      "rows": 2,
+      "family": "local",
+      "a_level": 5,
+      "b_level": 5,
+      "pilot_unique_traces": {
+        "white": 5,
+        "black": 5
+      },
+      "forced_openings": false
+    },
+    {
+      "columns": 4,
+      "rows": 4,
+      "family": "global",
+      "a_level": 1,
+      "b_level": 3,
+      "pilot_unique_traces": {
+        "white": 5,
+        "black": 5
+      },
+      "forced_openings": false
+    },
+    {
+      "columns": 4,
+      "rows": 4,
+      "family": "global",
+      "a_level": 3,
+      "b_level": 5,
+      "pilot_unique_traces": {
+        "white": 5,
+        "black": 5
+      },
+      "forced_openings": false
+    },
+    {
+      "columns": 4,
+      "rows": 4,
+      "family": "global",
+      "a_level": 5,
+      "b_level": 5,
+      "pilot_unique_traces": {
+        "white": 5,
+        "black": 5
+      },
+      "forced_openings": false
+    },
+    {
+      "columns": 4,
+      "rows": 4,
+      "family": "local",
+      "a_level": 1,
+      "b_level": 3,
+      "pilot_unique_traces": {
+        "white": 5,
+        "black": 5
+      },
+      "forced_openings": false
+    },
+    {
+      "columns": 4,
+      "rows": 4,
+      "family": "local",
+      "a_level": 3,
+      "b_level": 5,
+      "pilot_unique_traces": {
+        "white": 5,
+        "black": 5
+      },
+      "forced_openings": false
+    },
+    {
+      "columns": 4,
+      "rows": 4,
+      "family": "local",
+      "a_level": 5,
+      "b_level": 5,
+      "pilot_unique_traces": {
+        "white": 5,
+        "black": 5
+      },
+      "forced_openings": false
+    }
+  ],
+  "opening_pools": {},
+  "global_presets": [
+    {
+      "depth": 1,
+      "milliseconds": 300,
+      "analysis_nodes": 32
+    },
+    {
+      "depth": 2,
+      "milliseconds": 600,
+      "analysis_nodes": 64
+    },
+    {
+      "depth": 3,
+      "milliseconds": 1000,
+      "analysis_nodes": 128
+    },
+    {
+      "depth": 4,
+      "milliseconds": 1600,
+      "analysis_nodes": 128
+    },
+    {
+      "depth": 5,
+      "milliseconds": 2400,
+      "analysis_nodes": 256
+    },
+    {
+      "depth": 6,
+      "milliseconds": 4000,
+      "analysis_nodes": 256
+    }
+  ],
+  "local_presets": [
+    {
+      "skill": 0,
+      "milliseconds": 60
+    },
+    {
+      "skill": 2,
+      "milliseconds": 100
+    },
+    {
+      "skill": 5,
+      "milliseconds": 180
+    },
+    {
+      "skill": 10,
+      "milliseconds": 300
+    },
+    {
+      "skill": 15,
+      "milliseconds": 500
+    },
+    {
+      "skill": 20,
+      "milliseconds": 900
+    }
+  ],
+  "global_node_budget": 100000,
+  "local_board_policy": "legal_boards[global_ply % legal_boards.len()]",
+  "build_profile": "release",
+  "started_utc": "2026-10-27T13:41:07Z",
+  "logical_cpus": 32,
+  "benchmark_revision": "f1d4c637a00344dc104d70d28bc2606c26a64432",
+  "binary_sha256": "3b9d10dfc6f81c58233f6c5ed32d54d9eb9dd0609730e43f9cef60fdd114c12b",
+  "search_sha256": "35f714184ebf51ad97a55269fb4c6b868a5ece462b3a6266c889a4ed33e68116",
+  "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "node": "v24.19.0",
+  "fairy_stockfish": {
+    "npm_version": "1.1.12",
+    "source_revision": "b2e693ef1e111233ce3fb40685921708b3276ed6",
+    "threads": 1,
+    "nnue": false
+  },
+  "interval": "95% Bonferroni-Clopper-Pearson bounds on the color-paired outcome distribution, per condition.",
+  "finished_utc": "2026-10-27T18:29:24Z"
+}

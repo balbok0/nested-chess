@@ -12,7 +12,7 @@
     .table-wrap { overflow-x: auto; margin-bottom: 16px; }
     table { width: 100%; border-collapse: collapse; font-size: 14px; }
     th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
-    th { color: var(--muted); font-weight: 600; } td small { display: block; color: var(--muted); margin-top: 4px; }
+    th { color: var(--muted); font-weight: 600; white-space: normal; } td small { display: block; color: var(--muted); margin-top: 4px; }
     footer { margin-top: 32px; }
   </style>
 </head>
@@ -21,6 +21,8 @@
   <h1>4×2 and 4×4 benchmark</h1>
   <p>Global negamax versus local-only Fairy-Stockfish, with matching local-only controls. Four columns in both layouts: eight boards on 4×2, sixteen on 4×4.</p>
   <p id="status" role="status"></p>
+  <p id="conclusion" hidden></p>
+  <p id="search-note" hidden></p>
   <div id="results"></div>
   <h2>Method</h2>
   <p>Each condition has 100 games, split evenly by color. A win earns one point, a draw half a point. Win rate and match score have conservative 95% bounds based on color-swapped pairs.</p>
@@ -35,6 +37,15 @@
   const percent = value => `${(100 * value).toFixed(1)}%`;
   const bounded = (value, interval) => `${percent(value)}<small>${percent(interval.low)}–${percent(interval.high)}</small>`;
   document.getElementById('status').textContent = `${data.completed_games.toLocaleString()} / ${data.target_games.toLocaleString()} scored games complete${data.completed_games === data.target_games ? '.' : ' · Running.'}`;
+  if (data.completed_games === data.target_games) {
+    const casual = data.results.find(result => result.rows === 4 && result.family === 'global' && result.a_level === 1 && result.b_level === 3);
+    const baseline = data.results.find(result => result.rows === 4 && result.family === 'local' && result.a_level === 1 && result.b_level === 3);
+    const above = rows => data.results.filter(result => result.rows === rows && result.family === 'global' && result.score_ci95.low > .5).length;
+    document.getElementById('conclusion').hidden = false;
+    document.getElementById('conclusion').textContent = `On 4×4, Casual global scored ${percent(casual.score_rate)} (${percent(casual.score_ci95.low)}–${percent(casual.score_ci95.high)}, 95% bounds) against Strong local; its local-only control scored ${percent(baseline.score_rate)}. ${above(4)} of 3 global presets have a score lower bound above 50% on 4×4, versus ${above(2)} of 3 on 4×2.`;
+    document.getElementById('search-note').hidden = false;
+    document.getElementById('search-note').textContent = `Casual global completed no search depth on ${percent(casual.a_metrics.fallback_moves / casual.a_metrics.moves)} of its 4×4 moves. In that case it returns the capture-priority fallback, with king captures ranked highest. These results do not isolate the benefit of negamax. The next useful control is that fallback without search.`;
+  }
   for (const rows of [2, 4]) {
     const heading = document.createElement('h2'); heading.textContent = `4 × ${rows}`;
     document.getElementById('results').append(heading);
@@ -43,7 +54,7 @@
       const results = data.results.filter(result => result.columns === 4 && result.rows === rows && result.family === family);
       wrap.innerHTML = `<table><thead><tr><th>${family === 'global' ? 'Global' : 'Local'} vs Local</th><th>Games · W–D–L</th><th>Win rate · 95% bounds</th><th>Match score · 95% bounds</th><th>Depth / fallback</th><th>Engine calls / move</th><th>Row / opponent ms per move</th></tr></thead><tbody>${results.map(result => {
         const a = result.a_metrics, b = result.b_metrics;
-        return `<tr><td>${data.levels[result.a_level]} vs ${data.levels[result.b_level]}</td><td>${result.games} · ${result.wins}–${result.draws}–${result.losses}</td><td>${bounded(result.win_rate, result.win_ci95)}</td><td>${bounded(result.score_rate, result.score_ci95)}</td><td>${family === 'global' ? `${(a.completed_depth_sum / a.moves).toFixed(2)} / ${percent(a.fallback_moves / a.moves)}` : '—'}</td><td>${(a.engine_calls / a.moves).toFixed(1)}</td><td>${(a.elapsed_ms / a.moves).toFixed(0)} / ${(b.elapsed_ms / b.moves).toFixed(0)}</td></tr>`;
+        return `<tr><td>${data.levels[result.a_level]} vs ${data.levels[result.b_level]}</td><td>${result.games} · ${result.wins}–${result.draws}–${result.losses}<small>White ${result.white.score}/${result.white.games} pts · Black ${result.black.score}/${result.black.games} pts</small></td><td>${bounded(result.win_rate, result.win_ci95)}</td><td>${bounded(result.score_rate, result.score_ci95)}</td><td>${family === 'global' ? `${(a.completed_depth_sum / a.moves).toFixed(2)} / ${percent(a.fallback_moves / a.moves)}` : '—'}</td><td>${(a.engine_calls / a.moves).toFixed(1)}</td><td>${(a.elapsed_ms / a.moves).toFixed(0)} / ${(b.elapsed_ms / b.moves).toFixed(0)}</td></tr>`;
       }).join('') || '<tr><td colspan="7">Waiting for completed color pairs.</td></tr>'}</tbody></table>`;
       document.getElementById('results').append(wrap);
     }
