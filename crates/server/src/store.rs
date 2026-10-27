@@ -360,14 +360,14 @@ impl Store {
             "SELECT a.id AS first_id,b.id AS second_id,COALESCE(b.white_id,b.black_id) AS second_user
              FROM games a
              JOIN ratings ra ON ra.user_id=COALESCE(a.white_id,a.black_id) AND ra.pool=$6
-             JOIN games b ON (a.queue_started_ms,a.id)<(b.queue_started_ms,b.id)
+             JOIN games b ON (a.queue_started_ms,a.ordinal)<(b.queue_started_ms,b.ordinal)
              JOIN ratings rb ON rb.user_id=COALESCE(b.white_id,b.black_id) AND rb.pool=$6
              WHERE a.status='waiting' AND a.queue_started_ms IS NOT NULL
                AND b.status='waiting' AND b.queue_started_ms IS NOT NULL
                AND abs(ra.rating-rb.rating)<=LEAST($5,
                  $2+$3*(GREATEST($1-a.queue_started_ms,0)/$4),
                  $2+$3*(GREATEST($1-b.queue_started_ms,0)/$4))
-             ORDER BY a.queue_started_ms,a.id,abs(ra.rating-rb.rating),b.queue_started_ms,b.id
+             ORDER BY a.queue_started_ms,a.ordinal,abs(ra.rating-rb.rating),b.queue_started_ms,b.ordinal
              LIMIT 1 FOR UPDATE OF a,b",
         )
         .bind(now).bind(QUEUE_INITIAL_GAP).bind(QUEUE_GAP_STEP)
@@ -405,13 +405,10 @@ impl Store {
         let clock = clock.into();
         for _ in 0..QUEUE_BATCH {
             let mut tx = self.pool.begin().await?;
-            let locked: bool = sqlx::query_scalar("SELECT pg_try_advisory_xact_lock($1)")
+            sqlx::query("SELECT pg_advisory_xact_lock($1)")
                 .bind(QUEUE_LOCK)
-                .fetch_one(&mut *tx)
+                .execute(&mut *tx)
                 .await?;
-            if !locked {
-                return Ok(());
-            }
             let now = clock.resolve(&mut tx).await?;
             if !Self::match_queue_on(&mut tx, now).await? {
                 return Ok(());
