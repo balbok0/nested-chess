@@ -534,6 +534,210 @@ async fn rated_queue_pairs_registered_players_and_resumes_the_same_match() {
     );
 }
 
+async fn set_rating(url: &str, user: &str, rating: f64) {
+    let pool = sqlx::PgPool::connect(url).await.unwrap();
+    sqlx::query("UPDATE ratings SET rating=$2 WHERE user_id=$1 AND pool=$3")
+        .bind(user)
+        .bind(rating)
+        .bind(RATING_POOL)
+        .execute(&pool)
+        .await
+        .unwrap();
+    pool.close().await;
+}
+
+#[tokio::test]
+async fn matchmaking_obeys_each_widening_boundary_and_the_cap() {
+    for (gap, elapsed, matched) in [
+        (150.0, 0, true),
+        (150.01, 14_999, false),
+        (200.0, 15_000, true),
+        (200.01, 15_000, false),
+        (250.0, 30_000, true),
+        (350.0, 60_000, true),
+        (550.0, 120_000, true),
+        (600.0, 134_999, false),
+        (600.0, 135_000, true),
+        (600.01, 900_000, false),
+    ] {
+        let (url, store) = database().await;
+        let a = registered(&store).await;
+        let b = registered(&store).await;
+        set_rating(&url, &b.id, a.rating + gap).await;
+        let first = store.queue(&a.id, 1000).await.unwrap();
+        store.queue(&b.id, 1000).await.unwrap();
+        store.matchmake(1000 + elapsed).await.unwrap();
+        let actual = store
+            .snapshot(&first.info.id, &a.id, 1000 + elapsed)
+            .await
+            .unwrap();
+        assert_eq!(
+            actual.info.status == "active",
+            matched,
+            "gap={gap}, elapsed={elapsed}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn matchmaking_requires_both_players_to_have_waited_for_the_gap() {
+    let (url, store) = database().await;
+    let a = registered(&store).await;
+    let b = registered(&store).await;
+    set_rating(&url, &b.id, 1700.0).await;
+    let first = store.queue(&a.id, 1000).await.unwrap();
+    let second = store.queue(&b.id, 61_000).await.unwrap();
+    store.matchmake(75_999).await.unwrap();
+    assert_eq!(
+        store.info(&first.info.id, 75_999).await.unwrap().status,
+        "waiting"
+    );
+    store.matchmake(76_000).await.unwrap();
+    assert_eq!(
+        store
+            .snapshot(&second.info.id, &b.id, 76_000)
+            .await
+            .unwrap()
+            .info
+            .id,
+        first.info.id
+    );
+}
+
+#[tokio::test]
+async fn matchmaking_prioritizes_the_oldest_search_then_the_closest_rating() {
+    let (url, store) = database().await;
+    let a = registered(&store).await;
+    let b = registered(&store).await;
+    let c = registered(&store).await;
+    set_rating(&url, &b.id, 1900.0).await;
+    set_rating(&url, &c.id, 1700.0).await;
+    let first = store.queue(&a.id, 1000).await.unwrap();
+    let second = store.queue(&b.id, 1100).await.unwrap();
+    let third = store.queue(&c.id, 1200).await.unwrap();
+    store.matchmake(136_200).await.unwrap();
+    assert_eq!(
+        store
+            .snapshot(&third.info.id, &c.id, 136_200)
+            .await
+            .unwrap()
+            .info
+            .id,
+        first.info.id
+    );
+    assert_eq!(
+        store.info(&second.info.id, 136_200).await.unwrap().status,
+        "waiting"
+    );
+}
+
+#[tokio::test]
+async fn private_rated_invitations_are_not_matched_automatically() {
+    let (_url, store) = database().await;
+    let a = registered(&store).await;
+    let b = registered(&store).await;
+    let invite = store
+        .create(
+            &a.id,
+            CreateGame {
+                rated: true,
+                clock: Some(TimeControl::default()),
+                ..Default::default()
+            },
+            1000,
+        )
+        .await
+        .unwrap();
+    let search = store.queue(&b.id, 1100).await.unwrap();
+    store.matchmake(900_000).await.unwrap();
+    assert_eq!(
+        store.info(&invite.info.id, 900_000).await.unwrap().status,
+        "waiting"
+    );
+    assert_eq!(
+        store.info(&search.info.id, 900_000).await.unwrap().status,
+        "waiting"
+    );
+}
+
+#[tokio::test]
+async fn direct_join_cannot_bypass_a_matchmaking_search() {
+    let (_url, store) = database().await;
+    let a = registered(&store).await;
+    let b = registered(&store).await;
+    let search = store.queue(&a.id, 1000).await.unwrap();
+    assert!(matches!(
+        store.join(&search.info.id, &b.id, 1100).await,
+        Err(Error::Conflict(_))
+    ));
+}
+
+#[tokio::test]
+async fn cancelling_a_search_stops_pairing_and_a_new_search_restarts_the_wait() {
+    let (url, store) = database().await;
+    let a = registered(&store).await;
+    let b = registered(&store).await;
+    set_rating(&url, &b.id, 1700.0).await;
+    let search = store.queue(&a.id, 1000).await.unwrap();
+    store
+        .command(&search.info.id, &a.id, command(0, Action::Resign), 1100)
+        .await
+        .unwrap();
+    store.queue(&b.id, 1200).await.unwrap();
+    store.matchmake(200_000).await.unwrap();
+    assert_eq!(
+        store.info(&search.info.id, 200_000).await.unwrap().status,
+        "cancelled"
+    );
+    let next = store.queue(&a.id, 200_000).await.unwrap();
+    assert_eq!(next.info.status, "waiting");
+    assert_eq!(next.info.queue_started_ms, Some(200_000));
+    assert_ne!(next.info.id, search.info.id);
+}
+
+#[tokio::test]
+async fn restarted_replicas_match_once_and_old_search_links_resume_the_result() {
+    let (url, store) = database().await;
+    let a = registered(&store).await;
+    let b = registered(&store).await;
+    set_rating(&url, &b.id, 1700.0).await;
+    let first = store.queue(&a.id, 1000).await.unwrap();
+    let second = store.queue(&b.id, 1100).await.unwrap();
+    assert_eq!(
+        store
+            .queue(&b.id, 15_000)
+            .await
+            .unwrap()
+            .info
+            .queue_started_ms,
+        Some(1100)
+    );
+    drop(store);
+    let store = Store::connect(&url).await.unwrap();
+    let other = Store::connect(&url).await.unwrap();
+    let (a_result, b_result) = tokio::join!(store.matchmake(16_100), other.matchmake(16_100));
+    a_result.unwrap();
+    b_result.unwrap();
+    let actual = other
+        .snapshot(&second.info.id, &b.id, 16_200)
+        .await
+        .unwrap();
+    assert_eq!(actual.info.id, first.info.id);
+    assert_eq!(actual.info.status, "active");
+    assert_eq!(
+        store.events_after(&first.info.id, 0).await.unwrap().len(),
+        1
+    );
+    assert_eq!(
+        store.events_after(&second.info.id, 0).await.unwrap().len(),
+        1
+    );
+    assert!(matches!(
+        store.snapshot(&second.info.id, &a.id, 16_200).await,
+        Err(Error::Forbidden(_))
+    ));
+}
+
 #[tokio::test]
 async fn provider_sign_in_upgrades_the_existing_guest_account() {
     let (_dir, store) = database().await;

@@ -71,6 +71,14 @@ uses K=32, and marks the first 20 games provisional. The rating unit is permanen
 the whole match: local boards never receive independent ratings. Both players'
 updates and the final result commit in one transaction.
 
+Find rated opponent starts within ±150 Elo, expands by 50 every 15 seconds, and
+caps at ±600 after 135 seconds. Both players' current ranges must allow the match.
+The oldest eligible search has priority, then the closest rating. A PostgreSQL
+coordinated worker checks once per second; searches survive restarts, and retrying
+does not reset the wait. Private invitations are excluded from the queue and keep
+their explicit join flow. Cancel search stops automatic pairing. An earlier search
+link resolves to the resulting match after pairing.
+
 Online clocks use PostgreSQL time and durable deadlines. Disconnects and app
 restarts keep clocks running, including when every app process is down. On recovery,
 workers settle expired matches once. Imported timed SQLite matches are paused

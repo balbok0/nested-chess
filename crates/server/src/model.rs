@@ -78,6 +78,7 @@ pub enum EventAction {
     Paused,
     Ready { color: Color },
     Cancelled,
+    Matched { game_id: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -101,6 +102,10 @@ pub struct MatchInfo {
     pub ready_black: bool,
     pub created_ms: i64,
     pub server_ms: i64,
+    #[serde(default)]
+    pub queue_started_ms: Option<i64>,
+    #[serde(default)]
+    pub matched_id: Option<String>,
 }
 
 impl MatchInfo {

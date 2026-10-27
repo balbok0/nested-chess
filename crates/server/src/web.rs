@@ -75,7 +75,10 @@ impl App {
             loop {
                 tokio::select! {
                     _=stopped.changed()=>break,
-                    _=interval.tick()=>if let Err(error)=app.store.tick(Clock::Database).await {tracing::error!(%error,"clock update failed");}
+                    _=interval.tick()=>{
+                        if let Err(error)=app.store.tick(Clock::Database).await {tracing::error!(%error,"clock update failed");}
+                        if let Err(error)=app.store.matchmake(Clock::Database).await {tracing::error!(%error,"matchmaking update failed");}
+                    }
                 }
             }
         });

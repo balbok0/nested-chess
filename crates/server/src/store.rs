@@ -10,6 +10,12 @@ use uuid::Uuid;
 
 pub const MATCH_CHANNEL: &str = "nested_matches";
 const CLOCK_BATCH: i64 = 64;
+const QUEUE_LOCK: i64 = 74102501;
+const QUEUE_INITIAL_GAP: i64 = 150;
+const QUEUE_GAP_STEP: i64 = 50;
+const QUEUE_STEP_MS: i64 = 15_000;
+const QUEUE_MAX_GAP: i64 = 600;
+const QUEUE_BATCH: i64 = 64;
 
 #[derive(Clone)]
 pub struct Store {
@@ -316,7 +322,8 @@ impl Store {
     }
     pub async fn queue(&self, user: &str, clock: impl Into<Clock>) -> Result<Snapshot> {
         let mut tx = self.pool.begin().await?;
-        sqlx::query("SELECT pg_advisory_xact_lock(74102501)")
+        sqlx::query("SELECT pg_advisory_xact_lock($1)")
+            .bind(QUEUE_LOCK)
             .execute(&mut *tx)
             .await?;
         Self::lock_user(&mut tx, user).await?;
@@ -327,32 +334,103 @@ impl Store {
         if let Some(id)=sqlx::query_scalar::<_,String>("SELECT id FROM games WHERE rated AND (white_id=$1 OR black_id=$1) AND status IN ('waiting','active','paused') LIMIT 1").bind(user).fetch_optional(&mut *tx).await? {
             let result=Self::snapshot_on(&mut tx,&id,user,now).await?;tx.commit().await?;return Ok(result);
         }
-        let id:Option<String>=sqlx::query_scalar("SELECT id FROM games WHERE rated AND status='waiting' AND COALESCE(white_id,black_id)!=$1 ORDER BY created_ms,id LIMIT 1 FOR UPDATE").bind(user).fetch_optional(&mut *tx).await?;
-        let id = if let Some(id) = id {
-            Self::join_on(&mut tx, &id, user, now).await?;
-            id
-        } else {
-            Self::create_on(
-                &mut tx,
-                user,
-                CreateGame {
-                    rated: true,
-                    clock: Some(TimeControl::default()),
-                    ..Default::default()
-                },
-                now,
-            )
-            .await?
-        };
+        let id = Self::create_on(
+            &mut tx,
+            user,
+            CreateGame {
+                rated: true,
+                clock: Some(TimeControl::default()),
+                ..Default::default()
+            },
+            now,
+        )
+        .await?;
+        sqlx::query("UPDATE games SET queue_started_ms=$2 WHERE id=$1")
+            .bind(&id)
+            .bind(now)
+            .execute(&mut *tx)
+            .await?;
+        Self::match_queue_on(&mut tx, now).await?;
         let result = Self::snapshot_on(&mut tx, &id, user, now).await?;
         tx.commit().await?;
         Ok(result)
+    }
+    async fn match_queue_on(db: &mut PgConnection, now: i64) -> Result<bool> {
+        let pair = sqlx::query(
+            "SELECT a.id AS first_id,b.id AS second_id,COALESCE(b.white_id,b.black_id) AS second_user
+             FROM games a
+             JOIN ratings ra ON ra.user_id=COALESCE(a.white_id,a.black_id) AND ra.pool=$6
+             JOIN games b ON (a.queue_started_ms,a.id)<(b.queue_started_ms,b.id)
+             JOIN ratings rb ON rb.user_id=COALESCE(b.white_id,b.black_id) AND rb.pool=$6
+             WHERE a.status='waiting' AND a.queue_started_ms IS NOT NULL
+               AND b.status='waiting' AND b.queue_started_ms IS NOT NULL
+               AND abs(ra.rating-rb.rating)<=LEAST($5,
+                 $2+$3*(GREATEST($1-a.queue_started_ms,0)/$4),
+                 $2+$3*(GREATEST($1-b.queue_started_ms,0)/$4))
+             ORDER BY a.queue_started_ms,a.id,abs(ra.rating-rb.rating),b.queue_started_ms,b.id
+             LIMIT 1 FOR UPDATE OF a,b",
+        )
+        .bind(now).bind(QUEUE_INITIAL_GAP).bind(QUEUE_GAP_STEP)
+        .bind(QUEUE_STEP_MS).bind(QUEUE_MAX_GAP).bind(RATING_POOL)
+        .fetch_optional(&mut *db).await?;
+        let Some(pair) = pair else {
+            return Ok(false);
+        };
+        let first: String = pair.try_get("first_id")?;
+        let second: String = pair.try_get("second_id")?;
+        let user: String = pair.try_get("second_user")?;
+        let mut info = Self::info_on(db, &second, now).await?;
+        info.status = "cancelled".into();
+        info.matched_id = Some(first.clone());
+        sqlx::query("UPDATE games SET matched_id=$2 WHERE id=$1")
+            .bind(&second)
+            .bind(&first)
+            .execute(&mut *db)
+            .await?;
+        Self::persist(
+            db,
+            info,
+            EventAction::Matched {
+                game_id: first.clone(),
+            },
+            None,
+            None,
+            None,
+        )
+        .await?;
+        Self::join_on(db, &first, &user, now).await?;
+        Ok(true)
+    }
+    pub async fn matchmake(&self, clock: impl Into<Clock>) -> Result<()> {
+        let clock = clock.into();
+        for _ in 0..QUEUE_BATCH {
+            let mut tx = self.pool.begin().await?;
+            let locked: bool = sqlx::query_scalar("SELECT pg_try_advisory_xact_lock($1)")
+                .bind(QUEUE_LOCK)
+                .fetch_one(&mut *tx)
+                .await?;
+            if !locked {
+                return Ok(());
+            }
+            let now = clock.resolve(&mut tx).await?;
+            if !Self::match_queue_on(&mut tx, now).await? {
+                return Ok(());
+            }
+            tx.commit().await?;
+        }
+        Ok(())
     }
     pub async fn join(&self, id: &str, user: &str, clock: impl Into<Clock>) -> Result<Snapshot> {
         let mut tx = self.pool.begin().await?;
         Self::lock_user(&mut tx, user).await?;
         Self::lock_game(&mut tx, id).await?;
         let now = clock.into().resolve(&mut tx).await?;
+        let info = Self::info_on(&mut tx, id, now).await?;
+        if info.queue_started_ms.is_some() && info.seat(user).is_none() {
+            return Err(Error::Conflict(
+                "This match uses automatic matchmaking.".into(),
+            ));
+        }
         Self::join_on(&mut tx, id, user, now).await?;
         let result = Self::snapshot_on(&mut tx, id, user, now).await?;
         tx.commit().await?;
@@ -390,7 +468,7 @@ impl Store {
         Ok(())
     }
     pub(crate) async fn info_on(db: &mut PgConnection, id: &str, now: i64) -> Result<MatchInfo> {
-        let r=sqlx::query("SELECT id,seq,status,white_id,black_id,rated,size,layout,result,reason,white_ms,black_ms,increment_ms,running_since_ms,turn,ready_white,ready_black,created_ms FROM games WHERE id=$1").bind(id).fetch_optional(&mut *db).await?.ok_or(Error::NotFound)?;
+        let r=sqlx::query("SELECT id,seq,status,white_id,black_id,rated,size,layout,result,reason,white_ms,black_ms,increment_ms,running_since_ms,turn,ready_white,ready_black,created_ms,queue_started_ms,matched_id FROM games WHERE id=$1").bind(id).fetch_optional(&mut *db).await?.ok_or(Error::NotFound)?;
         let player = |row: &PgRow, key: &str| row.try_get::<Option<String>, _>(key);
         let white = match player(&r, "white_id")? {
             Some(id) => Some(Self::user_on(db, &id).await?),
@@ -426,6 +504,8 @@ impl Store {
             ready_black: r.try_get("ready_black")?,
             created_ms: r.try_get("created_ms")?,
             server_ms: now,
+            queue_started_ms: r.try_get("queue_started_ms")?,
+            matched_id: r.try_get("matched_id")?,
         })
     }
     pub async fn info(&self, id: &str, clock: impl Into<Clock>) -> Result<MatchInfo> {
@@ -447,11 +527,19 @@ impl Store {
         user: &str,
         now: i64,
     ) -> Result<Snapshot> {
-        let info = Self::info_on(db, id, now).await?;
+        let mut info = Self::info_on(db, id, now).await?;
+        if info.seat(user).is_none() {
+            return Err(Error::Forbidden(
+                "Join this match before viewing it.".into(),
+            ));
+        }
+        if let Some(target) = &info.matched_id {
+            info = Self::info_on(db, target, now).await?;
+        }
         let seat = info
             .seat(user)
             .ok_or_else(|| Error::Forbidden("Join this match before viewing it.".into()))?;
-        let game = Self::load(db, id).await?;
+        let game = Self::load(db, &info.id).await?;
         Ok(Snapshot {
             info,
             seat,
