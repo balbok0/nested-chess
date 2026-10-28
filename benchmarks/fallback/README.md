@@ -37,3 +37,13 @@ uv run --no-project --with psutil python -m scripts.run_rectangular_benchmark \
 
 The runner journals games and resumes with the same binary and concurrency.
 The final HTML comparison is `claude/20261028_fallback-benchmark/report.html`.
+
+Validate every replay and fallback choice, then verify the complete sample:
+
+```sh
+cargo run --release -p nested-chess --example verify_fallback -- \
+  scratch/claude/20261028_fallback-only/run/results.jsonl
+uv run --no-project python claude/20261028_fallback-benchmark/validate.py \
+  scratch/claude/20261028_fallback-only/run target/release/examples/benchmark
+uv run --no-project python claude/20261028_fallback-benchmark/report.py
+```
