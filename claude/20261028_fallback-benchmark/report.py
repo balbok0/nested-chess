@@ -65,6 +65,13 @@ def export() -> None:
               {result['draws']} draws, {result['losses']} losses), with 95% score bounds
               {percent(result['score_ci95']['low'])}–{percent(result['score_ci95']['high'])}.
               Casual global scored {percent(reference['score_rate'])} in the earlier run.</p>""")
+    if data["completed_games"] == data["target_games"]:
+        conclusions.append("""<p>The simple heuristic reproduces most of Casual global’s observed
+          4×4 score. This does not establish equivalence. Against Maximum local on 4×4,
+          fallback scored 66.0%, compared with 90.5% for Strong global and 87.5% for Maximum
+          global in the earlier run. Those point estimates favor more search, but these
+          separate runs do not isolate its causal contribution. On 4×2, fallback scored
+          26.5% against Strong and 17.0% against Maximum; both score upper bounds are below 50%.</p>""")
     OUTPUT.write_text(f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Fallback-only control · Nested chess</title><style>

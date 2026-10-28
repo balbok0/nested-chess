@@ -1,0 +1,325 @@
+{
+  "protocol": {
+    "grids": [
+      {
+        "columns": 4,
+        "rows": 2
+      },
+      {
+        "columns": 4,
+        "rows": 4
+      }
+    ],
+    "start": "classical",
+    "workers": 24,
+    "pilot_workers": 24,
+    "target_games": 400,
+    "games_per_pairing": 100,
+    "colors_per_pairing": 50,
+    "pilot_games": 40,
+    "pilot_policy": "Five games per color; force a two-ply classical opening only if both colors repeat all five complete traces. Exclude pilots from scored results.",
+    "conditions": [
+      {
+        "columns": 4,
+        "rows": 2,
+        "family": "fallback",
+        "a_level": 0,
+        "b_level": 3,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "columns": 4,
+        "rows": 2,
+        "family": "fallback",
+        "a_level": 0,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "columns": 4,
+        "rows": 4,
+        "family": "fallback",
+        "a_level": 0,
+        "b_level": 3,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "columns": 4,
+        "rows": 4,
+        "family": "fallback",
+        "a_level": 0,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      }
+    ],
+    "opening_pools": {},
+    "policy": "fallback-only",
+    "global_presets": null,
+    "local_presets": [
+      {
+        "skill": 0,
+        "milliseconds": 60
+      },
+      {
+        "skill": 2,
+        "milliseconds": 100
+      },
+      {
+        "skill": 5,
+        "milliseconds": 180
+      },
+      {
+        "skill": 10,
+        "milliseconds": 300
+      },
+      {
+        "skill": 15,
+        "milliseconds": 500
+      },
+      {
+        "skill": 20,
+        "milliseconds": 900
+      }
+    ],
+    "global_node_budget": null,
+    "local_board_policy": "legal_boards[global_ply % legal_boards.len()]",
+    "build_profile": "release",
+    "started_utc": "2026-10-28T18:32:54Z",
+    "logical_cpus": 32,
+    "benchmark_revision": "83004700890b975ad825841094bc39e4020966b0",
+    "binary_sha256": "acf7f2efbb5490ae27f3461a5284159987621eb816dc888db2f5826ba0c58593",
+    "search_sha256": "0051c5e276e57b6453dea109a8a3eaeea61bb9e66bff8d562c225bf50c8e678d",
+    "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "node": "v24.19.0",
+    "fairy_stockfish": {
+      "npm_version": "1.1.12",
+      "source_revision": "b2e693ef1e111233ce3fb40685921708b3276ed6",
+      "threads": 1,
+      "nnue": false
+    },
+    "interval": "95% Bonferroni-Clopper-Pearson bounds on the color-paired outcome distribution, per condition.",
+    "fallback_policy": "Exact search::fallback_move: captured-piece value \u00d7 10 + promotion value; stable legal-action ties. King=1000, queen=9, rook=5, bishop/knight=3, pawn=1. No search or engine calls; a_level=0 is an ignored manifest placeholder, not a difficulty.",
+    "reference_revision": "ad8aff7",
+    "finished_utc": "2026-10-28T18:58:56Z"
+  },
+  "levels": [
+    "Beginner",
+    "Casual",
+    "Club",
+    "Strong",
+    "Expert",
+    "Maximum"
+  ],
+  "completed_games": 400,
+  "target_games": 400,
+  "results": [
+    {
+      "columns": 4,
+      "rows": 2,
+      "family": "fallback",
+      "a_level": 0,
+      "b_level": 3,
+      "games": 100,
+      "pairs": 50,
+      "wins": 11,
+      "draws": 31,
+      "losses": 58,
+      "win_rate": 0.11,
+      "score_rate": 0.265,
+      "win_ci95": {
+        "low": 0.04242493101572357,
+        "high": 0.24839041327578443
+      },
+      "score_ci95": {
+        "low": 0.15158832533636293,
+        "high": 0.4768990915700752
+      },
+      "white": {
+        "games": 50,
+        "score": 6.5
+      },
+      "black": {
+        "games": 50,
+        "score": 20.0
+      },
+      "mean_plies": 222.46,
+      "a_metrics": {
+        "moves": 11104,
+        "elapsed_ms": 110.664074,
+        "engine_calls": 0,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 11104
+      },
+      "b_metrics": {
+        "moves": 11142,
+        "elapsed_ms": 3329820.590011,
+        "engine_calls": 11142
+      }
+    },
+    {
+      "columns": 4,
+      "rows": 2,
+      "family": "fallback",
+      "a_level": 0,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 5,
+      "draws": 24,
+      "losses": 71,
+      "win_rate": 0.05,
+      "score_rate": 0.17,
+      "win_ci95": {
+        "low": 0.012575071883593174,
+        "high": 0.1686456256079365
+      },
+      "score_ci95": {
+        "low": 0.09364428982302508,
+        "high": 0.3837839400456546
+      },
+      "white": {
+        "games": 50,
+        "score": 3.0
+      },
+      "black": {
+        "games": 50,
+        "score": 14.0
+      },
+      "mean_plies": 208.99,
+      "a_metrics": {
+        "moves": 10427,
+        "elapsed_ms": 105.59016700000001,
+        "engine_calls": 0,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 10427
+      },
+      "b_metrics": {
+        "moves": 10472,
+        "elapsed_ms": 8936058.92227,
+        "engine_calls": 10472
+      }
+    },
+    {
+      "columns": 4,
+      "rows": 4,
+      "family": "fallback",
+      "a_level": 0,
+      "b_level": 3,
+      "games": 100,
+      "pairs": 50,
+      "wins": 75,
+      "draws": 10,
+      "losses": 15,
+      "win_rate": 0.75,
+      "score_rate": 0.8,
+      "win_ci95": {
+        "low": 0.6178785581135507,
+        "high": 0.8364670971513599
+      },
+      "score_ci95": {
+        "low": 0.6020075708133563,
+        "high": 0.8838421704126191
+      },
+      "white": {
+        "games": 50,
+        "score": 30.0
+      },
+      "black": {
+        "games": 50,
+        "score": 50.0
+      },
+      "mean_plies": 361.16,
+      "a_metrics": {
+        "moves": 18069,
+        "elapsed_ms": 367.303097,
+        "engine_calls": 0,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 18069
+      },
+      "b_metrics": {
+        "moves": 18047,
+        "elapsed_ms": 5456129.480410001,
+        "engine_calls": 18047
+      }
+    },
+    {
+      "columns": 4,
+      "rows": 4,
+      "family": "fallback",
+      "a_level": 0,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 56,
+      "draws": 20,
+      "losses": 24,
+      "win_rate": 0.56,
+      "score_rate": 0.66,
+      "win_ci95": {
+        "low": 0.4400463361173836,
+        "high": 0.6680777200630521
+      },
+      "score_ci95": {
+        "low": 0.48513718730458305,
+        "high": 0.7603873682991524
+      },
+      "white": {
+        "games": 50,
+        "score": 18.5
+      },
+      "black": {
+        "games": 50,
+        "score": 47.5
+      },
+      "mean_plies": 363.82,
+      "a_metrics": {
+        "moves": 18193,
+        "elapsed_ms": 372.318656,
+        "engine_calls": 0,
+        "search_nodes": 0,
+        "cutoffs": 0,
+        "cache_hits": 0,
+        "completed_depth_sum": 0,
+        "fallback_moves": 18193
+      },
+      "b_metrics": {
+        "moves": 18189,
+        "elapsed_ms": 15828870.478961,
+        "engine_calls": 18189
+      }
+    }
+  ],
+  "resources": {
+    "samples": 305,
+    "peak_system_cpu_percent": 94.2,
+    "mean_system_cpu_percent": 80.64196721311475,
+    "peak_system_memory_percent": 23.6,
+    "peak_benchmark_rss_bytes": 8100663296
+  }
+}
