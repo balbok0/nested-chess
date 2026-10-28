@@ -167,6 +167,17 @@ struct Search<'a, E> {
     result: SearchResult,
 }
 
+/// Return the capture/promotion-priority move used before any search depth completes.
+pub fn fallback_move(game: &Game) -> Result<SearchMove, SearchError> {
+    if game.outcome() != Outcome::Ongoing {
+        return Err(Error::Finished.into());
+    }
+    legal_actions(game)
+        .into_iter()
+        .next()
+        .ok_or_else(|| Error::Finished.into())
+}
+
 /// Search all legal global moves within the supplied depth, node, and time limits.
 pub async fn best_move<E: Evaluator>(
     game: &Game,
@@ -180,13 +191,7 @@ pub async fn best_move<E: Evaluator>(
     {
         return Err(SearchError::InvalidLimits);
     }
-    if game.outcome() != Outcome::Ongoing {
-        return Err(Error::Finished.into());
-    }
-    let first = legal_actions(game)
-        .into_iter()
-        .next()
-        .ok_or(Error::Finished)?;
+    let first = fallback_move(game)?;
     let mut search = Search {
         oracle,
         cache: HashMap::new(),

@@ -62,3 +62,17 @@ def test_rectangular_jobs_have_balanced_conditions(pairs, expected_count):
             for a, b in ((1, 3), (3, 5), (5, 5)):
                 for color in ("white", "black"):
                     assert sum((job["columns"], job["rows"], job["family"], job["a_level"], job["b_level"], job["a_color"]) == (columns, rows, family, a, b, color) for job in actual) == pairs
+
+
+@pytest.mark.parametrize("pairs,expected_count", [
+    pytest.param(5, 40, id="ten_fallback_pilots_per_condition"),
+    pytest.param(50, 400, id="hundred_fallback_games_per_condition"),
+])
+def test_fallback_jobs_have_four_balanced_conditions(pairs, expected_count):
+    actual = jobs(pairs, "test", fallback=True)
+    assert len(actual) == expected_count
+    assert len({job["id"] for job in actual}) == expected_count
+    for rows in (2, 4):
+        for opponent in (3, 5):
+            for color in ("white", "black"):
+                assert sum((job["columns"], job["rows"], job["family"], job["a_level"], job["b_level"], job["a_color"]) == (4, rows, "fallback", 0, opponent, color) for job in actual) == pairs

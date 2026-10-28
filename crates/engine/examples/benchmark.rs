@@ -1,4 +1,8 @@
-use nested_chess::{Color, Game, Outcome, search::SearchLimits, uci::UciEngine};
+use nested_chess::{
+    Color, Game, Outcome,
+    search::{SearchLimits, fallback_move},
+    uci::UciEngine,
+};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
@@ -89,14 +93,21 @@ fn engine(root: &Path) -> Result<UciEngine, Box<dyn std::error::Error>> {
 fn play(job: Job) -> Result<Record, Box<dyn std::error::Error>> {
     if job.a_level > job.b_level
         || job.b_level >= 6
-        || !matches!(job.family.as_str(), "global" | "local")
+        || !matches!(job.family.as_str(), "global" | "local" | "fallback")
+        || (job.family == "fallback" && job.a_level != 0)
     {
         return Err("invalid benchmark pairing".into());
     }
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let mut a_engine = engine(&root)?;
+    let mut a_engine = if job.family == "fallback" {
+        None
+    } else {
+        Some(engine(&root)?)
+    };
     let mut b_engine = engine(&root)?;
-    a_engine.set_analysis_nodes(GLOBAL_NODES[job.a_level])?;
+    if let Some(engine) = &mut a_engine {
+        engine.set_analysis_nodes(GLOBAL_NODES[job.a_level])?;
+    }
     let mut game = match &job.initial_fens {
         Some(fens) => Game::from_fens_rectangular(job.columns, job.rows, Color::White, fens)?,
         None => Game::rectangular(job.columns, job.rows)?,
@@ -113,21 +124,29 @@ fn play(job: Job) -> Result<Record, Box<dyn std::error::Error>> {
     let mut plies = job.opening.len();
     while game.outcome() == Outcome::Ongoing {
         let is_a = game.turn() == job.a_color;
-        let (engine, metrics, level) = if is_a {
-            (&mut a_engine, &mut a, job.a_level)
+        let (metrics, level) = if is_a {
+            (&mut a, job.a_level)
         } else {
-            (&mut b_engine, &mut b, job.b_level)
+            (&mut b, job.b_level)
         };
         let move_started = Instant::now();
-        let (board, mv) = if is_a && job.family == "global" {
-            let result = engine.search(
-                &game,
-                SearchLimits {
-                    max_depth: (level + 1) as u8,
-                    max_nodes: 100000,
-                    milliseconds: GLOBAL_MS[level],
-                },
-            )?;
+        let (board, mv) = if is_a && job.family == "fallback" {
+            let action = fallback_move(&game)?;
+            metrics.fallback_moves += 1;
+            metrics.depth_histogram[0] += 1;
+            (action.board, action.uci)
+        } else if is_a && job.family == "global" {
+            let result = a_engine
+                .as_mut()
+                .expect("global policy has an engine")
+                .search(
+                    &game,
+                    SearchLimits {
+                        max_depth: (level + 1) as u8,
+                        max_nodes: 100000,
+                        milliseconds: GLOBAL_MS[level],
+                    },
+                )?;
             metrics.engine_calls += result.evaluations;
             metrics.search_nodes += result.nodes;
             metrics.cutoffs += result.cutoffs;
@@ -137,6 +156,11 @@ fn play(job: Job) -> Result<Record, Box<dyn std::error::Error>> {
             metrics.fallback_moves += u64::from(result.completed_depth == 0);
             (result.best_move.board, result.best_move.uci)
         } else {
+            let engine = if is_a {
+                a_engine.as_mut().expect("local policy has an engine")
+            } else {
+                &mut b_engine
+            };
             let boards = game.legal_boards();
             let board = boards[plies % boards.len()];
             let mv = engine.best_move(&game, board, LOCAL_SKILL[level], LOCAL_MS[level])?;

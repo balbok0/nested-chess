@@ -28,14 +28,16 @@ def utc() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
-def jobs(pairs: int, phase: str) -> list[dict]:
+def jobs(pairs: int, phase: str, *, fallback: bool = False) -> list[dict]:
     """Return balanced jobs for the targeted policy comparisons."""
     return [
         {"id": f"{phase}-{columns}x{rows}-{family}-{a}-{b}-{pair}-{color}",
          "columns": columns, "rows": rows, "family": family, "a_level": a,
          "b_level": b, "pair": pair, "a_color": color, "opening": []}
-        for pair in range(pairs) for columns, rows in GRIDS for family in FAMILIES
-        for a, b in PAIRINGS for color in ("white", "black")
+        for pair in range(pairs) for columns, rows in GRIDS
+        for family in (("fallback",) if fallback else FAMILIES)
+        for a, b in (((0, 3), (0, 5)) if fallback else PAIRINGS)
+        for color in ("white", "black")
     ]
 
 
@@ -44,10 +46,10 @@ def condition(job: dict) -> tuple:
     return job["columns"], job["rows"], job["family"], job["a_level"], job["b_level"]
 
 
-def prepare(directory: Path, binary: Path, workers: int) -> None:
+def prepare(directory: Path, binary: Path, workers: int, *, fallback: bool = False) -> None:
     """Prepare scored jobs after the determinism pilots finish."""
     pilot = read_records(directory / "pilot-results.jsonl")
-    if len(pilot) != len(jobs(PILOT_PAIRS, "pilot")):
+    if len(pilot) != len(jobs(PILOT_PAIRS, "pilot", fallback=fallback)):
         raise ValueError("pilot sample is incomplete")
     groups = defaultdict(list)
     for row in pilot:
@@ -71,7 +73,7 @@ def prepare(directory: Path, binary: Path, workers: int) -> None:
         if decisions[key] and grid not in openings:
             openings[grid] = json.loads(subprocess.check_output(
                 ["node", "scripts/benchmark-openings.mjs", str(columns), str(rows)], text=True))
-    scored = jobs(SCORED_PAIRS, "main")
+    scored = jobs(SCORED_PAIRS, "main", fallback=fallback)
     for job in scored:
         if decisions[condition(job)]:
             job["opening"] = openings[f"{job['columns']}x{job['rows']}"]["openings"][job["pair"]]
@@ -82,7 +84,9 @@ def prepare(directory: Path, binary: Path, workers: int) -> None:
         "target_games": len(scored), "games_per_pairing": 100, "colors_per_pairing": 50,
         "pilot_games": len(pilot), "pilot_policy": "Five games per color; force a two-ply classical opening only if both colors repeat all five complete traces. Exclude pilots from scored results.",
         "conditions": conditions, "opening_pools": openings,
-        "global_presets": GLOBAL, "local_presets": LOCAL, "global_node_budget": 100000,
+        "policy": "fallback-only" if fallback else "global-and-local",
+        "global_presets": None if fallback else GLOBAL, "local_presets": LOCAL,
+        "global_node_budget": None if fallback else 100000,
         "local_board_policy": "legal_boards[global_ply % legal_boards.len()]",
         "build_profile": "release", "started_utc": utc(), "logical_cpus": os.cpu_count(),
         "benchmark_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
@@ -94,40 +98,47 @@ def prepare(directory: Path, binary: Path, workers: int) -> None:
         "fairy_stockfish": {"npm_version": "1.1.12", "source_revision": "b2e693ef1e111233ce3fb40685921708b3276ed6", "threads": 1, "nnue": False},
         "interval": "95% Bonferroni-Clopper-Pearson bounds on the color-paired outcome distribution, per condition.",
     }
+    if fallback:
+        protocol["fallback_policy"] = "Exact search::fallback_move: captured-piece value × 10 + promotion value; stable legal-action ties. King=1000, queen=9, rook=5, bishop/knight=3, pawn=1. No search or engine calls; a_level=0 is an ignored manifest placeholder, not a difficulty."
+        protocol["reference_revision"] = "ad8aff7"
     (directory / "protocol.json").write_text(f"{json.dumps(protocol, indent=2)}\n")
 
 
-def run(directory: Path, binary: Path, workers: int) -> None:
+def run(directory: Path, binary: Path, workers: int, *, fallback: bool = False) -> None:
     """Run resumable pilots and scored games, then archive complete results."""
     directory.mkdir(parents=True, exist_ok=True)
+    output = Path("web/fallback-benchmark-results.json") if fallback else OUTPUT
+    archive = Path("benchmarks/fallback") if fallback else ARCHIVE
     monitor = subprocess.Popen([sys.executable, "scripts/monitor-benchmark.py", str(directory / "resources.jsonl"), str(directory)])
     try:
         if not (directory / "protocol.json").exists():
             manifest = directory / "pilot-jobs.json"
-            manifest.write_text(f"{json.dumps(jobs(PILOT_PAIRS, 'pilot'))}\n")
+            manifest.write_text(f"{json.dumps(jobs(PILOT_PAIRS, 'pilot', fallback=fallback))}\n")
             with (directory / "pilot.log").open("a") as log:
                 subprocess.run([str(binary), str(manifest), str(directory / "pilot-results.jsonl"), str(workers)], stdout=log, stderr=log, check=True)
-            prepare(directory, binary, workers)
+            prepare(directory, binary, workers, fallback=fallback)
         protocol = json.loads((directory / "protocol.json").read_text())
+        if protocol.get("policy", "global-and-local") != ("fallback-only" if fallback else "global-and-local"):
+            raise ValueError("resume requires the same policy")
         if protocol["workers"] != workers or protocol["binary_sha256"] != hashlib.sha256(binary.read_bytes()).hexdigest():
             raise ValueError("resume requires the same release binary and concurrency")
         with (directory / "run.log").open("a") as log:
             process = subprocess.Popen([str(binary), str(directory / "jobs.json"), str(directory / "results.jsonl"), str(workers)], stdout=log, stderr=log)
             while process.poll() is None:
-                write_report(directory, OUTPUT, None)
+                write_report(directory, output, None)
                 time.sleep(60)
         if process.returncode != 0:
             raise RuntimeError(f"benchmark exited {process.returncode}; see run.log")
         records = read_records(directory / "results.jsonl")
-        expected = {job["id"] for job in jobs(SCORED_PAIRS, "main")}
+        expected = {job["id"] for job in jobs(SCORED_PAIRS, "main", fallback=fallback)}
         if {record["job"]["id"] for record in records} != expected or len(records) != len(expected):
             raise ValueError("scored sample is incomplete or duplicated")
         protocol["finished_utc"] = utc()
         (directory / "protocol.json").write_text(f"{json.dumps(protocol, indent=2)}\n")
-        write_report(directory, OUTPUT, ARCHIVE)
-        (ARCHIVE / "protocol.json").write_text(f"{json.dumps(protocol, indent=2)}\n")
-        (ARCHIVE / "summary.json").write_text(OUTPUT.read_text())
-        print(f"Completed {len(records)} games: {OUTPUT}", flush=True)
+        write_report(directory, output, archive)
+        (archive / "protocol.json").write_text(f"{json.dumps(protocol, indent=2)}\n")
+        (archive / "summary.json").write_text(output.read_text())
+        print(f"Completed {len(records)} games: {output}", flush=True)
     finally:
         monitor.terminate()
         monitor.wait(timeout=10)
@@ -138,7 +149,8 @@ if __name__ == "__main__":
     parser.add_argument("directory", type=Path)
     parser.add_argument("--binary", type=Path, default=Path("target/release/examples/benchmark"))
     parser.add_argument("--workers", type=int, default=24)
+    parser.add_argument("--fallback", action="store_true", help="Test the search fallback alone against Strong and Maximum local bots")
     args = parser.parse_args()
     if not 1 <= args.workers <= 32:
         parser.error("workers must be 1–32")
-    run(args.directory.resolve(), args.binary.resolve(), args.workers)
+    run(args.directory.resolve(), args.binary.resolve(), args.workers, fallback=args.fallback)

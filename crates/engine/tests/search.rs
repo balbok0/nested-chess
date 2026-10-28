@@ -1,6 +1,6 @@
 use nested_chess::{
     Color, Game, Outcome,
-    search::{LocalEvaluation, OutcomeEstimate, SearchLimits, match_estimate},
+    search::{LocalEvaluation, OutcomeEstimate, SearchLimits, fallback_move, match_estimate},
     uci::UciEngine,
 };
 
@@ -255,6 +255,44 @@ fn a_node_budget_returns_a_legal_fallback_without_claiming_a_completed_depth() {
     assert_eq!(result.completed_depth, 0);
     assert_eq!(result.expected_score, None);
     assert_eq!(result.nodes, 1);
+}
+
+#[test]
+fn fallback_prefers_captures_and_promotions() {
+    for (color, fen, expected) in [
+        (Color::White, "4k3/8/8/8/8/8/4R2q/K7 w - - 0 1", "e2e8"),
+        (Color::Black, "k7/4r2Q/8/8/8/8/8/4K3 b - - 0 1", "e7e1"),
+        (Color::White, "k3q3/8/8/8/8/8/4R2r/K7 w - - 0 1", "e2e8"),
+        (Color::White, "k7/6P1/8/8/8/8/8/K7 w - - 0 1", "g7g8q"),
+    ] {
+        let game = Game::from_fens(2, color, &vec![fen.into(); 4]).unwrap();
+        let actual = fallback_move(&game).unwrap();
+        assert_eq!(actual.board, 0);
+        assert_eq!(actual.uci.to_string(), expected);
+    }
+}
+
+#[test]
+fn fallback_obeys_routing() {
+    let mut game = Game::rectangular(4, 2).unwrap();
+    game.play(0, "e2e4").unwrap();
+    let actual = fallback_move(&game).unwrap();
+    assert_eq!(actual.board, 2);
+    assert!(game.legal_moves(2).unwrap().contains(&actual.uci));
+}
+
+#[test]
+fn fallback_rejects_a_finished_match() {
+    let mut game = Game::new(2).unwrap();
+    for board in 0..4 {
+        game.agree_draw(board).unwrap();
+    }
+    assert!(matches!(
+        fallback_move(&game),
+        Err(nested_chess::search::SearchError::Game(
+            nested_chess::Error::Finished
+        ))
+    ));
 }
 
 #[test]
