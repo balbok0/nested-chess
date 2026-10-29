@@ -36,3 +36,13 @@ cargo build --release -p nested-chess --example benchmark
 uv run --no-project --with psutil python -m scripts.run_rectangular_benchmark \
   scratch/claude/20261028_material-negamax/run --material --workers 24
 ```
+
+Replay and validate the completed sample, then generate the standalone report:
+
+```sh
+cargo run --release -p nested-chess --example verify_material -- \
+  scratch/claude/20261028_material-negamax/run/results.jsonl
+uv run --no-project python claude/20261028_material-benchmark/validate.py \
+  scratch/claude/20261028_material-negamax/run target/release/examples/benchmark
+uv run --no-project python claude/20261028_material-benchmark/report.py
+```
