@@ -100,6 +100,7 @@ def summarize(rows: list[dict]) -> list[dict]:
         wins = sum(game["a_score"] == 1 for game in complete)
         draws = sum(game["a_score"] == 0.5 for game in complete)
         a_metrics = {key: sum(game["a"][key] for game in complete) for key in ("moves", "elapsed_ms", "engine_calls", "search_nodes", "cutoffs", "cache_hits", "completed_depth_sum", "fallback_moves")}
+        a_metrics["material_evaluations"] = sum(game["a"].get("material_evaluations", 0) for game in complete)
         b_metrics = {key: sum(game["b"][key] for game in complete) for key in ("moves", "elapsed_ms", "engine_calls")}
         results.append({
             "columns": columns, "rows": grid_rows,

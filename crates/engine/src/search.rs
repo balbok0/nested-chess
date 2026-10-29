@@ -128,6 +128,33 @@ pub trait Evaluator {
     ) -> impl Future<Output = Result<LocalAnalysis, SearchError>>;
 }
 
+/// White-relative material evaluation without positional terms or local search.
+pub struct MaterialEvaluator;
+
+impl Evaluator for MaterialEvaluator {
+    async fn evaluate(&mut self, fen: &str, _chess960: bool) -> Result<LocalAnalysis, SearchError> {
+        let board = Board::from_fen(fen)?;
+        let value = [
+            (Role::Pawn, 100),
+            (Role::Knight, 300),
+            (Role::Bishop, 300),
+            (Role::Rook, 500),
+            (Role::Queen, 900),
+        ]
+        .into_iter()
+        .map(|(role, value)| {
+            value
+                * (board.bitboard(Color::White, role).count_ones() as i32
+                    - board.bitboard(Color::Black, role).count_ones() as i32)
+        })
+        .sum();
+        Ok(LocalAnalysis {
+            evaluation: LocalEvaluation::Cp { value },
+            best_move: None,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SearchLimits {

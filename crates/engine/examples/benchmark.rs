@@ -1,6 +1,6 @@
 use nested_chess::{
     Color, Game, Outcome,
-    search::{SearchLimits, fallback_move},
+    search::{self, MaterialEvaluator, SearchLimits, fallback_move},
     uci::UciEngine,
 };
 use serde::{Deserialize, Serialize};
@@ -56,6 +56,7 @@ struct Metrics {
     moves: u64,
     elapsed_ms: f64,
     engine_calls: u64,
+    material_evaluations: u64,
     search_nodes: u64,
     cutoffs: u64,
     cache_hits: u64,
@@ -93,13 +94,16 @@ fn engine(root: &Path) -> Result<UciEngine, Box<dyn std::error::Error>> {
 fn play(job: Job) -> Result<Record, Box<dyn std::error::Error>> {
     if job.a_level > job.b_level
         || job.b_level >= 6
-        || !matches!(job.family.as_str(), "global" | "local" | "fallback")
+        || !matches!(
+            job.family.as_str(),
+            "global" | "local" | "fallback" | "material"
+        )
         || (job.family == "fallback" && job.a_level != 0)
     {
         return Err("invalid benchmark pairing".into());
     }
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let mut a_engine = if job.family == "fallback" {
+    let mut a_engine = if matches!(job.family.as_str(), "fallback" | "material") {
         None
     } else {
         Some(engine(&root)?)
@@ -135,19 +139,28 @@ fn play(job: Job) -> Result<Record, Box<dyn std::error::Error>> {
             metrics.fallback_moves += 1;
             metrics.depth_histogram[0] += 1;
             (action.board, action.uci)
-        } else if is_a && job.family == "global" {
-            let result = a_engine
-                .as_mut()
-                .expect("global policy has an engine")
-                .search(
+        } else if is_a && matches!(job.family.as_str(), "global" | "material") {
+            let limits = SearchLimits {
+                max_depth: (level + 1) as u8,
+                max_nodes: 100000,
+                milliseconds: GLOBAL_MS[level],
+            };
+            let result = if job.family == "material" {
+                let result = futures_executor::block_on(search::best_move(
                     &game,
-                    SearchLimits {
-                        max_depth: (level + 1) as u8,
-                        max_nodes: 100000,
-                        milliseconds: GLOBAL_MS[level],
-                    },
-                )?;
-            metrics.engine_calls += result.evaluations;
+                    &mut MaterialEvaluator,
+                    limits,
+                ))?;
+                metrics.material_evaluations += result.evaluations;
+                result
+            } else {
+                let result = a_engine
+                    .as_mut()
+                    .expect("global policy has an engine")
+                    .search(&game, limits)?;
+                metrics.engine_calls += result.evaluations;
+                result
+            };
             metrics.search_nodes += result.nodes;
             metrics.cutoffs += result.cutoffs;
             metrics.cache_hits += result.cache_hits;

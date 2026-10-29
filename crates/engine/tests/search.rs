@@ -1,6 +1,9 @@
 use nested_chess::{
     Color, Game, Outcome,
-    search::{LocalEvaluation, OutcomeEstimate, SearchLimits, fallback_move, match_estimate},
+    search::{
+        self, Evaluator, LocalEvaluation, MaterialEvaluator, OutcomeEstimate, SearchLimits,
+        fallback_move, match_estimate,
+    },
     uci::UciEngine,
 };
 
@@ -293,6 +296,77 @@ fn fallback_rejects_a_finished_match() {
             nested_chess::Error::Finished
         ))
     ));
+}
+
+#[test]
+fn material_evaluation_is_white_relative_and_ignores_side_to_move() {
+    for (placement, expected) in [
+        ("4k3/8/8/8/8/8/8/4K3", 0),
+        ("4k3/8/8/8/8/8/P7/4K3", 100),
+        ("4k3/8/8/8/8/8/N7/4K3", 300),
+        ("4k3/8/8/8/8/8/B7/4K3", 300),
+        ("4k3/8/8/8/8/8/R7/4K3", 500),
+        ("4k3/8/8/8/8/8/Q7/4K3", 900),
+        ("4k3/q7/8/8/8/8/8/4K3", -900),
+        ("4k3/r7/8/8/8/8/Q7/4K3", 400),
+    ] {
+        for turn in ["w", "b"] {
+            let actual = futures_executor::block_on(
+                MaterialEvaluator.evaluate(&format!("{placement} {turn} - - 0 1"), false),
+            )
+            .unwrap();
+            assert!(
+                matches!(actual.evaluation, LocalEvaluation::Cp { value } if value == expected)
+            );
+            assert!(actual.best_move.is_none());
+        }
+    }
+}
+
+#[test]
+fn material_evaluation_rejects_invalid_fens() {
+    assert!(futures_executor::block_on(MaterialEvaluator.evaluate("invalid", false)).is_err());
+}
+
+#[test]
+fn material_negamax_completes_depth_one_on_both_study_grids() {
+    for rows in [2, 4] {
+        let game = Game::rectangular(4, rows).unwrap();
+        let actual = futures_executor::block_on(search::best_move(
+            &game,
+            &mut MaterialEvaluator,
+            SearchLimits {
+                max_depth: 1,
+                max_nodes: 100000,
+                milliseconds: 10000,
+            },
+        ))
+        .unwrap();
+        assert_eq!(actual.completed_depth, 1);
+        assert!(actual.expected_score.is_some());
+        assert!(
+            game.legal_moves(actual.best_move.board)
+                .unwrap()
+                .contains(&actual.best_move.uci)
+        );
+    }
+}
+
+#[test]
+fn material_negamax_avoids_a_board_win_that_loses_the_match() {
+    let game = two_losses();
+    let actual = futures_executor::block_on(search::best_move(
+        &game,
+        &mut MaterialEvaluator,
+        SearchLimits {
+            max_depth: 2,
+            max_nodes: 100000,
+            milliseconds: 10000,
+        },
+    ))
+    .unwrap();
+    assert_eq!(actual.completed_depth, 2);
+    assert!(!(actual.best_move.board == 0 && actual.best_move.uci.to_string() == "h7h8"));
 }
 
 #[test]
