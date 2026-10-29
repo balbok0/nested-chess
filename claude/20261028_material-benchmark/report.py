@@ -17,6 +17,22 @@ def export() -> None:
     data = json.loads((ROOT / "web/material-benchmark-results.json").read_text())
     previous = json.loads((ROOT / "web/rectangular-benchmark-results.json").read_text())
     fallback = json.loads((ROOT / "web/fallback-benchmark-results.json").read_text())
+    findings = ""
+    if data["completed_games"] == data["target_games"]:
+        scores = [result["score_rate"] for result in data["results"]]
+        below_half = sum(result["score_ci95"]["high"] < .5 for result in data["results"])
+        casual = next(result for result in data["results"] if result["rows"] == 4 and result["a_level"] == 1)
+        baseline = next(result for result in fallback["results"] if result["rows"] == 4 and result["b_level"] == 3)
+        fairy = next(result for result in previous["results"] if result["rows"] == 4 and result["family"] == "global" and result["a_level"] == 1)
+        a = casual["a_metrics"]
+        findings = f"""<p>Material-only negamax scored <strong>{100 * min(scores):.1f}–{100 * max(scores):.1f}%</strong>
+          across the six conditions. {below_half} of six score upper bounds are below 50%.</p>
+          <p>On 4×4 against Strong local, Casual material scored {100 * casual['score_rate']:.1f}%,
+          compared with {100 * baseline['score_rate']:.1f}% for fallback alone and
+          {100 * fairy['score_rate']:.1f}% for Fairy-Stockfish-backed Casual global in the earlier runs.
+          Casual material averaged depth {a['completed_depth_sum'] / a['moves']:.2f},
+          with fallback on {100 * a['fallback_moves'] / a['moves']:.1f}% of moves.
+          This material-only version is much weaker on that test despite completing search.</p>"""
     sections = []
     for rows in (2, 4):
         body = []
@@ -72,6 +88,7 @@ a {{ color:#b5cea2; }} small {{ color:#afb6a7; }} th,td {{ border-color:#4c5348;
 <a href="https://github.com/balbok0/nested-chess/tree/study/material-negamax/benchmarks/material">Protocol and full games</a>
 <h1>Material-only negamax</h1>
 <p id="status">{data['completed_games']} / {data['target_games']} scored games complete.</p>
+{findings}
 <p>Global negamax with alpha-beta and material-only leaf scores: pawn 100,
 knight/bishop 300, rook 500, queen 900 centipawns. Kings are scored through actual
 board and match outcomes. The material player uses no Fairy-Stockfish process.

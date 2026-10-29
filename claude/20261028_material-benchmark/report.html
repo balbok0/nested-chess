@@ -1,0 +1,288 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Material-only negamax · Nested chess</title><style>
+:root { color-scheme: light dark; }
+body { margin:0; font:16px/1.6 system-ui,sans-serif; background:#f8f7f3; color:#252720; }
+main { max-width:1400px; margin:auto; padding:24px 20px 60px; }
+h1 { font-size:30px; line-height:1.2; } h2 { margin-top:32px; } p { max-width:90ch; }
+a { color:#3b5b3e; } .table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:14px; }
+th,td { text-align:left; padding:12px; border-bottom:1px solid #cccfc5; }
+td { white-space:nowrap; } th { font-weight:600; } small { display:block; color:#62675b; }
+tr.new { background:#e9eedf; }
+@media(prefers-color-scheme:dark) { body { background:#20231f; color:#e7e9e1; }
+a { color:#b5cea2; } small { color:#afb6a7; } th,td { border-color:#4c5348; } tr.new { background:#303c2b; } }
+</style></head><body><main>
+<a href="https://github.com/balbok0/nested-chess/tree/study/material-negamax/benchmarks/material">Protocol and full games</a>
+<h1>Material-only negamax</h1>
+<p id="status">600 / 600 scored games complete.</p>
+<p>Material-only negamax scored <strong>11.0–27.0%</strong>
+          across the six conditions. 6 of six score upper bounds are below 50%.</p>
+          <p>On 4×4 against Strong local, Casual material scored 11.0%,
+          compared with 80.0% for fallback alone and
+          83.0% for Fairy-Stockfish-backed Casual global in the earlier runs.
+          Casual material averaged depth 2.00,
+          with fallback on 0.0% of moves.
+          This material-only version is much weaker on that test despite completing search.</p>
+<p>Global negamax with alpha-beta and material-only leaf scores: pawn 100,
+knight/bishop 300, rook 500, queen 900 centipawns. Kings are scored through actual
+board and match outcomes. The material player uses no Fairy-Stockfish process.
+The opponent remains the same local-only Fairy-Stockfish bot.</p>
+<h2>4 × 2</h2><div class="table-wrap"><table>
+          <thead><tr><th>Player</th><th>Opponent</th><th>Games · W–D–L</th>
+          <th>Win rate · 95% bounds</th><th>Match score · 95% bounds</th>
+          <th>Mean depth / fallback rate</th><th>Engine / material calls per move</th>
+          <th>Player / opponent ms per move</th></tr></thead><tbody><tr class="new">
+              <td>Casual material<small>New run</small></td>
+              <td>Strong local</td>
+              <td>100 · 9–5–86
+                <small>W 5.5/50 pts · B 6/50 pts</small></td>
+              <td>9.0%<small>3.6–21.8%</small></td>
+              <td>11.5%<small>4.3–30.5%</small></td>
+              <td>2.00 / 0.0%</td>
+              <td>0.0 / 302.9</td>
+              <td>31.16 / 299</td>
+            </tr><tr class="new">
+              <td>Strong material<small>New run</small></td>
+              <td>Maximum local</td>
+              <td>100 · 13–13–74
+                <small>W 9/50 pts · B 10.5/50 pts</small></td>
+              <td>13.0%<small>5.6–27.1%</small></td>
+              <td>19.5%<small>8.3–41.5%</small></td>
+              <td>3.70 / 0.0%</td>
+              <td>0.0 / 3566.6</td>
+              <td>939.08 / 863</td>
+            </tr><tr class="new">
+              <td>Maximum material<small>New run</small></td>
+              <td>Maximum local</td>
+              <td>100 · 22–10–68
+                <small>W 17.5/50 pts · B 9.5/50 pts</small></td>
+              <td>22.0%<small>11.5–37.5%</small></td>
+              <td>27.0%<small>12.8–49.1%</small></td>
+              <td>4.29 / 0.0%</td>
+              <td>0.0 / 11827.4</td>
+              <td>3904.40 / 869</td>
+            </tr><tr class="">
+              <td>Fallback only<small>Earlier run</small></td>
+              <td>Strong local</td>
+              <td>100 · 11–31–58
+                <small>W 6.5/50 pts · B 20/50 pts</small></td>
+              <td>11.0%<small>4.2–24.8%</small></td>
+              <td>26.5%<small>15.2–47.7%</small></td>
+              <td>—</td>
+              <td>0.0 / 0.0</td>
+              <td>0.01 / 299</td>
+            </tr><tr class="">
+              <td>Fallback only<small>Earlier run</small></td>
+              <td>Maximum local</td>
+              <td>100 · 5–24–71
+                <small>W 3/50 pts · B 14/50 pts</small></td>
+              <td>5.0%<small>1.3–16.9%</small></td>
+              <td>17.0%<small>9.4–38.4%</small></td>
+              <td>—</td>
+              <td>0.0 / 0.0</td>
+              <td>0.01 / 853</td>
+            </tr><tr class="">
+              <td>Casual Fairy-SF global<small>Earlier run</small></td>
+              <td>Strong local</td>
+              <td>100 · 22–29–49
+                <small>W 5.5/50 pts · B 31/50 pts</small></td>
+              <td>22.0%<small>12.8–36.3%</small></td>
+              <td>36.5%<small>23.6–55.2%</small></td>
+              <td>0.11 / 88.8%</td>
+              <td>41.1 / 0.0</td>
+              <td>606.99 / 322</td>
+            </tr><tr class="">
+              <td>Strong Fairy-SF global<small>Earlier run</small></td>
+              <td>Maximum local</td>
+              <td>100 · 43–29–28
+                <small>W 22.5/50 pts · B 35/50 pts</small></td>
+              <td>43.0%<small>28.7–58.6%</small></td>
+              <td>57.5%<small>37.5–74.9%</small></td>
+              <td>0.72 / 30.4%</td>
+              <td>102.4 / 0.0</td>
+              <td>1599.80 / 889</td>
+            </tr><tr class="">
+              <td>Maximum Fairy-SF global<small>Earlier run</small></td>
+              <td>Maximum local</td>
+              <td>100 · 41–25–34
+                <small>W 19/50 pts · B 34.5/50 pts</small></td>
+              <td>41.0%<small>27.0–56.6%</small></td>
+              <td>53.5%<small>36.2–69.7%</small></td>
+              <td>1.31 / 10.2%</td>
+              <td>238.3 / 0.0</td>
+              <td>3993.32 / 894</td>
+            </tr><tr class="">
+              <td>Casual local<small>Earlier run</small></td>
+              <td>Strong local</td>
+              <td>100 · 1–24–75
+                <small>W 4.5/50 pts · B 8.5/50 pts</small></td>
+              <td>1.0%<small>0.0–11.0%</small></td>
+              <td>13.0%<small>6.9–34.1%</small></td>
+              <td>—</td>
+              <td>1.0 / 0.0</td>
+              <td>123.06 / 320</td>
+            </tr><tr class="">
+              <td>Strong local<small>Earlier run</small></td>
+              <td>Maximum local</td>
+              <td>100 · 10–28–62
+                <small>W 8/50 pts · B 16/50 pts</small></td>
+              <td>10.0%<small>4.2–22.9%</small></td>
+              <td>24.0%<small>13.1–45.3%</small></td>
+              <td>—</td>
+              <td>1.0 / 0.0</td>
+              <td>321.86 / 881</td>
+            </tr><tr class="">
+              <td>Maximum local<small>Earlier run</small></td>
+              <td>Maximum local</td>
+              <td>100 · 23–46–31
+                <small>W 21.5/50 pts · B 24.5/50 pts</small></td>
+              <td>23.0%<small>12.9–38.0%</small></td>
+              <td>46.0%<small>28.5–64.8%</small></td>
+              <td>—</td>
+              <td>1.0 / 0.0</td>
+              <td>892.39 / 892</td>
+            </tr></tbody>
+          </table></div><h2>4 × 4</h2><div class="table-wrap"><table>
+          <thead><tr><th>Player</th><th>Opponent</th><th>Games · W–D–L</th>
+          <th>Win rate · 95% bounds</th><th>Match score · 95% bounds</th>
+          <th>Mean depth / fallback rate</th><th>Engine / material calls per move</th>
+          <th>Player / opponent ms per move</th></tr></thead><tbody><tr class="new">
+              <td>Casual material<small>New run</small></td>
+              <td>Strong local</td>
+              <td>100 · 8–6–86
+                <small>W 3.5/50 pts · B 7.5/50 pts</small></td>
+              <td>8.0%<small>2.9–20.6%</small></td>
+              <td>11.0%<small>4.7–30.2%</small></td>
+              <td>2.00 / 0.0%</td>
+              <td>0.0 / 590.6</td>
+              <td>122.18 / 299</td>
+            </tr><tr class="new">
+              <td>Strong material<small>New run</small></td>
+              <td>Maximum local</td>
+              <td>100 · 22–6–72
+                <small>W 6.5/50 pts · B 18.5/50 pts</small></td>
+              <td>22.0%<small>11.5–37.5%</small></td>
+              <td>25.0%<small>11.7–46.4%</small></td>
+              <td>2.98 / 0.0%</td>
+              <td>0.0 / 2486.8</td>
+              <td>1399.95 / 868</td>
+            </tr><tr class="new">
+              <td>Maximum material<small>New run</small></td>
+              <td>Maximum local</td>
+              <td>100 · 13–14–73
+                <small>W 11/50 pts · B 9/50 pts</small></td>
+              <td>13.0%<small>6.4–26.3%</small></td>
+              <td>20.0%<small>11.0–40.6%</small></td>
+              <td>3.43 / 0.0%</td>
+              <td>0.0 / 5404.9</td>
+              <td>3970.00 / 866</td>
+            </tr><tr class="">
+              <td>Fallback only<small>Earlier run</small></td>
+              <td>Strong local</td>
+              <td>100 · 75–10–15
+                <small>W 30/50 pts · B 50/50 pts</small></td>
+              <td>75.0%<small>61.8–83.6%</small></td>
+              <td>80.0%<small>60.2–88.4%</small></td>
+              <td>—</td>
+              <td>0.0 / 0.0</td>
+              <td>0.02 / 302</td>
+            </tr><tr class="">
+              <td>Fallback only<small>Earlier run</small></td>
+              <td>Maximum local</td>
+              <td>100 · 56–20–24
+                <small>W 18.5/50 pts · B 47.5/50 pts</small></td>
+              <td>56.0%<small>44.0–66.8%</small></td>
+              <td>66.0%<small>48.5–76.0%</small></td>
+              <td>—</td>
+              <td>0.0 / 0.0</td>
+              <td>0.02 / 870</td>
+            </tr><tr class="">
+              <td>Casual Fairy-SF global<small>Earlier run</small></td>
+              <td>Strong local</td>
+              <td>100 · 79–8–13
+                <small>W 33/50 pts · B 50/50 pts</small></td>
+              <td>79.0%<small>65.5–87.2%</small></td>
+              <td>83.0%<small>63.3–90.9%</small></td>
+              <td>0.05 / 95.2%</td>
+              <td>41.2 / 0.0</td>
+              <td>605.40 / 322</td>
+            </tr><tr class="">
+              <td>Strong Fairy-SF global<small>Earlier run</small></td>
+              <td>Maximum local</td>
+              <td>100 · 86–9–5
+                <small>W 42.5/50 pts · B 48/50 pts</small></td>
+              <td>86.0%<small>71.8–93.6%</small></td>
+              <td>90.5%<small>70.5–96.7%</small></td>
+              <td>0.48 / 52.7%</td>
+              <td>102.7 / 0.0</td>
+              <td>1597.92 / 902</td>
+            </tr><tr class="">
+              <td>Maximum Fairy-SF global<small>Earlier run</small></td>
+              <td>Maximum local</td>
+              <td>100 · 83–9–8
+                <small>W 45/50 pts · B 42.5/50 pts</small></td>
+              <td>83.0%<small>69.5–90.5%</small></td>
+              <td>87.5%<small>67.5–94.2%</small></td>
+              <td>1.04 / 23.3%</td>
+              <td>250.8 / 0.0</td>
+              <td>3994.10 / 899</td>
+            </tr><tr class="">
+              <td>Casual local<small>Earlier run</small></td>
+              <td>Strong local</td>
+              <td>100 · 0–8–92
+                <small>W 1.5/50 pts · B 2.5/50 pts</small></td>
+              <td>0.0%<small>0.0–9.1%</small></td>
+              <td>4.0%<small>1.3–22.9%</small></td>
+              <td>—</td>
+              <td>1.0 / 0.0</td>
+              <td>122.47 / 320</td>
+            </tr><tr class="">
+              <td>Strong local<small>Earlier run</small></td>
+              <td>Maximum local</td>
+              <td>100 · 7–28–65
+                <small>W 10.5/50 pts · B 10.5/50 pts</small></td>
+              <td>7.0%<small>2.3–19.4%</small></td>
+              <td>21.0%<small>10.8–42.8%</small></td>
+              <td>—</td>
+              <td>1.0 / 0.0</td>
+              <td>321.90 / 882</td>
+            </tr><tr class="">
+              <td>Maximum local<small>Earlier run</small></td>
+              <td>Maximum local</td>
+              <td>100 · 32–32–36
+                <small>W 24/50 pts · B 24/50 pts</small></td>
+              <td>32.0%<small>18.7–48.5%</small></td>
+              <td>48.0%<small>27.0–69.5%</small></td>
+              <td>—</td>
+              <td>1.0 / 0.0</td>
+              <td>892.98 / 892</td>
+            </tr></tbody>
+          </table></div>
+<h2>Method</h2>
+<p>Six conditions, 100 scored games each, 50 per color. Win rate counts wins only;
+match score counts a win as 1 and a draw as ½. Conservative 95% bounds use the same
+color-paired Bonferroni–Clopper–Pearson method as earlier studies, per condition,
+assuming independent pairs. They do not cover the whole matrix simultaneously.</p>
+<p>Search, alpha-beta, move ordering, capture-priority fallback, heuristic odds mapping
+and dynamic match-score aggregation are unchanged. No positional terms or quiescence
+are added. Casual: depth 2 / 600 ms; Strong: depth 4 / 1,600 ms; Maximum: depth 6 /
+4,000 ms. All have a 100,000-node cap and keep only the last completed iteration.</p>
+<p>Local Strong uses skill 10 / 300 ms; local Maximum uses skill 20 / 900 ms.
+Free-board selection is legal_boards[global_ply % legal_boards.len()]. Release build,
+24 parallel games; Fairy-Stockfish 1.1.12, one thread, NNUE off.</p>
+<p>Sixty unscored determinism pilots: five games per color per condition.
+0 of six conditions
+required forced two-ply classical openings. Games finish under actual rules,
+without evaluation adjudication or a move-limit draw.</p>
+<p>The earlier controls ran separately. Time budgets, host load, stochastic opponent
+play, and removal of Fairy-Stockfish’s suggested-move ordering can affect results.
+Point differences do not isolate a causal effect of replacing leaf scores. The
+heuristic material-to-odds conversion is uncalibrated; these results establish neither
+optimal play nor Elo.</p>
+<p>Scored phase: 2026-10-29T03:23:17Z to 2026-10-29T07:11:49Z.</p>
+<p>Scored-phase system CPU: 78.8% mean,
+          92.9% peak. Peak summed benchmark RSS:
+          7.73 GiB; peak system memory use:
+          23.4%. Summed RSS includes shared pages.
+          The host runs other services.</p></main></body></html>

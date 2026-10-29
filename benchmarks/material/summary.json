@@ -1,0 +1,472 @@
+{
+  "protocol": {
+    "grids": [
+      {
+        "columns": 4,
+        "rows": 2
+      },
+      {
+        "columns": 4,
+        "rows": 4
+      }
+    ],
+    "start": "classical",
+    "workers": 24,
+    "pilot_workers": 24,
+    "target_games": 600,
+    "games_per_pairing": 100,
+    "colors_per_pairing": 50,
+    "pilot_games": 60,
+    "pilot_policy": "Five games per color; force a two-ply classical opening only if both colors repeat all five complete traces. Exclude pilots from scored results.",
+    "conditions": [
+      {
+        "columns": 4,
+        "rows": 2,
+        "family": "material",
+        "a_level": 1,
+        "b_level": 3,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "columns": 4,
+        "rows": 2,
+        "family": "material",
+        "a_level": 3,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "columns": 4,
+        "rows": 2,
+        "family": "material",
+        "a_level": 5,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "columns": 4,
+        "rows": 4,
+        "family": "material",
+        "a_level": 1,
+        "b_level": 3,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "columns": 4,
+        "rows": 4,
+        "family": "material",
+        "a_level": 3,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "columns": 4,
+        "rows": 4,
+        "family": "material",
+        "a_level": 5,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      }
+    ],
+    "opening_pools": {},
+    "policy": "material-negamax",
+    "global_presets": [
+      {
+        "depth": 1,
+        "milliseconds": 300
+      },
+      {
+        "depth": 2,
+        "milliseconds": 600
+      },
+      {
+        "depth": 3,
+        "milliseconds": 1000
+      },
+      {
+        "depth": 4,
+        "milliseconds": 1600
+      },
+      {
+        "depth": 5,
+        "milliseconds": 2400
+      },
+      {
+        "depth": 6,
+        "milliseconds": 4000
+      }
+    ],
+    "local_presets": [
+      {
+        "skill": 0,
+        "milliseconds": 60
+      },
+      {
+        "skill": 2,
+        "milliseconds": 100
+      },
+      {
+        "skill": 5,
+        "milliseconds": 180
+      },
+      {
+        "skill": 10,
+        "milliseconds": 300
+      },
+      {
+        "skill": 15,
+        "milliseconds": 500
+      },
+      {
+        "skill": 20,
+        "milliseconds": 900
+      }
+    ],
+    "global_node_budget": 100000,
+    "local_board_policy": "legal_boards[global_ply % legal_boards.len()]",
+    "build_profile": "release",
+    "started_utc": "2026-10-29T03:23:17Z",
+    "logical_cpus": 32,
+    "benchmark_revision": "be0663ec0cdbf4be9bbecc76932799974863a9fe",
+    "binary_sha256": "cfd8a07480eea6c3d3c015674759cbecb6b53a139472a9c900383aa63b6898cd",
+    "search_sha256": "a9625812f29efae4725d581dabb92cc521f443679e2a31e7c3861b6a02ac1cf5",
+    "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "node": "v24.19.0",
+    "fairy_stockfish": {
+      "npm_version": "1.1.12",
+      "source_revision": "b2e693ef1e111233ce3fb40685921708b3276ed6",
+      "threads": 1,
+      "nnue": false
+    },
+    "interval": "95% Bonferroni-Clopper-Pearson bounds on the color-paired outcome distribution, per condition.",
+    "material_policy": "Existing global negamax/alpha-beta, move ordering, capture-priority fallback, CP-to-odds mapping and match-score DP. Leaf CP = White minus Black material: pawn 100, knight/bishop 300, rook 500, queen 900, king 0. No positional terms, local search or UCI engine for this player. Material calls are counted separately from engine calls.",
+    "reference_revision": "95d9a2f",
+    "finished_utc": "2026-10-29T07:11:49Z"
+  },
+  "levels": [
+    "Beginner",
+    "Casual",
+    "Club",
+    "Strong",
+    "Expert",
+    "Maximum"
+  ],
+  "completed_games": 600,
+  "target_games": 600,
+  "results": [
+    {
+      "columns": 4,
+      "rows": 2,
+      "family": "material",
+      "a_level": 1,
+      "b_level": 3,
+      "games": 100,
+      "pairs": 50,
+      "wins": 9,
+      "draws": 5,
+      "losses": 86,
+      "win_rate": 0.09,
+      "score_rate": 0.115,
+      "win_ci95": {
+        "low": 0.03572426865295508,
+        "high": 0.21787339001924103
+      },
+      "score_ci95": {
+        "low": 0.043438273857489225,
+        "high": 0.30536334316899794
+      },
+      "white": {
+        "games": 50,
+        "score": 5.5
+      },
+      "black": {
+        "games": 50,
+        "score": 6.0
+      },
+      "mean_plies": 295.99,
+      "a_metrics": {
+        "moves": 14779,
+        "elapsed_ms": 460485.492097,
+        "engine_calls": 0,
+        "search_nodes": 3816257,
+        "cutoffs": 676267,
+        "cache_hits": 29158946,
+        "completed_depth_sum": 29552,
+        "fallback_moves": 0,
+        "material_evaluations": 4475871
+      },
+      "b_metrics": {
+        "moves": 14820,
+        "elapsed_ms": 4436060.38652,
+        "engine_calls": 14820
+      }
+    },
+    {
+      "columns": 4,
+      "rows": 2,
+      "family": "material",
+      "a_level": 3,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 13,
+      "draws": 13,
+      "losses": 74,
+      "win_rate": 0.13,
+      "score_rate": 0.195,
+      "win_ci95": {
+        "low": 0.05638495638631153,
+        "high": 0.2708475072073123
+      },
+      "score_ci95": {
+        "low": 0.08262206376773246,
+        "high": 0.415272630939214
+      },
+      "white": {
+        "games": 50,
+        "score": 9.0
+      },
+      "black": {
+        "games": 50,
+        "score": 10.5
+      },
+      "mean_plies": 289.78,
+      "a_metrics": {
+        "moves": 14470,
+        "elapsed_ms": 13588445.74817,
+        "engine_calls": 0,
+        "search_nodes": 131742855,
+        "cutoffs": 18778183,
+        "cache_hits": 1107882009,
+        "completed_depth_sum": 53566,
+        "fallback_moves": 0,
+        "material_evaluations": 51609196
+      },
+      "b_metrics": {
+        "moves": 14508,
+        "elapsed_ms": 12524682.379458,
+        "engine_calls": 14508
+      }
+    },
+    {
+      "columns": 4,
+      "rows": 2,
+      "family": "material",
+      "a_level": 5,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 22,
+      "draws": 10,
+      "losses": 68,
+      "win_rate": 0.22,
+      "score_rate": 0.27,
+      "win_ci95": {
+        "low": 0.11514371391314879,
+        "high": 0.3749944310117289
+      },
+      "score_ci95": {
+        "low": 0.12779134943659148,
+        "high": 0.4910385033502588
+      },
+      "white": {
+        "games": 50,
+        "score": 17.5
+      },
+      "black": {
+        "games": 50,
+        "score": 9.5
+      },
+      "mean_plies": 306.81,
+      "a_metrics": {
+        "moves": 15326,
+        "elapsed_ms": 59838827.654636994,
+        "engine_calls": 0,
+        "search_nodes": 606671569,
+        "cutoffs": 90754371,
+        "cache_hits": 5221750198,
+        "completed_depth_sum": 65729,
+        "fallback_moves": 0,
+        "material_evaluations": 181266385
+      },
+      "b_metrics": {
+        "moves": 15355,
+        "elapsed_ms": 13338306.406671999,
+        "engine_calls": 15355
+      }
+    },
+    {
+      "columns": 4,
+      "rows": 4,
+      "family": "material",
+      "a_level": 1,
+      "b_level": 3,
+      "games": 100,
+      "pairs": 50,
+      "wins": 8,
+      "draws": 6,
+      "losses": 86,
+      "win_rate": 0.08,
+      "score_rate": 0.11,
+      "win_ci95": {
+        "low": 0.02938930050533118,
+        "high": 0.20605307886761606
+      },
+      "score_ci95": {
+        "low": 0.047021310346582794,
+        "high": 0.30186954006857825
+      },
+      "white": {
+        "games": 50,
+        "score": 3.5
+      },
+      "black": {
+        "games": 50,
+        "score": 7.5
+      },
+      "mean_plies": 564.36,
+      "a_metrics": {
+        "moves": 28196,
+        "elapsed_ms": 3444959.017991,
+        "engine_calls": 0,
+        "search_nodes": 14877423,
+        "cutoffs": 2758537,
+        "cache_hits": 246208854,
+        "completed_depth_sum": 56376,
+        "fallback_moves": 0,
+        "material_evaluations": 16653331
+      },
+      "b_metrics": {
+        "moves": 28240,
+        "elapsed_ms": 8431083.239175,
+        "engine_calls": 28240
+      }
+    },
+    {
+      "columns": 4,
+      "rows": 4,
+      "family": "material",
+      "a_level": 3,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 22,
+      "draws": 6,
+      "losses": 72,
+      "win_rate": 0.22,
+      "score_rate": 0.25,
+      "win_ci95": {
+        "low": 0.11514371391314879,
+        "high": 0.3749944310117289
+      },
+      "score_ci95": {
+        "low": 0.1168825368029988,
+        "high": 0.4637999293170865
+      },
+      "white": {
+        "games": 50,
+        "score": 6.5
+      },
+      "black": {
+        "games": 50,
+        "score": 18.5
+      },
+      "mean_plies": 491.75,
+      "a_metrics": {
+        "moves": 24571,
+        "elapsed_ms": 34398200.256048,
+        "engine_calls": 0,
+        "search_nodes": 177381296,
+        "cutoffs": 13619791,
+        "cache_hits": 3508023579,
+        "completed_depth_sum": 73124,
+        "fallback_moves": 0,
+        "material_evaluations": 61103550
+      },
+      "b_metrics": {
+        "moves": 24604,
+        "elapsed_ms": 21352440.382665,
+        "engine_calls": 24604
+      }
+    },
+    {
+      "columns": 4,
+      "rows": 4,
+      "family": "material",
+      "a_level": 5,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 13,
+      "draws": 14,
+      "losses": 73,
+      "win_rate": 0.13,
+      "score_rate": 0.2,
+      "win_ci95": {
+        "low": 0.06359991238047838,
+        "high": 0.26282504960249525
+      },
+      "score_ci95": {
+        "low": 0.10986254726517447,
+        "high": 0.4064081712393046
+      },
+      "white": {
+        "games": 50,
+        "score": 11.0
+      },
+      "black": {
+        "games": 50,
+        "score": 9.0
+      },
+      "mean_plies": 516.06,
+      "a_metrics": {
+        "moves": 25787,
+        "elapsed_ms": 102374471.009712,
+        "engine_calls": 0,
+        "search_nodes": 562682113,
+        "cutoffs": 62052141,
+        "cache_hits": 10663648124,
+        "completed_depth_sum": 88490,
+        "fallback_moves": 0,
+        "material_evaluations": 139375691
+      },
+      "b_metrics": {
+        "moves": 25819,
+        "elapsed_ms": 22348574.805204,
+        "engine_calls": 25819
+      }
+    }
+  ],
+  "resources": {
+    "samples": 2686,
+    "peak_system_cpu_percent": 92.9,
+    "mean_system_cpu_percent": 78.81883842144453,
+    "peak_system_memory_percent": 23.4,
+    "peak_benchmark_rss_bytes": 8303984640
+  }
+}
