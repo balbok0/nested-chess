@@ -1,5 +1,7 @@
 use nested_chess::Game;
-use nested_chess::search::{self, Evaluator, LocalAnalysis, SearchError, SearchLimits};
+use nested_chess::search::{
+    self, Evaluator, LocalAnalysis, LocalCandidate, SearchError, SearchLimits,
+};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{JsFuture, future_to_promise};
 
@@ -7,12 +9,15 @@ fn js_error(error: impl std::fmt::Display) -> JsValue {
     JsValue::from_str(&error.to_string())
 }
 
-struct JsEvaluator(js_sys::Function);
+struct JsEvaluator {
+    evaluate: js_sys::Function,
+    candidates: Option<js_sys::Function>,
+}
 
 impl Evaluator for JsEvaluator {
     async fn evaluate(&mut self, fen: &str, chess960: bool) -> Result<LocalAnalysis, SearchError> {
         let response = self
-            .0
+            .evaluate
             .call2(
                 &JsValue::UNDEFINED,
                 &JsValue::from_str(fen),
@@ -28,6 +33,31 @@ impl Evaluator for JsEvaluator {
                 .ok_or_else(|| SearchError::Evaluation("expected JSON local analysis".into()))?,
         )
         .map_err(|error| SearchError::Evaluation(error.to_string()))
+    }
+
+    async fn candidates(
+        &mut self,
+        fen: &str,
+        chess960: bool,
+        count: u16,
+    ) -> Result<Vec<LocalCandidate>, SearchError> {
+        let response = self
+            .candidates
+            .as_ref()
+            .ok_or_else(|| SearchError::Evaluation("candidate callback is unavailable".into()))?
+            .call3(
+                &JsValue::UNDEFINED,
+                &JsValue::from_str(fen),
+                &JsValue::from_bool(chess960),
+                &JsValue::from_f64(f64::from(count)),
+            )
+            .map_err(|error| SearchError::Evaluation(format!("{error:?}")))?;
+        let output = JsFuture::from(js_sys::Promise::resolve(&response))
+            .await
+            .map_err(|error| SearchError::Evaluation(format!("{error:?}")))?
+            .as_string()
+            .ok_or_else(|| SearchError::Evaluation("expected UCI candidate output".into()))?;
+        nested_chess::uci_output::candidates(&output, fen, count)
     }
 }
 
@@ -56,9 +86,42 @@ impl NestedGame {
         let game = self.game.clone();
         let limits: SearchLimits = serde_json::from_str(limits).map_err(js_error)?;
         Ok(future_to_promise(async move {
-            let result = search::best_move(&game, &mut JsEvaluator(evaluate), limits)
-                .await
-                .map_err(js_error)?;
+            let result = search::best_move(
+                &game,
+                &mut JsEvaluator {
+                    evaluate,
+                    candidates: None,
+                },
+                limits,
+            )
+            .await
+            .map_err(js_error)?;
+            Ok(JsValue::from_str(
+                &serde_json::to_string(&result).map_err(js_error)?,
+            ))
+        }))
+    }
+    pub fn best_move_selective(
+        &self,
+        limits: &str,
+        count: u16,
+        evaluate: js_sys::Function,
+        candidates: js_sys::Function,
+    ) -> Result<js_sys::Promise, JsValue> {
+        let game = self.game.clone();
+        let limits: SearchLimits = serde_json::from_str(limits).map_err(js_error)?;
+        Ok(future_to_promise(async move {
+            let result = search::best_move_selective(
+                &game,
+                &mut JsEvaluator {
+                    evaluate,
+                    candidates: Some(candidates),
+                },
+                limits,
+                count,
+            )
+            .await
+            .map_err(js_error)?;
             Ok(JsValue::from_str(
                 &serde_json::to_string(&result).map_err(js_error)?,
             ))

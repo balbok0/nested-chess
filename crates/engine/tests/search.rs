@@ -370,6 +370,24 @@ fn material_negamax_avoids_a_board_win_that_loses_the_match() {
 }
 
 #[test]
+fn selective_search_retains_routing_escapes_and_adversarial_replies() {
+    let game = two_losses();
+    let actual = oracle()
+        .search_selective(
+            &game,
+            SearchLimits {
+                max_depth: 2,
+                max_nodes: 100000,
+                milliseconds: 10000,
+            },
+            1,
+        )
+        .unwrap();
+    assert_eq!(actual.completed_depth, 2);
+    assert!(!(actual.best_move.board == 0 && actual.best_move.uci.to_string() == "h7h8"));
+}
+
+#[test]
 fn a_node_budget_retains_the_last_completed_iteration() {
     let game = Game::new(2).unwrap();
     let result = oracle()

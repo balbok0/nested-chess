@@ -243,14 +243,36 @@ same JSON; the callback receives `(fen, chess960)` and resolves to JSON containi
 plus an optional UCI `best_move`. The existing native/Python `best_move(game,
 board, skill, milliseconds)` remains available as the local-only baseline.
 
+`Opponent.search_selective(game, candidates=10, ...)` uses up to ten ranked moves
+per eligible board for both players, plus all immediate king captures and one
+capture-priority representative for each otherwise missing routing region. Thus
+the total can exceed ten. Search depth remains a separate setting.
+`Opponent.candidates(game, board, count=10)` returns ranked local moves and scores.
+Rust exposes `UciEngine::search_selective(&game, limits, 10)` and async
+`search::best_move_selective(&game, evaluator, limits, 10)`. Candidate-capable
+evaluators implement `Evaluator::candidates`; the full-width API remains available.
+
+WASM `game.best_move_selective(limits_json, 10, evaluate, candidates)` takes the
+existing scalar callback plus a `(fen, chess960, count)` callback returning raw
+UCI output as a string. Native and WASM share the MultiPV parser, which keeps the
+deepest complete ranked batch and accepts a partial first batch if necessary.
+Candidate scores are White-relative. Analyses are cached by FEN/color and
+castling convention; a candidate analysis also supplies its top move's local
+score. `evaluations` counts all oracle calls, and `candidate_evaluations` is the
+candidate-analysis subset. Native/browser candidate requests use `count` times
+the scalar analysis node budget. A completed line is not guaranteed for every
+requested candidate under a finite engine budget.
+
 ## Opponent strength
 
 The custom [Fairy-Stockfish variant](variants/nested.ini) inherits extinction
 chess, retaining only king extinction as the loss condition and normal
 promotions. Kings are nonroyal, capturable pieces. Rust searches the full match
-with negamax, alpha-beta, and iterative deepening. All legal board/move pairs stay
-available; ordering favors the previous best move, cached Fairy-Stockfish moves,
-captures, and promotions. Search uses complete cloned game states, preserving
+with negamax, alpha-beta, and iterative deepening. The browser uses ten-candidate
+selective search with king-capture and routing safeguards. Full-width search keeps
+all legal board/move pairs available for comparison. Ordering favors the previous
+best move, cached Fairy-Stockfish moves, captures, and promotions.
+Search uses complete cloned game states, preserving
 routing, repeated local turns, draw counters, and repetition history.
 
 The browser offers Beginner, Casual, Club, Strong, Expert, and Maximum presets
@@ -278,6 +300,8 @@ The bot returns the last completed depth when a budget expires. If no iteration
 finishes, it returns an ordered legal fallback with `completed_depth: 0` and
 `expected_score: null`. Time is checked between oracle calls, so a call already
 in progress can overrun the budget. Larger grids may complete shallower searches.
+Selective search can miss locally weak moves with useful global consequences;
+its strength has not yet been established by a full benchmark.
 
 See [the design notes](docs/design.md) for representation costs, training
 feasibility, engine research, and related games.

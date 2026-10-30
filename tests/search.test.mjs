@@ -35,9 +35,13 @@ async function fairyOracle() {
   } catch (error) { child.kill(); output.close(); throw error; }
   return {
     async evaluate(fen, chess960) {
-      await command('readyok', ['ucinewgame', `setoption name UCI_Chess960 value ${chess960}`, 'isready']);
+      await command('readyok', ['ucinewgame', `setoption name UCI_Chess960 value ${chess960}`, 'setoption name MultiPV value 1', 'isready']);
       const lines = await command('bestmove ', [`position fen ${fen}`, 'go nodes 128']);
       return JSON.stringify({ evaluation: parseEvaluation(lines, fen.split(' ')[1] === 'w' ? 'white' : 'black'), best_move: lines.at(-1).split(' ')[1] });
+    },
+    async candidates(fen, chess960, count) {
+      await command('readyok', ['ucinewgame', `setoption name UCI_Chess960 value ${chess960}`, 'setoption name Skill Level value 20', `setoption name MultiPV value ${count}`, 'isready']);
+      return (await command('bestmove ', [`position fen ${fen}`, `go nodes ${128 * count}`])).join('\n');
     },
     close() { child.kill(); output.close(); },
   };
@@ -79,3 +83,19 @@ test('WASM search keeps an independent snapshot while the caller frees the game'
     assert.ok(actual.evaluations > 0);
   } finally { oracle.close(); }
 });
+
+for (const rows of [2, 4]) {
+  test(`WASM selective search uses real ten-move MultiPV on 4x${rows}`, async () => {
+    const game = NestedGame.rectangular(4, rows);
+    const before = game.state();
+    const oracle = await fairyOracle();
+    try {
+      const actual = JSON.parse(await game.best_move_selective(JSON.stringify({max_depth:1,max_nodes:100000,milliseconds:10000}), 10, oracle.evaluate, oracle.candidates));
+      assert.equal(actual.completed_depth, 1);
+      assert.ok(actual.candidate_evaluations > 0);
+      assert.ok(actual.evaluations >= actual.candidate_evaluations);
+      assert.ok(JSON.parse(game.legal_moves(actual.best_move.board)).includes(actual.best_move.uci));
+      assert.equal(game.state(), before);
+    } finally { oracle.close(); game.free(); }
+  });
+}

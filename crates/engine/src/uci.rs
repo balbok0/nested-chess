@@ -1,6 +1,7 @@
 //! Native adapter for a single-board Fairy-Stockfish process.
 use crate::search::{
-    self, Evaluator, LocalAnalysis, LocalEvaluation, SearchError, SearchLimits, SearchResult,
+    self, Evaluator, LocalAnalysis, LocalCandidate, LocalEvaluation, SearchError, SearchLimits,
+    SearchResult,
 };
 use crate::{Error, Game, Move};
 use std::{
@@ -56,6 +57,46 @@ impl UciEngine {
         limits: SearchLimits,
     ) -> Result<SearchResult, SearchError> {
         futures_executor::block_on(search::best_move(game, self, limits))
+    }
+
+    /// Choose a global move from ranked candidates and routing safeguards for both players.
+    pub fn search_selective(
+        &mut self,
+        game: &Game,
+        limits: SearchLimits,
+        candidates: u16,
+    ) -> Result<SearchResult, SearchError> {
+        futures_executor::block_on(search::best_move_selective(game, self, limits, candidates))
+    }
+
+    /// Analyze up to `count` local moves, with the analysis node budget scaled by `count`.
+    pub fn candidate_moves(
+        &mut self,
+        fen: &str,
+        chess960: bool,
+        count: u16,
+    ) -> Result<Vec<LocalCandidate>, SearchError> {
+        if !(1..=500).contains(&count) {
+            return Err(SearchError::InvalidCandidateCount);
+        }
+        let nodes = self
+            .analysis_nodes
+            .checked_mul(u64::from(count))
+            .ok_or_else(|| SearchError::Evaluation("candidate node budget overflow".into()))?;
+        let output = (|| -> Result<Vec<String>, UciError> {
+            self.send("ucinewgame")?;
+            self.send(&format!("setoption name UCI_Chess960 value {chess960}"))?;
+            self.send("setoption name UCI_LimitStrength value false")?;
+            self.send("setoption name Skill Level value 20")?;
+            self.send(&format!("setoption name MultiPV value {count}"))?;
+            self.send("isready")?;
+            self.wait_for("readyok", Duration::from_secs(10))?;
+            self.send(&format!("position fen {fen}"))?;
+            self.send(&format!("go nodes {nodes}"))?;
+            self.wait_for("bestmove ", Duration::from_secs(10))
+        })()
+        .map_err(|error| SearchError::Evaluation(error.to_string()))?;
+        crate::uci_output::candidates(&output.join("\n"), fen, count)
     }
     /// Start Fairy-Stockfish with its nested.ini variant file.
     pub fn spawn(executable: &str, args: &[String], variant_path: &str) -> Result<Self, UciError> {
@@ -123,6 +164,7 @@ impl UciEngine {
             game.board(board)?.is_chess960()
         ))?;
         self.send("setoption name UCI_LimitStrength value false")?;
+        self.send("setoption name MultiPV value 1")?;
         self.send(&format!("setoption name Skill Level value {skill}"))?;
         self.send("isready")?;
         self.wait_for("readyok", Duration::from_secs(10))?;
@@ -174,6 +216,15 @@ impl UciEngine {
 }
 
 impl Evaluator for UciEngine {
+    async fn candidates(
+        &mut self,
+        fen: &str,
+        chess960: bool,
+        count: u16,
+    ) -> Result<Vec<LocalCandidate>, SearchError> {
+        self.candidate_moves(fen, chess960, count)
+    }
+
     async fn evaluate(&mut self, fen: &str, chess960: bool) -> Result<LocalAnalysis, SearchError> {
         let result = (|| -> Result<LocalAnalysis, UciError> {
             self.send("ucinewgame")?;

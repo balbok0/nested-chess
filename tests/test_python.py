@@ -128,3 +128,22 @@ def test_global_search_avoids_a_local_win_that_permits_a_third_loss():
     assert actual["expected_score"] > 0
     assert actual["best_move"]["uci"] in game.legal_moves(actual["best_move"]["board"])
     assert game.state() == before
+
+
+@pytest.mark.parametrize("rows", [
+    pytest.param(2, id="four_by_two"),
+    pytest.param(4, id="four_by_four"),
+])
+def test_selective_search_uses_ten_candidates_without_mutating_game(rows):
+    game = nested_chess.Game.rectangular(4, rows)
+    before = game.state()
+    opponent = nested_chess.Opponent("node", ["scripts/fairy-uci.cjs"], "variants/nested.ini")
+    candidates = json.loads(opponent.candidates(game, 0))
+    assert len(candidates) == 10
+    assert len({candidate["uci"] for candidate in candidates}) == 10
+    assert all(candidate["uci"] in game.legal_moves(0) for candidate in candidates)
+    actual = json.loads(opponent.search_selective(game, max_depth=1, milliseconds=10000))
+    assert actual["completed_depth"] == 1
+    assert actual["candidate_evaluations"] > 0
+    assert actual["best_move"]["uci"] in game.legal_moves(actual["best_move"]["board"])
+    assert game.state() == before

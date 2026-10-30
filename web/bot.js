@@ -6,6 +6,7 @@ import { parseEvaluation } from './evaluation.js';
 
 const EVALUATION_TIME_MS = 100;
 const SEARCH_NODE_BUDGET = 100000;
+const CANDIDATE_COUNT = 10;
 
 export const LEVELS = [
   { label: 'Beginner', depth: 1, ms: 300, nodes: 32 },
@@ -51,17 +52,17 @@ export class Opponent {
     this.worker.postMessage({ commands });
     return response;
   }
-  async search(fen, level, chess960 = /[A-Ha-h]/.test(fen.split(' ')[2])) {
+  async search(fen, level, chess960 = /[A-Ha-h]/.test(fen.split(' ')[2]), candidates = 1) {
     await this.ready;
-    await this.command('readyok', ['ucinewgame', `setoption name UCI_Chess960 value ${chess960}`, 'setoption name UCI_LimitStrength value false', 'setoption name Skill Level value 20', 'setoption name MultiPV value 1', 'isready']);
-    return this.command('bestmove ', [`position fen ${fen}`, level.nodes ? `go nodes ${level.nodes}` : `go movetime ${level.ms}`]);
+    await this.command('readyok', ['ucinewgame', `setoption name UCI_Chess960 value ${chess960}`, 'setoption name UCI_LimitStrength value false', 'setoption name Skill Level value 20', `setoption name MultiPV value ${candidates}`, 'isready']);
+    return this.command('bestmove ', [`position fen ${fen}`, level.nodes ? `go nodes ${level.nodes * candidates}` : `go movetime ${level.ms}`]);
   }
   async bestMove(game, level) {
     await this.ready;
-    return JSON.parse(await game.best_move(JSON.stringify({ max_depth: level.depth, max_nodes: SEARCH_NODE_BUDGET, milliseconds: level.ms }), async (fen, chess960) => {
+    return JSON.parse(await game.best_move_selective(JSON.stringify({ max_depth: level.depth, max_nodes: SEARCH_NODE_BUDGET, milliseconds: level.ms }), CANDIDATE_COUNT, async (fen, chess960) => {
       const lines = await this.search(fen, { nodes: level.nodes }, chess960);
       return JSON.stringify({ evaluation: parseEvaluation(lines, fen.split(' ')[1] === 'w' ? 'white' : 'black'), best_move: lines.at(-1).split(' ')[1] });
-    }));
+    }, async (fen, chess960, count) => (await this.search(fen, { nodes: level.nodes }, chess960, count)).join('\n')));
   }
   async evaluate(fen) {
     return parseEvaluation(await this.search(fen, { ms: EVALUATION_TIME_MS }), fen.split(' ')[1] === 'w' ? 'white' : 'black');

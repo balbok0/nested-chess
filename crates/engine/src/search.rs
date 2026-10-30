@@ -8,6 +8,8 @@ const CP_SCALE: f64 = 400.0;
 const ESTIMATE_FLOOR: f64 = 0.001;
 const TERMINAL_VALUE: f64 = 2.0;
 const HEURISTIC_LIMIT: f64 = 1.0 - 1e-9;
+/// Ranked moves per eligible board before king-capture and routing additions.
+pub const DEFAULT_CANDIDATES: u16 = 10;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SearchError {
@@ -19,6 +21,8 @@ pub enum SearchError {
     InvalidEstimateCount,
     #[error("search requires depth 1–64, a positive node budget, and 1–60000 milliseconds")]
     InvalidLimits,
+    #[error("candidate count must be between 1 and 500")]
+    InvalidCandidateCount,
     #[error("local evaluation failed: {0}")]
     Evaluation(String),
 }
@@ -119,6 +123,13 @@ pub struct LocalAnalysis {
     pub best_move: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct LocalCandidate {
+    #[serde(serialize_with = "serialize_uci")]
+    pub uci: Move,
+    pub evaluation: LocalEvaluation,
+}
+
 /// A local oracle receiving a single FEN and its castling convention.
 pub trait Evaluator {
     fn evaluate(
@@ -126,6 +137,18 @@ pub trait Evaluator {
         fen: &str,
         chess960: bool,
     ) -> impl Future<Output = Result<LocalAnalysis, SearchError>>;
+
+    /// Return up to `count` ranked legal moves and White-relative scores.
+    fn candidates(
+        &mut self,
+        _fen: &str,
+        _chess960: bool,
+        _count: u16,
+    ) -> impl Future<Output = Result<Vec<LocalCandidate>, SearchError>> {
+        std::future::ready(Err(SearchError::Evaluation(
+            "candidate analysis is unavailable".into(),
+        )))
+    }
 }
 
 /// White-relative material evaluation without positional terms or local search.
@@ -183,12 +206,16 @@ pub struct SearchResult {
     pub nodes: u64,
     pub cutoffs: u64,
     pub evaluations: u64,
+    /// Candidate-analysis calls, included in `evaluations`.
+    pub candidate_evaluations: u64,
     pub cache_hits: u64,
 }
 
 struct Search<'a, E> {
     oracle: &'a mut E,
     cache: HashMap<(String, bool), LocalAnalysis>,
+    candidate_cache: HashMap<(String, bool), Vec<LocalCandidate>>,
+    candidate_count: Option<u16>,
     deadline: Instant,
     limits: SearchLimits,
     result: SearchResult,
@@ -211,6 +238,28 @@ pub async fn best_move<E: Evaluator>(
     oracle: &mut E,
     limits: SearchLimits,
 ) -> Result<SearchResult, SearchError> {
+    run_search(game, oracle, limits, None).await
+}
+
+/// Search ranked local candidates, king captures, and routing representatives for both players.
+pub async fn best_move_selective<E: Evaluator>(
+    game: &Game,
+    oracle: &mut E,
+    limits: SearchLimits,
+    candidates: u16,
+) -> Result<SearchResult, SearchError> {
+    if !(1..=500).contains(&candidates) {
+        return Err(SearchError::InvalidCandidateCount);
+    }
+    run_search(game, oracle, limits, Some(candidates)).await
+}
+
+async fn run_search<E: Evaluator>(
+    game: &Game,
+    oracle: &mut E,
+    limits: SearchLimits,
+    candidate_count: Option<u16>,
+) -> Result<SearchResult, SearchError> {
     if limits.max_depth == 0
         || limits.max_depth > 64
         || limits.max_nodes == 0
@@ -222,6 +271,8 @@ pub async fn best_move<E: Evaluator>(
     let mut search = Search {
         oracle,
         cache: HashMap::new(),
+        candidate_cache: HashMap::new(),
+        candidate_count,
         deadline: Instant::now() + Duration::from_millis(limits.milliseconds),
         limits,
         result: SearchResult {
@@ -231,6 +282,7 @@ pub async fn best_move<E: Evaluator>(
             nodes: 0,
             cutoffs: 0,
             evaluations: 0,
+            candidate_evaluations: 0,
             cache_hits: 0,
         },
     };
@@ -258,6 +310,96 @@ pub async fn best_move<E: Evaluator>(
 }
 
 impl<E: Evaluator> Search<'_, E> {
+    async fn actions(&mut self, game: &Game) -> Result<Option<Vec<SearchMove>>, SearchError> {
+        let legal = legal_actions(game);
+        let Some(count) = self.candidate_count else {
+            return Ok(Some(legal));
+        };
+        for action in legal
+            .iter()
+            .filter(|action| is_king_capture(game, **action))
+        {
+            let mut child = game.clone();
+            child.play(action.board, &action.uci.to_string())?;
+            if matches!(
+                (game.turn(), child.outcome()),
+                (Color::White, Outcome::White) | (Color::Black, Outcome::Black)
+            ) {
+                return Ok(Some(vec![*action]));
+            }
+        }
+        let mut selected = Vec::new();
+        for board in game.legal_boards() {
+            if self.exhausted() {
+                return Ok(None);
+            }
+            let board_moves: Vec<_> = legal
+                .iter()
+                .filter(|action| action.board == board)
+                .copied()
+                .collect();
+            if board_moves.len() <= usize::from(count) {
+                selected.extend(board_moves);
+                continue;
+            }
+            let key = (
+                game.boards[board].fen(game.turn()),
+                game.boards[board].is_chess960(),
+            );
+            if !self.candidate_cache.contains_key(&key) {
+                let candidates = self.oracle.candidates(&key.0, key.1, count).await?;
+                self.result.evaluations += 1;
+                self.result.candidate_evaluations += 1;
+                let first = candidates
+                    .first()
+                    .ok_or_else(|| SearchError::Evaluation("no candidate moves".into()))?;
+                self.cache.insert(
+                    key.clone(),
+                    LocalAnalysis {
+                        evaluation: first.evaluation,
+                        best_move: Some(first.uci.to_string()),
+                    },
+                );
+                self.candidate_cache.insert(key.clone(), candidates);
+            } else {
+                self.result.cache_hits += 1;
+            }
+            if self.exhausted() {
+                return Ok(None);
+            }
+            let candidates = &self.candidate_cache[&key];
+            let mut routes = std::collections::HashSet::new();
+            for action in &board_moves {
+                if candidates
+                    .iter()
+                    .any(|candidate| candidate.uci == action.uci)
+                    || is_king_capture(game, *action)
+                {
+                    routes.insert(
+                        game.grid.route(
+                            game.boards[board]
+                                .move_details(game.turn(), action.uci)
+                                .destination,
+                        )?,
+                    );
+                    selected.push(*action);
+                }
+            }
+            for action in board_moves {
+                if routes.insert(
+                    game.grid.route(
+                        game.boards[board]
+                            .move_details(game.turn(), action.uci)
+                            .destination,
+                    )?,
+                ) {
+                    selected.push(action);
+                }
+            }
+        }
+        Ok(Some(selected))
+    }
+
     fn exhausted(&self) -> bool {
         self.result.nodes >= self.limits.max_nodes || Instant::now() >= self.deadline
     }
@@ -284,17 +426,28 @@ impl<E: Evaluator> Search<'_, E> {
         if depth == 0 {
             return Ok(self.evaluate_match(game).await?.map(|value| (value, None)));
         }
-        let mut actions = legal_actions(game);
+        let Some(mut actions) = self.actions(game).await? else {
+            return Ok(None);
+        };
         actions.sort_by_cached_key(|action| {
-            let cached = self.cache.get(&(
+            let key = (
                 game.boards[action.board].fen(game.turn()),
                 game.boards[action.board].is_chess960(),
-            ));
+            );
+            let cached = self.cache.get(&key);
             std::cmp::Reverse((
                 Some(*action) == preferred,
                 cached.is_some_and(|analysis| {
                     analysis.best_move.as_deref() == Some(&action.uci.to_string())
                 }),
+                self.candidate_cache
+                    .get(&key)
+                    .and_then(|candidates| {
+                        candidates
+                            .iter()
+                            .position(|candidate| candidate.uci == action.uci)
+                    })
+                    .map_or(0, |rank| usize::MAX - rank),
                 move_priority(game, *action),
             ))
         });
@@ -384,6 +537,12 @@ impl<E: Evaluator> Search<'_, E> {
                 .clamp(-HEURISTIC_LIMIT, HEURISTIC_LIMIT),
         ))
     }
+}
+
+fn is_king_capture(game: &Game, action: SearchMove) -> bool {
+    game.boards[action.board]
+        .piece_at(action.uci.to)
+        .is_some_and(|piece| piece.color != game.turn() && piece.role == Role::King)
 }
 
 fn legal_actions(game: &Game) -> Vec<SearchMove> {

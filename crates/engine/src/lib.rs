@@ -2,6 +2,7 @@ mod board;
 pub mod search;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod uci;
+pub mod uci_output;
 
 pub use board::{
     BOARD_WIDTH, Board, CHESS960_POSITIONS, Move, MoveDetails, Piece, Role, RookMove, SQUARES,

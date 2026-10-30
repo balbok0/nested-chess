@@ -96,6 +96,49 @@ struct PyOpponent {
 
 #[pymethods]
 impl PyOpponent {
+    #[pyo3(signature = (game, candidates=10, max_depth=3, max_nodes=100_000, milliseconds=1000))]
+    fn search_selective(
+        &mut self,
+        game: &PyGame,
+        candidates: u16,
+        max_depth: u8,
+        max_nodes: u64,
+        milliseconds: u64,
+    ) -> PyResult<String> {
+        serde_json::to_string(
+            &self
+                .engine
+                .search_selective(
+                    &game.game,
+                    SearchLimits {
+                        max_depth,
+                        max_nodes,
+                        milliseconds,
+                    },
+                    candidates,
+                )
+                .map_err(py_error)?,
+        )
+        .map_err(py_error)
+    }
+
+    #[pyo3(signature = (game, board, count=10))]
+    fn candidates(&mut self, game: &PyGame, board: usize, count: u16) -> PyResult<String> {
+        game.game.legal_moves(board).map_err(py_error)?;
+        let position = game.game.board(board).map_err(py_error)?;
+        serde_json::to_string(
+            &self
+                .engine
+                .candidate_moves(
+                    &position.fen(game.game.turn()),
+                    position.is_chess960(),
+                    count,
+                )
+                .map_err(py_error)?,
+        )
+        .map_err(py_error)
+    }
+
     #[pyo3(signature = (game, max_depth=3, max_nodes=100_000, milliseconds=1000))]
     fn search(
         &mut self,
