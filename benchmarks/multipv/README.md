@@ -41,3 +41,13 @@ The runner journals results and requires the same binary and worker count when
 resuming. Protocol metadata includes hashes of the binary, search, UCI adapter,
 and MultiPV parser. The final standalone HTML is
 `claude/20261030_multipv-benchmark/report.html`.
+
+Replay the completed results, validate the full sample, and export the report:
+
+```sh
+cargo run --release -p nested-chess --example verify_multipv -- \
+  scratch/claude/20261030_multipv-benchmark/run/results.jsonl
+uv run --no-project python claude/20261030_multipv-benchmark/validate.py \
+  scratch/claude/20261030_multipv-benchmark/run target/release/examples/benchmark
+uv run --no-project python claude/20261030_multipv-benchmark/report.py
+```
