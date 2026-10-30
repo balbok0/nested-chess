@@ -13,6 +13,7 @@ export class LocalSession {
   undo() { return this.engine.undo(); }
   agree_draw(board) { return this.engine.agree_draw(board); }
   best_move(...args) { return this.engine.best_move(...args); }
+  best_move_selective(...args) { return this.engine.best_move_selective(...args); }
   free() { this.engine.free(); }
 }
 

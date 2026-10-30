@@ -263,6 +263,9 @@ candidate-analysis subset. Native/browser candidate requests use `count` times
 the scalar analysis node budget. A completed line is not guaranteed for every
 requested candidate under a finite engine budget.
 
+`cargo run --release -p nested-chess --example selective_smoke` exercises twenty
+real-engine moves on each of 4×2 and 4×4, including save/replay validation.
+
 ## Opponent strength
 
 The custom [Fairy-Stockfish variant](variants/nested.ini) inherits extinction
