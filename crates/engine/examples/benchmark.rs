@@ -1,6 +1,6 @@
 use nested_chess::{
     Color, Game, Outcome,
-    search::{self, MaterialEvaluator, SearchLimits, fallback_move},
+    search::{self, DEFAULT_CANDIDATES, MaterialEvaluator, SearchLimits, fallback_move},
     uci::UciEngine,
 };
 use serde::{Deserialize, Serialize};
@@ -56,6 +56,7 @@ struct Metrics {
     moves: u64,
     elapsed_ms: f64,
     engine_calls: u64,
+    candidate_evaluations: u64,
     material_evaluations: u64,
     search_nodes: u64,
     cutoffs: u64,
@@ -96,7 +97,7 @@ fn play(job: Job) -> Result<Record, Box<dyn std::error::Error>> {
         || job.b_level >= 6
         || !matches!(
             job.family.as_str(),
-            "global" | "local" | "fallback" | "material"
+            "global" | "local" | "fallback" | "material" | "multipv"
         )
         || (job.family == "fallback" && job.a_level != 0)
     {
@@ -139,7 +140,7 @@ fn play(job: Job) -> Result<Record, Box<dyn std::error::Error>> {
             metrics.fallback_moves += 1;
             metrics.depth_histogram[0] += 1;
             (action.board, action.uci)
-        } else if is_a && matches!(job.family.as_str(), "global" | "material") {
+        } else if is_a && matches!(job.family.as_str(), "global" | "material" | "multipv") {
             let limits = SearchLimits {
                 max_depth: (level + 1) as u8,
                 max_nodes: 100000,
@@ -154,11 +155,14 @@ fn play(job: Job) -> Result<Record, Box<dyn std::error::Error>> {
                 metrics.material_evaluations += result.evaluations;
                 result
             } else {
-                let result = a_engine
-                    .as_mut()
-                    .expect("global policy has an engine")
-                    .search(&game, limits)?;
+                let engine = a_engine.as_mut().expect("global policy has an engine");
+                let result = if job.family == "multipv" {
+                    engine.search_selective(&game, limits, DEFAULT_CANDIDATES)?
+                } else {
+                    engine.search(&game, limits)?
+                };
                 metrics.engine_calls += result.evaluations;
+                metrics.candidate_evaluations += result.candidate_evaluations;
                 result
             };
             metrics.search_nodes += result.nodes;

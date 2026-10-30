@@ -90,3 +90,17 @@ def test_material_jobs_have_six_balanced_conditions(pairs, expected_count):
         for level, opponent in ((1, 3), (3, 5), (5, 5)):
             for color in ("white", "black"):
                 assert sum((job["columns"], job["rows"], job["family"], job["a_level"], job["b_level"], job["a_color"]) == (4, rows, "material", level, opponent, color) for job in actual) == pairs
+
+
+@pytest.mark.parametrize("pairs,expected_count", [
+    pytest.param(5, 60, id="ten_multipv_pilots_per_condition"),
+    pytest.param(50, 600, id="hundred_multipv_games_per_condition"),
+])
+def test_multipv_jobs_have_six_balanced_conditions(pairs, expected_count):
+    actual = jobs(pairs, "test", multipv=True)
+    assert len(actual) == expected_count
+    assert len({job["id"] for job in actual}) == expected_count
+    for rows in (2, 4):
+        for level, opponent in ((1, 3), (3, 5), (5, 5)):
+            for color in ("white", "black"):
+                assert sum((job["columns"], job["rows"], job["family"], job["a_level"], job["b_level"], job["a_color"]) == (4, rows, "multipv", level, opponent, color) for job in actual) == pairs
