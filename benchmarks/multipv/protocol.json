@@ -1,0 +1,178 @@
+{
+  "grids": [
+    {
+      "columns": 4,
+      "rows": 2
+    },
+    {
+      "columns": 4,
+      "rows": 4
+    }
+  ],
+  "start": "classical",
+  "workers": 24,
+  "pilot_workers": 24,
+  "target_games": 600,
+  "games_per_pairing": 100,
+  "colors_per_pairing": 50,
+  "pilot_games": 60,
+  "pilot_policy": "Five games per color; force a two-ply classical opening only if both colors repeat all five complete traces. Exclude pilots from scored results.",
+  "conditions": [
+    {
+      "columns": 4,
+      "rows": 2,
+      "family": "multipv",
+      "a_level": 1,
+      "b_level": 3,
+      "pilot_unique_traces": {
+        "white": 5,
+        "black": 5
+      },
+      "forced_openings": false
+    },
+    {
+      "columns": 4,
+      "rows": 2,
+      "family": "multipv",
+      "a_level": 3,
+      "b_level": 5,
+      "pilot_unique_traces": {
+        "white": 5,
+        "black": 5
+      },
+      "forced_openings": false
+    },
+    {
+      "columns": 4,
+      "rows": 2,
+      "family": "multipv",
+      "a_level": 5,
+      "b_level": 5,
+      "pilot_unique_traces": {
+        "white": 5,
+        "black": 5
+      },
+      "forced_openings": false
+    },
+    {
+      "columns": 4,
+      "rows": 4,
+      "family": "multipv",
+      "a_level": 1,
+      "b_level": 3,
+      "pilot_unique_traces": {
+        "white": 5,
+        "black": 5
+      },
+      "forced_openings": false
+    },
+    {
+      "columns": 4,
+      "rows": 4,
+      "family": "multipv",
+      "a_level": 3,
+      "b_level": 5,
+      "pilot_unique_traces": {
+        "white": 5,
+        "black": 5
+      },
+      "forced_openings": false
+    },
+    {
+      "columns": 4,
+      "rows": 4,
+      "family": "multipv",
+      "a_level": 5,
+      "b_level": 5,
+      "pilot_unique_traces": {
+        "white": 5,
+        "black": 5
+      },
+      "forced_openings": false
+    }
+  ],
+  "opening_pools": {},
+  "policy": "multipv-10",
+  "global_presets": [
+    {
+      "depth": 1,
+      "milliseconds": 300,
+      "analysis_nodes": 32
+    },
+    {
+      "depth": 2,
+      "milliseconds": 600,
+      "analysis_nodes": 64
+    },
+    {
+      "depth": 3,
+      "milliseconds": 1000,
+      "analysis_nodes": 128
+    },
+    {
+      "depth": 4,
+      "milliseconds": 1600,
+      "analysis_nodes": 128
+    },
+    {
+      "depth": 5,
+      "milliseconds": 2400,
+      "analysis_nodes": 256
+    },
+    {
+      "depth": 6,
+      "milliseconds": 4000,
+      "analysis_nodes": 256
+    }
+  ],
+  "local_presets": [
+    {
+      "skill": 0,
+      "milliseconds": 60
+    },
+    {
+      "skill": 2,
+      "milliseconds": 100
+    },
+    {
+      "skill": 5,
+      "milliseconds": 180
+    },
+    {
+      "skill": 10,
+      "milliseconds": 300
+    },
+    {
+      "skill": 15,
+      "milliseconds": 500
+    },
+    {
+      "skill": 20,
+      "milliseconds": 900
+    }
+  ],
+  "global_node_budget": 100000,
+  "local_board_policy": "legal_boards[global_ply % legal_boards.len()]",
+  "build_profile": "release",
+  "started_utc": "2026-10-30T14:47:35Z",
+  "logical_cpus": 32,
+  "benchmark_revision": "d5780ca240f46de6e58fe5d4c84aa208ba30a651",
+  "binary_sha256": "83f8f160f0e480d385b35c7e06168a7332eb5da5daee63defb86b39d173eeeeb",
+  "search_sha256": "d5f256f3efd7968873b0c2e48ff7750e8d5a0243b4141733f6d4db0b53cfe951",
+  "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "node": "v24.19.0",
+  "fairy_stockfish": {
+    "npm_version": "1.1.12",
+    "source_revision": "b2e693ef1e111233ce3fb40685921708b3276ed6",
+    "threads": 1,
+    "nnue": false
+  },
+  "interval": "95% Bonferroni-Clopper-Pearson bounds on the color-paired outcome distribution, per condition.",
+  "candidate_count": 10,
+  "candidate_policy": "Up to ten MultiPV moves per eligible board for both players, plus king captures and one capture-priority representative for missing routing regions. Native candidate analysis uses analysis_nodes \u00d7 10. All oracle calls count as engine_calls; candidate_evaluations is a subset. Existing DP, alpha-beta, deadlines and fallback unchanged.",
+  "reference_revision": "01c3cef",
+  "uci_sha256": "b33ef9aea43d5d30b3d69385b1645be538066be4a5a81ff4ec8c10a4a5ceddf6",
+  "uci_output_sha256": "54fc6587d51d6d6d0fdc4b4aa0947a2c0f3138f20de6950cf5d6bdfb6b7f0405",
+  "finished_utc": "2026-10-30T18:05:28Z"
+}

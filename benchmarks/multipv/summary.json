@@ -1,0 +1,487 @@
+{
+  "protocol": {
+    "grids": [
+      {
+        "columns": 4,
+        "rows": 2
+      },
+      {
+        "columns": 4,
+        "rows": 4
+      }
+    ],
+    "start": "classical",
+    "workers": 24,
+    "pilot_workers": 24,
+    "target_games": 600,
+    "games_per_pairing": 100,
+    "colors_per_pairing": 50,
+    "pilot_games": 60,
+    "pilot_policy": "Five games per color; force a two-ply classical opening only if both colors repeat all five complete traces. Exclude pilots from scored results.",
+    "conditions": [
+      {
+        "columns": 4,
+        "rows": 2,
+        "family": "multipv",
+        "a_level": 1,
+        "b_level": 3,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "columns": 4,
+        "rows": 2,
+        "family": "multipv",
+        "a_level": 3,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "columns": 4,
+        "rows": 2,
+        "family": "multipv",
+        "a_level": 5,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "columns": 4,
+        "rows": 4,
+        "family": "multipv",
+        "a_level": 1,
+        "b_level": 3,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "columns": 4,
+        "rows": 4,
+        "family": "multipv",
+        "a_level": 3,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      },
+      {
+        "columns": 4,
+        "rows": 4,
+        "family": "multipv",
+        "a_level": 5,
+        "b_level": 5,
+        "pilot_unique_traces": {
+          "white": 5,
+          "black": 5
+        },
+        "forced_openings": false
+      }
+    ],
+    "opening_pools": {},
+    "policy": "multipv-10",
+    "global_presets": [
+      {
+        "depth": 1,
+        "milliseconds": 300,
+        "analysis_nodes": 32
+      },
+      {
+        "depth": 2,
+        "milliseconds": 600,
+        "analysis_nodes": 64
+      },
+      {
+        "depth": 3,
+        "milliseconds": 1000,
+        "analysis_nodes": 128
+      },
+      {
+        "depth": 4,
+        "milliseconds": 1600,
+        "analysis_nodes": 128
+      },
+      {
+        "depth": 5,
+        "milliseconds": 2400,
+        "analysis_nodes": 256
+      },
+      {
+        "depth": 6,
+        "milliseconds": 4000,
+        "analysis_nodes": 256
+      }
+    ],
+    "local_presets": [
+      {
+        "skill": 0,
+        "milliseconds": 60
+      },
+      {
+        "skill": 2,
+        "milliseconds": 100
+      },
+      {
+        "skill": 5,
+        "milliseconds": 180
+      },
+      {
+        "skill": 10,
+        "milliseconds": 300
+      },
+      {
+        "skill": 15,
+        "milliseconds": 500
+      },
+      {
+        "skill": 20,
+        "milliseconds": 900
+      }
+    ],
+    "global_node_budget": 100000,
+    "local_board_policy": "legal_boards[global_ply % legal_boards.len()]",
+    "build_profile": "release",
+    "started_utc": "2026-10-30T14:47:35Z",
+    "logical_cpus": 32,
+    "benchmark_revision": "d5780ca240f46de6e58fe5d4c84aa208ba30a651",
+    "binary_sha256": "83f8f160f0e480d385b35c7e06168a7332eb5da5daee63defb86b39d173eeeeb",
+    "search_sha256": "d5f256f3efd7968873b0c2e48ff7750e8d5a0243b4141733f6d4db0b53cfe951",
+    "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "node": "v24.19.0",
+    "fairy_stockfish": {
+      "npm_version": "1.1.12",
+      "source_revision": "b2e693ef1e111233ce3fb40685921708b3276ed6",
+      "threads": 1,
+      "nnue": false
+    },
+    "interval": "95% Bonferroni-Clopper-Pearson bounds on the color-paired outcome distribution, per condition.",
+    "candidate_count": 10,
+    "candidate_policy": "Up to ten MultiPV moves per eligible board for both players, plus king captures and one capture-priority representative for missing routing regions. Native candidate analysis uses analysis_nodes \u00d7 10. All oracle calls count as engine_calls; candidate_evaluations is a subset. Existing DP, alpha-beta, deadlines and fallback unchanged.",
+    "reference_revision": "01c3cef",
+    "uci_sha256": "b33ef9aea43d5d30b3d69385b1645be538066be4a5a81ff4ec8c10a4a5ceddf6",
+    "uci_output_sha256": "54fc6587d51d6d6d0fdc4b4aa0947a2c0f3138f20de6950cf5d6bdfb6b7f0405",
+    "finished_utc": "2026-10-30T18:05:28Z"
+  },
+  "levels": [
+    "Beginner",
+    "Casual",
+    "Club",
+    "Strong",
+    "Expert",
+    "Maximum"
+  ],
+  "completed_games": 600,
+  "target_games": 600,
+  "results": [
+    {
+      "columns": 4,
+      "rows": 2,
+      "family": "multipv",
+      "a_level": 1,
+      "b_level": 3,
+      "games": 100,
+      "pairs": 50,
+      "wins": 18,
+      "draws": 29,
+      "losses": 53,
+      "win_rate": 0.18,
+      "score_rate": 0.325,
+      "win_ci95": {
+        "low": 0.09466035527931563,
+        "high": 0.32381037498192317
+      },
+      "score_ci95": {
+        "low": 0.1903014535500957,
+        "high": 0.5311210456825484
+      },
+      "white": {
+        "games": 50,
+        "score": 10.0
+      },
+      "black": {
+        "games": 50,
+        "score": 22.5
+      },
+      "mean_plies": 217.76,
+      "a_metrics": {
+        "moves": 10872,
+        "elapsed_ms": 6647387.845952,
+        "engine_calls": 279521,
+        "search_nodes": 115871,
+        "cutoffs": 271,
+        "cache_hits": 629959,
+        "completed_depth_sum": 1768,
+        "fallback_moves": 9122,
+        "material_evaluations": 0,
+        "candidate_evaluations": 22477
+      },
+      "b_metrics": {
+        "moves": 10904,
+        "elapsed_ms": 3632523.8834329997,
+        "engine_calls": 10904
+      }
+    },
+    {
+      "columns": 4,
+      "rows": 2,
+      "family": "multipv",
+      "a_level": 3,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 50,
+      "draws": 25,
+      "losses": 25,
+      "win_rate": 0.5,
+      "score_rate": 0.625,
+      "win_ci95": {
+        "low": 0.3500615566175127,
+        "high": 0.6499384433824873
+      },
+      "score_ci95": {
+        "low": 0.41329703185639066,
+        "high": 0.7911338311098721
+      },
+      "white": {
+        "games": 50,
+        "score": 22.5
+      },
+      "black": {
+        "games": 50,
+        "score": 40.0
+      },
+      "mean_plies": 187.82,
+      "a_metrics": {
+        "moves": 9392,
+        "elapsed_ms": 15076656.181545,
+        "engine_calls": 603248,
+        "search_nodes": 334600,
+        "cutoffs": 16504,
+        "cache_hits": 2288780,
+        "completed_depth_sum": 8297,
+        "fallback_moves": 1780,
+        "material_evaluations": 0,
+        "candidate_evaluations": 43827
+      },
+      "b_metrics": {
+        "moves": 9390,
+        "elapsed_ms": 8425769.981567,
+        "engine_calls": 9390
+      }
+    },
+    {
+      "columns": 4,
+      "rows": 2,
+      "family": "multipv",
+      "a_level": 5,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 34,
+      "draws": 27,
+      "losses": 39,
+      "win_rate": 0.34,
+      "score_rate": 0.475,
+      "win_ci95": {
+        "low": 0.21881213543559694,
+        "high": 0.4902244049638617
+      },
+      "score_ci95": {
+        "low": 0.304712486608497,
+        "high": 0.6502140814270223
+      },
+      "white": {
+        "games": 50,
+        "score": 22.0
+      },
+      "black": {
+        "games": 50,
+        "score": 25.5
+      },
+      "mean_plies": 328.26,
+      "a_metrics": {
+        "moves": 16409,
+        "elapsed_ms": 65639980.41963299,
+        "engine_calls": 2412619,
+        "search_nodes": 1771227,
+        "cutoffs": 170038,
+        "cache_hits": 11648055,
+        "completed_depth_sum": 24545,
+        "fallback_moves": 440,
+        "material_evaluations": 0,
+        "candidate_evaluations": 173407
+      },
+      "b_metrics": {
+        "moves": 16417,
+        "elapsed_ms": 14857895.656880999,
+        "engine_calls": 16417
+      }
+    },
+    {
+      "columns": 4,
+      "rows": 4,
+      "family": "multipv",
+      "a_level": 1,
+      "b_level": 3,
+      "games": 100,
+      "pairs": 50,
+      "wins": 74,
+      "draws": 9,
+      "losses": 17,
+      "win_rate": 0.74,
+      "score_rate": 0.785,
+      "win_ci95": {
+        "low": 0.6088002437135731,
+        "high": 0.8272622068136808
+      },
+      "score_ci95": {
+        "low": 0.58987710656777,
+        "high": 0.8715791474501328
+      },
+      "white": {
+        "games": 50,
+        "score": 28.5
+      },
+      "black": {
+        "games": 50,
+        "score": 50.0
+      },
+      "mean_plies": 348.65,
+      "a_metrics": {
+        "moves": 17444,
+        "elapsed_ms": 10637314.11591,
+        "engine_calls": 437620,
+        "search_nodes": 107386,
+        "cutoffs": 89,
+        "cache_hits": 1270042,
+        "completed_depth_sum": 456,
+        "fallback_moves": 16989,
+        "material_evaluations": 0,
+        "candidate_evaluations": 71252
+      },
+      "b_metrics": {
+        "moves": 17421,
+        "elapsed_ms": 5792218.685241,
+        "engine_calls": 17421
+      }
+    },
+    {
+      "columns": 4,
+      "rows": 4,
+      "family": "multipv",
+      "a_level": 3,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 89,
+      "draws": 5,
+      "losses": 6,
+      "win_rate": 0.89,
+      "score_rate": 0.915,
+      "win_ci95": {
+        "low": 0.7592297356536769,
+        "high": 0.9507914899858803
+      },
+      "score_ci95": {
+        "low": 0.7285408639398613,
+        "high": 0.9690696977852906
+      },
+      "white": {
+        "games": 50,
+        "score": 42.0
+      },
+      "black": {
+        "games": 50,
+        "score": 49.5
+      },
+      "mean_plies": 279.05,
+      "a_metrics": {
+        "moves": 13971,
+        "elapsed_ms": 22409802.978864,
+        "engine_calls": 896010,
+        "search_nodes": 401944,
+        "cutoffs": 8000,
+        "cache_hits": 7188244,
+        "completed_depth_sum": 9629,
+        "fallback_moves": 4745,
+        "material_evaluations": 0,
+        "candidate_evaluations": 81188
+      },
+      "b_metrics": {
+        "moves": 13934,
+        "elapsed_ms": 12361987.423179999,
+        "engine_calls": 13934
+      }
+    },
+    {
+      "columns": 4,
+      "rows": 4,
+      "family": "multipv",
+      "a_level": 5,
+      "b_level": 5,
+      "games": 100,
+      "pairs": 50,
+      "wins": 84,
+      "draws": 10,
+      "losses": 6,
+      "win_rate": 0.84,
+      "score_rate": 0.89,
+      "win_ci95": {
+        "low": 0.6912507878461023,
+        "high": 0.9275495064064454
+      },
+      "score_ci95": {
+        "low": 0.685643962819924,
+        "high": 0.9619606165684226
+      },
+      "white": {
+        "games": 50,
+        "score": 42.5
+      },
+      "black": {
+        "games": 50,
+        "score": 46.5
+      },
+      "mean_plies": 369.64,
+      "a_metrics": {
+        "moves": 18501,
+        "elapsed_ms": 73932733.110434,
+        "engine_calls": 3016721,
+        "search_nodes": 2081578,
+        "cutoffs": 160979,
+        "cache_hits": 32977484,
+        "completed_depth_sum": 20734,
+        "fallback_moves": 4311,
+        "material_evaluations": 0,
+        "candidate_evaluations": 225866
+      },
+      "b_metrics": {
+        "moves": 18463,
+        "elapsed_ms": 16765311.772235,
+        "engine_calls": 18463
+      }
+    }
+  ],
+  "resources": {
+    "samples": 2131,
+    "peak_system_cpu_percent": 99.3,
+    "mean_system_cpu_percent": 87.17545753167526,
+    "peak_system_memory_percent": 36.3,
+    "peak_benchmark_rss_bytes": 16557395968
+  }
+}

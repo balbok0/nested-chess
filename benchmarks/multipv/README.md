@@ -1,5 +1,32 @@
 # Ten-candidate bot versus local Fairy-Stockfish
 
+All 600 scored games and 60 pilots completed. Every replay and accounting for
+86,589 scored bot moves passed validation. No condition needed forced openings.
+The scored phase took 3 hours 18 minutes with 24 workers.
+
+| Grid | Global / local preset | W–D–L | Win rate | Match score | 95% score bounds |
+| --- | --- | --- | --- | --- | --- |
+| 4×2 | Casual / Strong | 18–29–53 | 18% | 32.5% | 19.0–53.1% |
+| 4×2 | Strong / Maximum | 50–25–25 | 50% | 62.5% | 41.3–79.1% |
+| 4×2 | Maximum / Maximum | 34–27–39 | 34% | 47.5% | 30.5–65.0% |
+| 4×4 | Casual / Strong | 74–9–17 | 74% | 78.5% | 59.0–87.2% |
+| 4×4 | Strong / Maximum | 89–5–6 | 89% | 91.5% | 72.9–96.9% |
+| 4×4 | Maximum / Maximum | 84–10–6 | 84% | 89.0% | 68.6–96.2% |
+
+All three 4×4 score lower bounds exceed 50%; all three 4×2 intervals include 50%.
+Casual 4×4 used its capture-priority fallback on 97.4% of moves and averaged depth
+0.026, so its result does not isolate a benefit from global planning. Strong and
+Maximum 4×4 averaged depth 0.69 and 1.12, with fallback on 34.0% and 23.3% of moves.
+
+The earlier full-width 4×4 scores were 83.0%, 90.5%, and 87.5%. These separate
+runs do not establish a strength gain from MultiPV. Total engine calls per move
+fell, but candidate calls use ten times the scalar node budget; this is not proof
+of compute savings. Exact call counts, move times, colors and all historical
+controls are in the HTML report and summary.
+
+Scored-phase system CPU averaged 87.2%, peaking at 99.3%. Peak summed benchmark
+RSS was 15.42 GiB, and peak system memory use was 36.3%.
+
 Six conditions: Casual vs Strong, Strong vs Maximum, Maximum vs Maximum on both
 4×2 and 4×4. Each has 100 scored games, 50 per color: 600 total. Sixty unscored
 determinism pilots precede scoring. Force paired two-ply classical openings only

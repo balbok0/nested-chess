@@ -20,21 +20,22 @@ def export() -> None:
     fallback = json.loads((ROOT / "web/fallback-benchmark-results.json").read_text())
     findings = ""
     if data["completed_games"] == data["target_games"]:
-        scores = [result["score_rate"] for result in data["results"]]
-        below_half = sum(result["score_ci95"]["high"] < .5 for result in data["results"])
-        above_half = sum(result["score_ci95"]["low"] > .5 for result in data["results"])
+        above_four = sum(result["rows"] == 4 and result["score_ci95"]["low"] > .5 for result in data["results"])
+        uncertain_two = sum(result["rows"] == 2 and result["score_ci95"]["low"] <= .5 <= result["score_ci95"]["high"] for result in data["results"])
         casual = next(result for result in data["results"] if result["rows"] == 4 and result["a_level"] == 1)
         baseline = next(result for result in fallback["results"] if result["rows"] == 4 and result["b_level"] == 3)
         fairy = next(result for result in previous["results"] if result["rows"] == 4 and result["family"] == "global" and result["a_level"] == 1)
         a = casual["a_metrics"]
-        findings = f"""<p>The ten-candidate bot scored <strong>{100 * min(scores):.1f}–{100 * max(scores):.1f}%</strong>
-          across the six conditions. {above_half} score lower bounds are above 50%;
-          {below_half} upper bounds are below 50%.</p>
+        findings = f"""<p>On 4×4, the 95% score lower bound exceeds 50% in <strong>{above_four}/3 conditions</strong>.
+          On 4×2, {uncertain_two}/3 score intervals include 50%.</p>
           <p>On 4×4 against Strong local, Casual MultiPV scored {100 * casual['score_rate']:.1f}%,
           compared with {100 * baseline['score_rate']:.1f}% for fallback alone and
           {100 * fairy['score_rate']:.1f}% for full-width Casual global in the earlier runs.
           Casual MultiPV averaged depth {a['completed_depth_sum'] / a['moves']:.2f},
-          with fallback on {100 * a['fallback_moves'] / a['moves']:.1f}% of moves.</p>"""
+          with fallback on {100 * a['fallback_moves'] / a['moves']:.1f}% of moves.</p>
+          <p>The scores are close to the earlier full-width results. These separate runs
+          do not establish a strength gain from MultiPV. Fewer engine calls also do not
+          establish compute savings: each candidate request has ten times the scalar node budget.</p>"""
     sections = []
     for rows in (2, 4):
         body = []
@@ -110,6 +111,9 @@ Casual: depth 2 / 600 ms; Strong: depth 4 / 1,600 ms; Maximum: depth 6 /
 Candidate requests use ten times those budgets. Candidate calls are included in total
 engine calls; their cost is greater than a scalar request. These are the existing
 unequal preset budgets, rather than an equal-compute efficiency comparison.</p>
+<p>Depth zero returns the capture-priority fallback without completing a search
+iteration. A high match score with frequent fallback use does not isolate a benefit
+from MultiPV or global planning.</p>
 <p>Local Strong uses skill 10 / 300 ms; local Maximum uses skill 20 / 900 ms.
 Free-board selection is legal_boards[global_ply % legal_boards.len()]. Release build,
 {protocol['workers']} parallel games; Fairy-Stockfish 1.1.12, one thread, NNUE off.</p>
