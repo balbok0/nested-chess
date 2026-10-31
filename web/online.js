@@ -63,7 +63,7 @@ export function setupOnline({ enter, current, leave, onerror }) {
       const row = document.createElement('div'); row.className = 'online-game-row';
       const button = document.createElement('button'); button.className = 'text-button';
       const opponent = info.white?.id === account.user.id ? info.black : info.white;
-      button.textContent = `${info.status === 'waiting' ? info.queue_started_ms != null ? 'Finding an opponent' : 'Waiting for opponent' : opponent?.handle || 'Match'} · ${info.size} × ${info.rows ?? info.size}`;
+      button.textContent = `${info.status === 'waiting' ? info.queue_started_ms != null ? 'Finding an opponent' : 'Waiting for opponent' : opponent?.handle || 'Match'} · ${info.rows ?? info.size} × ${info.size}`;
       button.onclick = () => { void run(() => load(info.id)); }; row.append(button);
       if (info.status === 'waiting') {
         const cancel = document.createElement('button'); cancel.className = 'text-button'; cancel.textContent = 'Cancel';
@@ -95,7 +95,7 @@ export function setupOnline({ enter, current, leave, onerror }) {
       const result = info.result === 'draw' ? 'Draw' : info.result === (white ? 'white' : 'black') ? 'Won' : 'Lost';
       const opponent = white ? info.black : info.white;
       const button = document.createElement('button'); button.className = 'online-game-row';
-      const text = document.createElement('span'); text.textContent = `${result} vs ${opponent.handle} · ${info.size} × ${info.rows ?? info.size} · ${new Date(info.created_ms).toLocaleDateString()}`;
+      const text = document.createElement('span'); text.textContent = `${result} vs ${opponent.handle} · ${info.rows ?? info.size} × ${info.size} · ${new Date(info.created_ms).toLocaleDateString()}`;
       const rating = document.createElement('span');
       if (row.rating_after !== null) { const delta = Math.round(row.rating_after - row.rating_before); rating.textContent = `${Math.round(row.rating_after)} (${delta >= 0 ? '+' : ''}${delta})`; }
       else rating.textContent = 'Unrated';

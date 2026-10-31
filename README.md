@@ -1,6 +1,6 @@
 # Nested chess
 
-A Rust king-capture chess engine on a routed 2×2, 4×2, or 4×4 grid of games,
+A Rust king-capture chess engine on a routed 2×2, 2×4, or 4×4 grid of games,
 with a playable browser UI, WebAssembly bindings, Python bindings, and a
 global Rust negamax opponent using Fairy-Stockfish for local analysis.
 
@@ -24,6 +24,8 @@ link to the other player. Compose runs two interchangeable Rust replicas behind 
 with shared PostgreSQL storage and notifications. See [server setup and API](docs/server.md) for login
 configuration, storage, clocks, deployment, and the protocol shared with mobile.
 The GitHub Pages demo remains client-side; it does not host the multiplayer API.
+See the [deployment walkthrough](docs/deployment.md) for the HTTPS single-server
+setup and Android/iOS distribution steps.
 
 ## Android and iOS
 
@@ -105,8 +107,8 @@ backend, accounts, or external inference service is needed.
   deciding who may move. Black can open an untouched board, and either color may
   move repeatedly on a local board across separate global turns.
 - The first move can use any board. The landing square routes the opponent to a
-  board in the macro grid: quadrants for 2×2, two-file/four-rank regions for 4×2,
-  and 2×2 square regions for 4×4. Dimensions mean columns × rows.
+  board in the macro grid: quadrants for 2×2, two-file/four-rank regions for 2×4,
+  and 2×2 square regions for 4×4. UI labels mean rows × columns.
 - All routing coordinates use White's orientation, independent of UI flipping.
   Both local squares and macro boards run left to right, bottom to top. Board 0 is
   A1. For 2×2, `e4` routes to B1 (index 1), `d5` to A2 (index 2).
@@ -158,7 +160,7 @@ Rectangular Chess960 constructors are `chess960_rectangular` and
 `Game.rectangular(4, 2, chess960=index)` or `Game.chess960_boards_rectangular`.
 State includes explicit `columns` and `rows`; `size` remains the legacy column
 count. Existing square constructors and 8×8 saves remain compatible, while new-game
-controls offer 2×2, 4×2, and 4×4.
+controls offer 2×2, 2×4, and 4×4. API arguments remain columns first.
 
 `crates/engine` owns move generation, routing, scoring, draws, replay saves,
 and feature planes. `Board` uses twelve bitboards and has **no local side to move**.

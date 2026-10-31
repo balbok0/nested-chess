@@ -577,7 +577,7 @@ async function boot() {
   $('export').onclick = () => {
     if (native) { void shareSave(game.save()).catch(showError); return; }
     const url = URL.createObjectURL(new Blob([game.save()], { type: 'application/json' }));
-    const link = document.createElement('a'); link.href = url; link.download = `nested-${currentGrid()}-ply${state.ply}.json`; link.click(); URL.revokeObjectURL(url);
+    const link = document.createElement('a'); link.href = url; link.download = `nested-${state.rows}x${state.columns}-ply${state.ply}.json`; link.click(); URL.revokeObjectURL(url);
   };
   $('import').onclick = () => $('import-file').click();
   $('import-file').onchange = async event => {

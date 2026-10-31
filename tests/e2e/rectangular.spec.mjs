@@ -4,7 +4,8 @@ for (const rows of [2, 4]) {
   test(`4x${rows}_uses_four_columns_and_keeps_routing_after_reload_and_undo`, async ({ page }) => {
     await page.goto('/');
     await page.getByRole('combobox', { name: 'Opponent', exact: true }).selectOption('local');
-    await page.getByRole('button', { name: `4 × ${rows}`, exact: true }).click();
+    await expect(page.locator('#grid-options button')).toHaveText(['2 × 2', '2 × 4', '4 × 4']);
+    await page.getByRole('button', { name: `${rows} × 4`, exact: true }).click();
     await expect(page.locator('#board-count')).toHaveText(`${4 * rows} boards`);
     await expect(page.getByRole('button', { name: '8 × 8', exact: true })).toHaveCount(0);
     const bounds = await page.locator('.macro-cell').evaluateAll(elements => elements.map(element => ({
@@ -22,13 +23,13 @@ for (const rows of [2, 4]) {
     await expect(page.locator('#focus-title')).toHaveText(`Board C${rows === 2 ? 2 : 3}`);
     await page.reload();
     await expect(page.locator('#ply-count')).toHaveText('2 moves');
-    await expect(page.getByRole('button', { name: `4 × ${rows}`, exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: `${rows} × 4`, exact: true })).toHaveAttribute('aria-pressed', 'true');
     await page.locator('#undo').click();
     await expect(page.locator('#ply-count')).toHaveText('1 move');
     await expect(page.locator('#focus-title')).toHaveText(`Board C${rows === 2 ? 1 : 2}`);
     const download = page.waitForEvent('download');
     await page.locator('#export').click();
-    expect((await download).suggestedFilename()).toBe(`nested-4x${rows}-ply1.json`);
+    expect((await download).suggestedFilename()).toBe(`nested-${rows}x4-ply1.json`);
   });
 }
 
@@ -43,7 +44,7 @@ test('an_old_64_board_save_still_opens_and_its_new_match_uses_eight_boards', asy
   await expect(page.locator('#board-count')).toHaveText('64 boards');
   await page.getByRole('button', { name: 'New match', exact: true }).click();
   await expect(page.locator('#board-count')).toHaveText('8 boards');
-  await expect(page.getByRole('button', { name: '4 × 2', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '2 × 4', exact: true })).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('eight_board_online_invitations_keep_the_shape_for_both_players', async ({ page, playwright, baseURL }) => {
@@ -51,6 +52,7 @@ test('eight_board_online_invitations_keep_the_shape_for_both_players', async ({ 
   try {
     await page.goto('/');
     await page.getByRole('button', { name: 'Online', exact: true }).click();
+    await expect(page.locator('#online-size option')).toHaveText(['2 × 2', '2 × 4 (four columns)', '4 × 4']);
     await page.locator('#online-size').selectOption('4x2');
     await page.getByRole('button', { name: 'Create invitation', exact: true }).click();
     await expect(page.locator('#online-connection')).toContainText('You play');

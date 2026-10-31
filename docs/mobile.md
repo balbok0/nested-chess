@@ -96,7 +96,7 @@ the viewport height; desktop retains its three-column layout. Local new-match
 and grid changes ask before replacing a nonempty saved match. Selecting the
 current grid size leaves it unchanged.
 
-New matches offer 2×2, 4×2, and 4×4. The 4×2 layout has four columns and two rows;
+New matches offer 2×2, 2×4, and 4×4. The 2×4 layout has four columns and two rows;
 each two-file/four-rank region routes to one of its eight boards. Older 8×8 saves
 still import with their original layout.
 

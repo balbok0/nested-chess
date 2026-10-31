@@ -5,7 +5,7 @@ for (const rows of [2, 4]) {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto('/');
-    await page.getByRole('button', { name: `4 × ${rows}`, exact: true }).click();
+    await page.getByRole('button', { name: `${rows} × 4`, exact: true }).click();
     await page.getByRole('combobox', { name: 'Opponent', exact: true }).selectOption('bot');
     await page.locator('#difficulty').selectOption('1');
     await page.getByRole('button', { name: 'e2 white pawn', exact: true }).click();
