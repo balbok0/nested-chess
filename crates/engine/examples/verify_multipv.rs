@@ -22,6 +22,8 @@ struct Metrics {
     candidate_evaluations: u64,
     material_evaluations: u64,
     completed_depth_sum: u64,
+    evaluated_depth_sum: Option<u64>,
+    partial_moves: Option<u64>,
     fallback_moves: u64,
     depth_histogram: [u64; 7],
 }
@@ -55,6 +57,16 @@ fn verify(record: Record) -> Result<u64, Box<dyn std::error::Error>> {
         .map(|(depth, count)| depth as u64 * count)
         .sum();
     let state = game.state();
+    let valid_progress = match (record.a.evaluated_depth_sum, record.a.partial_moves) {
+        (Some(evaluated), Some(partial)) => {
+            record.a.fallback_moves == 0
+                && partial >= record.a.depth_histogram[0]
+                && partial <= record.a.moves
+                && evaluated == record.a.completed_depth_sum + partial
+        }
+        (None, None) => record.a.fallback_moves == record.a.depth_histogram[0],
+        _ => false,
+    };
     if record.job.family != "multipv"
         || record.job.a_level >= 6
         || (state.columns, state.rows) != (record.job.columns, record.job.rows)
@@ -66,7 +78,7 @@ fn verify(record: Record) -> Result<u64, Box<dyn std::error::Error>> {
         || record.a.engine_calls < record.a.candidate_evaluations
         || record.a.material_evaluations != 0
         || record.a.completed_depth_sum != depth_sum
-        || record.a.fallback_moves != record.a.depth_histogram[0]
+        || !valid_progress
         || record.a.depth_histogram.iter().sum::<u64>() != record.a.moves
         || record.a.depth_histogram[record.job.a_level + 2..]
             .iter()

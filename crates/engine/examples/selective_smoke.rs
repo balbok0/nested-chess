@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut evaluations = 0;
         let mut candidates = 0;
         let mut depth = 0;
-        let mut fallbacks = 0;
+        let mut partial_moves = 0;
         let mut plies = 0;
         while plies < 20 && game.outcome() == Outcome::Ongoing {
             let result = engine.search_selective(
@@ -40,7 +40,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             evaluations += result.evaluations;
             candidates += result.candidate_evaluations;
             depth += u64::from(result.completed_depth);
-            fallbacks += u64::from(result.completed_depth == 0);
+            partial_moves += u64::from(result.evaluated_depth > result.completed_depth);
+            assert!(result.expected_score.is_some());
+            assert!(result.root_moves_evaluated > 0);
             game.play(result.best_move.board, &result.best_move.uci.to_string())?;
             plies += 1;
         }
@@ -48,7 +50,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert_eq!(Game::load_json(&saved)?.save_json()?, saved);
         println!(
             "{}",
-            serde_json::json!({"columns": 4, "rows": rows, "plies": plies, "candidate_limit": DEFAULT_CANDIDATES, "evaluations": evaluations, "candidate_evaluations": candidates, "completed_depth_sum": depth, "fallback_moves": fallbacks})
+            serde_json::json!({"columns": 4, "rows": rows, "plies": plies, "candidate_limit": DEFAULT_CANDIDATES, "evaluations": evaluations, "candidate_evaluations": candidates, "completed_depth_sum": depth, "partial_moves": partial_moves})
         );
     }
     Ok(())

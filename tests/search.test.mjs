@@ -98,4 +98,19 @@ for (const rows of [2, 4]) {
       assert.equal(game.state(), before);
     } finally { oracle.close(); game.free(); }
   });
+  test(`WASM tiny budget returns an evaluated move on 4x${rows}`, async () => {
+    const game = NestedGame.rectangular(4, rows);
+    const before = game.state();
+    const oracle = await fairyOracle();
+    try {
+      const actual = JSON.parse(await game.best_move_selective(JSON.stringify({max_depth:2,max_nodes:2,milliseconds:1}), 10, oracle.evaluate, oracle.candidates));
+      assert.equal(actual.completed_depth, 0);
+      assert.equal(actual.evaluated_depth, 1);
+      assert.equal(actual.root_moves_evaluated, 1);
+      assert.ok(actual.root_moves_total > 1);
+      assert.notEqual(actual.expected_score, null);
+      assert.ok(JSON.parse(game.legal_moves(actual.best_move.board)).includes(actual.best_move.uci));
+      assert.equal(game.state(), before);
+    } finally { oracle.close(); game.free(); }
+  });
 }

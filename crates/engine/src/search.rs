@@ -19,7 +19,7 @@ pub enum SearchError {
     InvalidProbabilities,
     #[error("provide one probability estimate per unfinished board")]
     InvalidEstimateCount,
-    #[error("search requires depth 1–64, a positive node budget, and 1–60000 milliseconds")]
+    #[error("search requires depth 1–64, at least two nodes, and 1–60000 milliseconds")]
     InvalidLimits,
     #[error("candidate count must be between 1 and 500")]
     InvalidCandidateCount,
@@ -183,6 +183,7 @@ impl Evaluator for MaterialEvaluator {
 pub struct SearchLimits {
     pub max_depth: u8,
     pub max_nodes: u64,
+    /// Time budget applied after the first root evaluation finishes.
     pub milliseconds: u64,
 }
 
@@ -200,15 +201,38 @@ fn serialize_uci<S: serde::Serializer>(mv: &Move, serializer: S) -> Result<S::Ok
 #[derive(Debug, Clone, Serialize)]
 pub struct SearchResult {
     pub best_move: SearchMove,
-    /// Expected match score for the root player at the last completed depth.
+    /// Expected match score for the root player at `evaluated_depth`.
     pub expected_score: Option<f64>,
     pub completed_depth: u8,
+    /// Depth associated with the returned move and score.
+    pub evaluated_depth: u8,
+    /// Fully evaluated root candidates at `evaluated_depth`.
+    pub root_moves_evaluated: usize,
+    /// Total root candidates at `evaluated_depth`.
+    pub root_moves_total: usize,
     pub nodes: u64,
     pub cutoffs: u64,
     pub evaluations: u64,
     /// Candidate-analysis calls, included in `evaluations`.
     pub candidate_evaluations: u64,
     pub cache_hits: u64,
+}
+
+#[derive(Default)]
+struct SearchStats {
+    nodes: u64,
+    cutoffs: u64,
+    evaluations: u64,
+    candidate_evaluations: u64,
+    cache_hits: u64,
+}
+
+struct EvaluatedRoot {
+    action: SearchMove,
+    value: f64,
+    depth: u8,
+    moves_evaluated: usize,
+    moves_total: usize,
 }
 
 struct Search<'a, E> {
@@ -218,10 +242,12 @@ struct Search<'a, E> {
     candidate_count: Option<u16>,
     deadline: Instant,
     limits: SearchLimits,
-    result: SearchResult,
+    stats: SearchStats,
+    selected: Option<EvaluatedRoot>,
+    completed_depth: u8,
 }
 
-/// Return the capture/promotion-priority move used before any search depth completes.
+/// Return the capture-priority move used by the historical heuristic-only baseline.
 pub fn fallback_move(game: &Game) -> Result<SearchMove, SearchError> {
     if game.outcome() != Outcome::Ongoing {
         return Err(Error::Finished.into());
@@ -232,7 +258,7 @@ pub fn fallback_move(game: &Game) -> Result<SearchMove, SearchError> {
         .ok_or_else(|| Error::Finished.into())
 }
 
-/// Search all legal global moves within the supplied depth, node, and time limits.
+/// Search legal global moves with iterative deepening and retained root evaluations.
 pub async fn best_move<E: Evaluator>(
     game: &Game,
     oracle: &mut E,
@@ -262,12 +288,14 @@ async fn run_search<E: Evaluator>(
 ) -> Result<SearchResult, SearchError> {
     if limits.max_depth == 0
         || limits.max_depth > 64
-        || limits.max_nodes == 0
+        || limits.max_nodes < 2
         || !(1..=60_000).contains(&limits.milliseconds)
     {
         return Err(SearchError::InvalidLimits);
     }
-    let first = fallback_move(game)?;
+    if game.outcome() != Outcome::Ongoing {
+        return Err(Error::Finished.into());
+    }
     let mut search = Search {
         oracle,
         cache: HashMap::new(),
@@ -275,38 +303,43 @@ async fn run_search<E: Evaluator>(
         candidate_count,
         deadline: Instant::now() + Duration::from_millis(limits.milliseconds),
         limits,
-        result: SearchResult {
-            best_move: first,
-            expected_score: None,
-            completed_depth: 0,
-            nodes: 0,
-            cutoffs: 0,
-            evaluations: 0,
-            candidate_evaluations: 0,
-            cache_hits: 0,
-        },
+        stats: SearchStats::default(),
+        selected: None,
+        completed_depth: 0,
     };
     for depth in 1..=limits.max_depth {
-        let Some((value, action)) = search
+        let Some((value, _)) = search
             .negamax(
                 game,
                 depth,
                 -TERMINAL_VALUE,
                 TERMINAL_VALUE,
-                Some(search.result.best_move),
+                search.selected.as_ref().map(|selected| selected.action),
+                true,
             )
             .await?
         else {
             break;
         };
-        search.result.best_move = action.expect("ongoing root has legal moves");
-        search.result.expected_score = Some(((value + 1.0) * 0.5).clamp(0.0, 1.0));
-        search.result.completed_depth = depth;
+        search.completed_depth = depth;
         if value == TERMINAL_VALUE {
             break;
         }
     }
-    Ok(search.result)
+    let selected = search.selected.ok_or(Error::Finished)?;
+    Ok(SearchResult {
+        best_move: selected.action,
+        expected_score: Some(((selected.value + 1.0) * 0.5).clamp(0.0, 1.0)),
+        completed_depth: search.completed_depth,
+        evaluated_depth: selected.depth,
+        root_moves_evaluated: selected.moves_evaluated,
+        root_moves_total: selected.moves_total,
+        nodes: search.stats.nodes,
+        cutoffs: search.stats.cutoffs,
+        evaluations: search.stats.evaluations,
+        candidate_evaluations: search.stats.candidate_evaluations,
+        cache_hits: search.stats.cache_hits,
+    })
 }
 
 impl<E: Evaluator> Search<'_, E> {
@@ -348,8 +381,8 @@ impl<E: Evaluator> Search<'_, E> {
             );
             if !self.candidate_cache.contains_key(&key) {
                 let candidates = self.oracle.candidates(&key.0, key.1, count).await?;
-                self.result.evaluations += 1;
-                self.result.candidate_evaluations += 1;
+                self.stats.evaluations += 1;
+                self.stats.candidate_evaluations += 1;
                 let first = candidates
                     .first()
                     .ok_or_else(|| SearchError::Evaluation("no candidate moves".into()))?;
@@ -362,7 +395,7 @@ impl<E: Evaluator> Search<'_, E> {
                 );
                 self.candidate_cache.insert(key.clone(), candidates);
             } else {
-                self.result.cache_hits += 1;
+                self.stats.cache_hits += 1;
             }
             if self.exhausted() {
                 return Ok(None);
@@ -401,7 +434,11 @@ impl<E: Evaluator> Search<'_, E> {
     }
 
     fn exhausted(&self) -> bool {
-        self.result.nodes >= self.limits.max_nodes || Instant::now() >= self.deadline
+        self.selected.is_some() && (self.stats.nodes >= self.limits.max_nodes || self.timed_out())
+    }
+
+    fn timed_out(&self) -> bool {
+        self.selected.is_some() && Instant::now() >= self.deadline
     }
 
     async fn negamax(
@@ -411,11 +448,12 @@ impl<E: Evaluator> Search<'_, E> {
         mut alpha: f64,
         beta: f64,
         preferred: Option<SearchMove>,
+        root: bool,
     ) -> Result<Option<(f64, Option<SearchMove>)>, SearchError> {
         if self.exhausted() {
             return Ok(None);
         }
-        self.result.nodes += 1;
+        self.stats.nodes += 1;
         if game.outcome() != Outcome::Ongoing {
             return Ok(Some((
                 (match_estimate(game, &[])?.expected_score(game.turn()) * 2.0 - 1.0)
@@ -453,11 +491,12 @@ impl<E: Evaluator> Search<'_, E> {
         });
         let mut best = -f64::INFINITY;
         let mut chosen = None;
-        for action in actions {
+        let total = actions.len();
+        for (index, action) in actions.into_iter().enumerate() {
             let mut child = game.clone();
             child.play(action.board, &action.uci.to_string())?;
             let Some((child_value, _)) =
-                Box::pin(self.negamax(&child, depth - 1, -beta, -alpha, None)).await?
+                Box::pin(self.negamax(&child, depth - 1, -beta, -alpha, None, false)).await?
             else {
                 return Ok(None);
             };
@@ -466,9 +505,18 @@ impl<E: Evaluator> Search<'_, E> {
                 best = value;
                 chosen = Some(action);
             }
+            if root {
+                self.selected = Some(EvaluatedRoot {
+                    action: chosen.expect("root has an evaluated move"),
+                    value: best,
+                    depth,
+                    moves_evaluated: index + 1,
+                    moves_total: total,
+                });
+            }
             alpha = alpha.max(best);
             if alpha >= beta {
-                self.result.cutoffs += 1;
+                self.stats.cutoffs += 1;
                 break;
             }
         }
@@ -492,17 +540,17 @@ impl<E: Evaluator> Search<'_, E> {
         }
         let key = (board.fen(color), board.is_chess960());
         if let Some(analysis) = self.cache.get(&key) {
-            self.result.cache_hits += 1;
+            self.stats.cache_hits += 1;
             return Ok(Some(analysis.evaluation.estimate()));
         }
-        if Instant::now() >= self.deadline {
+        if self.timed_out() {
             return Ok(None);
         }
         let analysis = self.oracle.evaluate(&key.0, key.1).await?;
-        self.result.evaluations += 1;
+        self.stats.evaluations += 1;
         let estimate = analysis.evaluation.estimate();
         self.cache.insert(key, analysis);
-        if Instant::now() >= self.deadline {
+        if self.timed_out() {
             return Ok(None);
         }
         Ok(Some(estimate))

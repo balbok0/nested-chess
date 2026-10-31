@@ -234,7 +234,8 @@ Rust exposes the same persistent, timeout-bounded process adapter as
 `nested_chess::uci::UciEngine`. Ordinary Stockfish is incompatible with these rules.
 
 `Opponent.search()` returns JSON with `best_move: {board, uci}`, `expected_score`,
-`completed_depth`, and node/evaluation/cache/cutoff counts. Rust exposes the same
+`completed_depth`, `evaluated_depth`, `root_moves_evaluated`, `root_moves_total`,
+and node/evaluation/cache/cutoff counts. Rust exposes the same
 operation as `UciEngine::search(&game, SearchLimits { max_depth, max_nodes,
 milliseconds })`, or runtime-independent async `search::best_move` with an
 `Evaluator`. WASM `game.best_move(limits_json, evaluate)` returns a Promise of the
@@ -299,10 +300,16 @@ uncalibrated and assume independent eventual board outcomes; Fairy-Stockfish's
 local search still assumes alternating local turns. Global routing is exact within
 the Rust search horizon. Actual terminal wins/losses outrank every heuristic.
 
-The bot returns the last completed depth when a budget expires. If no iteration
-finishes, it returns an ordered legal fallback with `completed_depth: 0` and
-`expected_score: null`. Time is checked between oracle calls, so a call already
-in progress can overrun the budget. Larger grids may complete shallower searches.
+The bot retains the best fully evaluated root move, including results from a
+partial iteration. `completed_depth` counts completed iterations;
+`evaluated_depth` is the depth associated with the returned move and score.
+Root progress counts fully evaluated candidates at that evaluated depth.
+Every successful search returns an evaluated move with a non-null score.
+At least one root evaluation finishes before the time budget takes effect, so a
+small time budget can be exceeded. Search node budgets must allow at least two
+nodes. After the first evaluation, limits are checked between nodes and oracle
+calls. Larger grids may complete shallower searches.
+Published benchmark results describe the earlier budget behavior.
 Selective search can miss locally weak moves with useful global consequences;
 its strength has not yet been established by a full benchmark.
 

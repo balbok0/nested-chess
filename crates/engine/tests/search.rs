@@ -238,14 +238,14 @@ fn negamax_takes_an_actual_match_win_without_local_estimation() {
 }
 
 #[test]
-fn a_node_budget_returns_a_legal_fallback_without_claiming_a_completed_depth() {
+fn a_tiny_node_budget_returns_an_evaluated_move_from_partial_depth_one() {
     let game = Game::new(2).unwrap();
     let result = oracle()
         .search(
             &game,
             SearchLimits {
                 max_depth: 3,
-                max_nodes: 1,
+                max_nodes: 2,
                 milliseconds: 1000,
             },
         )
@@ -256,8 +256,65 @@ fn a_node_budget_returns_a_legal_fallback_without_claiming_a_completed_depth() {
             .contains(&result.best_move.uci)
     );
     assert_eq!(result.completed_depth, 0);
-    assert_eq!(result.expected_score, None);
-    assert_eq!(result.nodes, 1);
+    assert!(result.expected_score.is_some());
+    assert_eq!(result.evaluated_depth, 1);
+    assert_eq!(result.root_moves_evaluated, 1);
+    assert!(result.root_moves_total > 1);
+    assert_eq!(result.nodes, 2);
+}
+
+#[test]
+fn partial_depth_one_keeps_the_better_of_two_evaluated_board_wins() {
+    let game = Game::from_fens(
+        2,
+        Color::White,
+        &[
+            "4k3/8/8/8/8/8/1Q2R3/4K3 w - - 0 1".into(),
+            "1qqqk3/8/8/8/8/8/4R3/4K3 w - - 0 1".into(),
+            "4k3/8/8/8/8/8/8/4K3 w - - 0 1".into(),
+            "4k3/8/8/8/8/8/8/4K3 w - - 0 1".into(),
+        ],
+    )
+    .unwrap();
+    let before = game.save_json().unwrap();
+    let actual = futures_executor::block_on(search::best_move(
+        &game,
+        &mut MaterialEvaluator,
+        SearchLimits {
+            max_depth: 2,
+            max_nodes: 3,
+            milliseconds: 10000,
+        },
+    ))
+    .unwrap();
+    assert_eq!(actual.best_move.board, 1);
+    assert_eq!(actual.best_move.uci.to_string(), "e2e8");
+    close(actual.expected_score.unwrap(), 0.874625);
+    assert_eq!(actual.completed_depth, 0);
+    assert_eq!(actual.evaluated_depth, 1);
+    assert_eq!(actual.root_moves_evaluated, 2);
+    assert!(actual.root_moves_total > 2);
+    assert_eq!(game.save_json().unwrap(), before);
+}
+
+#[test]
+fn partial_deeper_iteration_reports_the_depth_of_its_returned_score() {
+    let game = Game::new(2).unwrap();
+    let actual = futures_executor::block_on(search::best_move(
+        &game,
+        &mut MaterialEvaluator,
+        SearchLimits {
+            max_depth: 2,
+            max_nodes: 103,
+            milliseconds: 10000,
+        },
+    ))
+    .unwrap();
+    assert_eq!(actual.completed_depth, 1);
+    assert_eq!(actual.evaluated_depth, 2);
+    assert_eq!(actual.root_moves_evaluated, 1);
+    assert_eq!(actual.root_moves_total, 80);
+    assert_eq!(actual.expected_score, Some(0.5));
 }
 
 #[test]
@@ -429,6 +486,11 @@ fn invalid_limits_are_rejected_without_changing_the_game() {
         SearchLimits {
             max_depth: 2,
             max_nodes: 0,
+            milliseconds: 100,
+        },
+        SearchLimits {
+            max_depth: 2,
+            max_nodes: 1,
             milliseconds: 100,
         },
         SearchLimits {

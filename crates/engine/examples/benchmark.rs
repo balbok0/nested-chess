@@ -62,6 +62,8 @@ struct Metrics {
     cutoffs: u64,
     cache_hits: u64,
     completed_depth_sum: u64,
+    evaluated_depth_sum: u64,
+    partial_moves: u64,
     fallback_moves: u64,
     depth_histogram: [u64; 7],
 }
@@ -169,8 +171,9 @@ fn play(job: Job) -> Result<Record, Box<dyn std::error::Error>> {
             metrics.cutoffs += result.cutoffs;
             metrics.cache_hits += result.cache_hits;
             metrics.completed_depth_sum += u64::from(result.completed_depth);
+            metrics.evaluated_depth_sum += u64::from(result.evaluated_depth);
+            metrics.partial_moves += u64::from(result.evaluated_depth > result.completed_depth);
             metrics.depth_histogram[usize::from(result.completed_depth)] += 1;
-            metrics.fallback_moves += u64::from(result.completed_depth == 0);
             (result.best_move.board, result.best_move.uci)
         } else {
             let engine = if is_a {

@@ -102,6 +102,8 @@ def summarize(rows: list[dict]) -> list[dict]:
         a_metrics = {key: sum(game["a"][key] for game in complete) for key in ("moves", "elapsed_ms", "engine_calls", "search_nodes", "cutoffs", "cache_hits", "completed_depth_sum", "fallback_moves")}
         a_metrics["material_evaluations"] = sum(game["a"].get("material_evaluations", 0) for game in complete)
         a_metrics["candidate_evaluations"] = sum(game["a"].get("candidate_evaluations", 0) for game in complete)
+        a_metrics["evaluated_depth_sum"] = sum(game["a"].get("evaluated_depth_sum", 0) for game in complete)
+        a_metrics["partial_moves"] = sum(game["a"].get("partial_moves", 0) for game in complete)
         b_metrics = {key: sum(game["b"][key] for game in complete) for key in ("moves", "elapsed_ms", "engine_calls")}
         results.append({
             "columns": columns, "rows": grid_rows,

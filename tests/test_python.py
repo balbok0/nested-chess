@@ -147,3 +147,21 @@ def test_selective_search_uses_ten_candidates_without_mutating_game(rows):
     assert actual["candidate_evaluations"] > 0
     assert actual["best_move"]["uci"] in game.legal_moves(actual["best_move"]["board"])
     assert game.state() == before
+
+
+@pytest.mark.parametrize("rows", [
+    pytest.param(2, id="tiny_budget_four_by_two"),
+    pytest.param(4, id="tiny_budget_four_by_four"),
+])
+def test_tiny_budget_returns_an_evaluated_move(rows):
+    game = nested_chess.Game.rectangular(4, rows)
+    before = game.state()
+    opponent = nested_chess.Opponent("node", ["scripts/fairy-uci.cjs"], "variants/nested.ini")
+    actual = json.loads(opponent.search_selective(game, max_nodes=2, milliseconds=1))
+    assert actual["completed_depth"] == 0
+    assert actual["evaluated_depth"] == 1
+    assert actual["root_moves_evaluated"] == 1
+    assert actual["root_moves_total"] > 1
+    assert actual["expected_score"] is not None
+    assert actual["best_move"]["uci"] in game.legal_moves(actual["best_move"]["board"])
+    assert game.state() == before

@@ -213,7 +213,7 @@ fn selective_search_validates_candidate_count_and_honors_node_limits() {
     let mut engine = oracle();
     let limits = SearchLimits {
         max_depth: 2,
-        max_nodes: 1,
+        max_nodes: 2,
         milliseconds: 1000,
     };
     for count in [0, 501] {
@@ -224,10 +224,40 @@ fn selective_search_validates_candidate_count_and_honors_node_limits() {
     }
     let actual = engine.search_selective(&game, limits, 10).unwrap();
     assert_eq!(actual.completed_depth, 0);
-    assert_eq!(actual.evaluations, 0);
+    assert_eq!(actual.evaluated_depth, 1);
+    assert_eq!(actual.root_moves_evaluated, 1);
+    assert!(actual.expected_score.is_some());
+    assert!(actual.evaluations > 0);
     assert!(
         game.legal_moves(actual.best_move.board)
             .unwrap()
             .contains(&actual.best_move.uci)
     );
+}
+
+#[test]
+fn a_tiny_time_budget_finishes_a_global_root_evaluation() {
+    let game = Game::rectangular(4, 4).unwrap();
+    let before = game.save_json().unwrap();
+    let actual = oracle()
+        .search_selective(
+            &game,
+            SearchLimits {
+                max_depth: 2,
+                max_nodes: 100000,
+                milliseconds: 1,
+            },
+            10,
+        )
+        .unwrap();
+    assert!(actual.expected_score.is_some());
+    assert!(actual.evaluated_depth >= 1);
+    assert!(actual.root_moves_evaluated >= 1);
+    assert!(actual.root_moves_evaluated <= actual.root_moves_total);
+    assert!(
+        game.legal_moves(actual.best_move.board)
+            .unwrap()
+            .contains(&actual.best_move.uci)
+    );
+    assert_eq!(game.save_json().unwrap(), before);
 }
