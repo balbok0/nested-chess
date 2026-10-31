@@ -7,11 +7,26 @@ Offline games and browser AI still run on the player's device.
 
 ## 1. Server and domain
 
-Start with an Ubuntu 24.04 server with 4 GB RAM, a stable public IP, and a hostname
-such as `chess.example.com`. This is an initial deployment size, not a measured
-concurrent-player capacity guarantee. Point the hostname's DNS A record at the
-server. Only publish ports 80 and 443; restrict SSH to your own IP. PostgreSQL and
-the Rust processes stay on Docker's private network.
+These instructions use `nestedchess.org`, registered with Cloudflare. The hostname
+remains configurable through `APP_DOMAIN` and `PUBLIC_URL`; using another domain
+requires no code changes.
+
+Start with an Ubuntu 24.04 server with 4 GB RAM and a stable public IPv4 address.
+This is an initial deployment size, not a measured concurrent-player capacity
+guarantee. Only publish ports 80 and 443; restrict SSH to your own IP. PostgreSQL
+and the Rust processes stay on Docker's private network.
+
+In Cloudflare, select **nestedchess.org → DNS → Records** and add or update:
+
+| Type | Name | Content | Proxy status | TTL |
+| --- | --- | --- | --- | --- |
+| A | `@` | Your server's public IPv4 address | **DNS only** (gray cloud) | Auto |
+
+Use DNS only for the initial deployment; it can remain that way. Cloudflare
+answers DNS while browsers connect directly to Caddy for HTTPS. No Cloudflare API
+token or manually installed certificate is needed. See
+[Cloudflare's proxy-status documentation](https://developers.cloudflare.com/dns/proxy-status/).
+Only add an AAAA record if IPv6 reaches this same server on ports 80 and 443.
 
 Install Git and the current Docker Engine/Compose plugin using
 [Docker's Ubuntu instructions](https://docs.docker.com/engine/install/ubuntu/).
@@ -29,13 +44,14 @@ actual hostname:
 
 ```dotenv
 POSTGRES_PASSWORD=your_generated_hex_password
-APP_DOMAIN=chess.example.com
-PUBLIC_URL=https://chess.example.com
+APP_DOMAIN=nestedchess.org
+PUBLIC_URL=https://nestedchess.org
 COMPOSE_FILE=compose.yaml:compose.production.yaml
 ```
 
 Keep this file private. `PUBLIC_URL` must match the origin players visit, including
 HTTPS. Use a URL-safe database password because it is part of a connection URL.
+Keep the `caddy_data` volume: it stores Caddy's certificates and renewal state.
 
 ## 2. Start and verify
 
@@ -43,7 +59,8 @@ HTTPS. Use a URL-safe database password because it is part of a connection URL.
 docker compose config --quiet
 docker compose up --build -d --wait
 docker compose ps
-curl -fsS https://chess.example.com/api/v1/ready
+curl -fsS https://nestedchess.org/api/v1/ready
+curl -I http://nestedchess.org
 ```
 
 The first build compiles Rust, WASM, and web assets. Caddy obtains and renews the
@@ -54,6 +71,21 @@ Certificate issuance can finish after the containers start. If needed, inspect:
 ```sh
 docker compose logs --tail 100 caddy proxy app-a app-b
 ```
+
+The HTTPS readiness request should return `{"ok":true}` without certificate
+errors. The HTTP request should redirect to `https://nestedchess.org/`. These
+checks verify the live domain; local configuration validation alone cannot prove
+that DNS, public ports, and certificate issuance are working.
+
+If you later enable Cloudflare's orange-cloud proxy, first verify the direct
+HTTPS setup above. Set **SSL/TLS → Overview → Full (strict)** and keep
+**Network → WebSockets** enabled. Full (strict) validates Caddy's origin
+certificate; Flexible uses HTTP to the origin and conflicts with its HTTPS
+redirect. Keep `/.well-known/acme-challenge/*` reachable over HTTP for Caddy's
+certificate renewals, without caching, redirects, or browser challenges on that
+path. Do not add cache rules that cache `/api/*`, `/auth/*`, or authenticated HTML.
+See [Full (strict)](https://developers.cloudflare.com/ssl/origin-configuration/ssl-modes/full-strict/)
+and [WebSockets](https://developers.cloudflare.com/network/websockets/).
 
 Open the site in two browsers, create an invitation, join it, and make moves from
 both sides. Reload one browser and verify the match resumes. Local games offer
@@ -71,14 +103,14 @@ Create the provider applications and put their client IDs/secrets into `.env`:
 
 | Provider | Environment variables | Callback URL |
 | --- | --- | --- |
-| Google | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | `https://chess.example.com/auth/google/callback` |
-| GitHub | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | `https://chess.example.com/auth/github/callback` |
-| Microsoft | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` | `https://chess.example.com/auth/microsoft/callback` |
+| Google | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | `https://nestedchess.org/auth/google/callback` |
+| GitHub | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | `https://nestedchess.org/auth/github/callback` |
+| Microsoft | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` | `https://nestedchess.org/auth/microsoft/callback` |
 
 Use Google's web application client, a GitHub OAuth App, and a Microsoft web app
 registration supporting the account types you want (work/school and personal
-accounts for both). Replace the example domain in every callback. Restart the app
-services after changing credentials:
+accounts for both). If using another domain, replace it in every callback. Restart
+the app services after changing credentials:
 
 ```sh
 docker compose up -d
@@ -95,7 +127,7 @@ Android needs JDK 21 and Android SDK 36; iOS needs a Mac with Xcode 26 or newer.
 Create `.env.mobile.local` in the repository:
 
 ```dotenv
-NESTED_CHESS_API_URL=https://chess.example.com
+NESTED_CHESS_API_URL=https://nestedchess.org
 ```
 
 ```sh
@@ -137,7 +169,7 @@ mkdir -p scratch/claude/backups
 docker compose exec -T db pg_dump -U nested -d nested -Fc > scratch/claude/backups/nested.dump
 git pull --ff-only
 docker compose up --build -d --wait
-curl -fsS https://chess.example.com/api/v1/ready
+curl -fsS https://nestedchess.org/api/v1/ready
 ```
 
 Copy the dump off the server; the example filename is overwritten on the next
