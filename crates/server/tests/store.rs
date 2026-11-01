@@ -550,6 +550,32 @@ async fn concurrent_account_deletions_settle_a_shared_match_once() {
 }
 
 #[tokio::test]
+async fn anonymized_request_ids_cannot_be_replayed_by_the_opponent() {
+    let (_, store) = database().await;
+    let game = pair(&store, CreateGame::default()).await;
+    let movement = command(
+        1,
+        Action::Move {
+            board: 0,
+            uci: "e2e4".into(),
+        },
+    );
+    store
+        .command(&game.id, &game.white, movement.clone(), 1100)
+        .await
+        .unwrap();
+    let white = store.user(&game.white).await.unwrap();
+    store
+        .delete_account(&white.id, &white.handle, 1200)
+        .await
+        .unwrap();
+    assert!(matches!(
+        store.command(&game.id, &game.black, movement, 1300).await,
+        Err(Error::Conflict(_))
+    ));
+}
+
+#[tokio::test]
 async fn account_deletion_honors_an_already_expired_clock() {
     let (_, store) = database().await;
     let game = pair(

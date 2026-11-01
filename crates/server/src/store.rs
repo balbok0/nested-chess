@@ -171,14 +171,17 @@ impl Store {
                 "Enter your current username to delete your account.".into(),
             ));
         }
-        let ids: Vec<String> = sqlx::query_scalar(
-            "SELECT id FROM games WHERE white_id=$1 OR black_id=$1 ORDER BY id FOR UPDATE",
+        let games: Vec<(String, String)> = sqlx::query_as(
+            "SELECT id,status FROM games WHERE white_id=$1 OR black_id=$1 ORDER BY id FOR UPDATE",
         )
         .bind(user)
         .fetch_all(&mut *tx)
         .await?;
         let now = clock.into().resolve(&mut tx).await?;
-        for id in &ids {
+        for (id, status) in &games {
+            if !matches!(status.as_str(), "waiting" | "active" | "paused") {
+                continue;
+            }
             let mut info = Self::info_on(&mut tx, id, now).await?;
             let action = match info.status.as_str() {
                 "waiting" => {
@@ -204,6 +207,7 @@ impl Store {
             .bind(user)
             .fetch_one(&mut *tx)
             .await?;
+        let ids: Vec<_> = games.iter().map(|(id, _)| id.as_str()).collect();
         sqlx::query("UPDATE games SET white_id=CASE WHEN white_id=$1 THEN NULL ELSE white_id END,black_id=CASE WHEN black_id=$1 THEN NULL ELSE black_id END WHERE id=ANY($2)")
             .bind(user).bind(&ids).execute(&mut *tx).await?;
         sqlx::query("UPDATE events SET actor_id=NULL WHERE actor_id=$1")
@@ -686,7 +690,7 @@ impl Store {
             .ok_or_else(|| Error::Forbidden("You are not a player in this match.".into()))?;
         let request = serde_json::to_string(&command)?;
         if let Some(row)=sqlx::query("SELECT actor_id,request_json,event_json FROM events WHERE game_id=$1 AND request_id=$2").bind(id).bind(&command.request_id).fetch_optional(&mut *tx).await? {
-            if row.try_get::<String,_>("actor_id")?!=user||row.try_get::<String,_>("request_json")?!=request {return Err(Error::Conflict("That request ID was already used.".into()));}
+            if row.try_get::<Option<String>,_>("actor_id")?.as_deref()!=Some(user)||row.try_get::<String,_>("request_json")?!=request {return Err(Error::Conflict("That request ID was already used.".into()));}
             return Ok(serde_json::from_str(&row.try_get::<String,_>("event_json")?)?);
         }
         if info.seq != command.expected_seq {
