@@ -153,6 +153,85 @@ impl Store {
             .await?;
         Ok(())
     }
+    /// Delete an account and anonymize its shared match history.
+    pub async fn delete_account(
+        &self,
+        user: &str,
+        confirmation: &str,
+        clock: impl Into<Clock>,
+    ) -> Result<()> {
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("SELECT pg_advisory_xact_lock($1)")
+            .bind(QUEUE_LOCK)
+            .execute(&mut *tx)
+            .await?;
+        Self::lock_user(&mut tx, user).await?;
+        if Self::user_on(&mut tx, user).await?.handle != confirmation {
+            return Err(Error::Invalid(
+                "Enter your current username to delete your account.".into(),
+            ));
+        }
+        let ids: Vec<String> = sqlx::query_scalar(
+            "SELECT id FROM games WHERE white_id=$1 OR black_id=$1 ORDER BY id FOR UPDATE",
+        )
+        .bind(user)
+        .fetch_all(&mut *tx)
+        .await?;
+        let now = clock.into().resolve(&mut tx).await?;
+        for id in &ids {
+            let mut info = Self::info_on(&mut tx, id, now).await?;
+            let action = match info.status.as_str() {
+                "waiting" => {
+                    info.status = "cancelled".into();
+                    EventAction::Cancelled
+                }
+                "active" | "paused" => {
+                    let seat = info.seat(user).ok_or(Error::Unauthorized)?;
+                    if info.status == "active" && info.remaining_ms(info.turn, now) == Some(0) {
+                        Self::expire(&mut tx, info, now).await?;
+                        continue;
+                    }
+                    Self::charge_clock(&mut info, now);
+                    Self::finish(&mut info, color_name(seat.other()), "resignation");
+                    EventAction::Resigned { color: seat }
+                }
+                _ => continue,
+            };
+            Self::persist(&mut tx, info, action, None, None, None).await?;
+        }
+        // Finish game writes before blocking new foreign-key references to this account.
+        sqlx::query("SELECT id FROM users WHERE id=$1 FOR UPDATE")
+            .bind(user)
+            .fetch_one(&mut *tx)
+            .await?;
+        sqlx::query("UPDATE games SET white_id=CASE WHEN white_id=$1 THEN NULL ELSE white_id END,black_id=CASE WHEN black_id=$1 THEN NULL ELSE black_id END WHERE id=ANY($2)")
+            .bind(user).bind(&ids).execute(&mut *tx).await?;
+        sqlx::query("UPDATE events SET actor_id=NULL WHERE actor_id=$1")
+            .bind(user)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("UPDATE events SET event_json=jsonb_set(event_json::jsonb,'{info,white}','null'::jsonb)::text WHERE game_id=ANY($1) AND event_json::jsonb #>> '{info,white,id}'=$2")
+            .bind(&ids).bind(user).execute(&mut *tx).await?;
+        sqlx::query("UPDATE events SET event_json=jsonb_set(event_json::jsonb,'{info,black}','null'::jsonb)::text WHERE game_id=ANY($1) AND event_json::jsonb #>> '{info,black,id}'=$2")
+            .bind(&ids).bind(user).execute(&mut *tx).await?;
+        sqlx::query("DELETE FROM stream_tickets WHERE session_hash IN (SELECT hash FROM sessions WHERE user_id=$1)")
+            .bind(user).execute(&mut *tx).await?;
+        for statement in [
+            "DELETE FROM mobile_auth WHERE user_id=$1 OR result_user=$1 OR session_hash IN (SELECT hash FROM sessions WHERE user_id=$1)",
+            "DELETE FROM auth_flows WHERE user_id=$1",
+            "DELETE FROM identities WHERE user_id=$1",
+            "DELETE FROM sessions WHERE user_id=$1",
+            "DELETE FROM rating_changes WHERE user_id=$1",
+            "DELETE FROM ratings WHERE user_id=$1",
+            "DELETE FROM invitation_requests WHERE user_id=$1",
+            "DELETE FROM activity_presence WHERE user_id=$1",
+            "DELETE FROM users WHERE id=$1",
+        ] {
+            sqlx::query(statement).bind(user).execute(&mut *tx).await?;
+        }
+        tx.commit().await?;
+        Ok(())
+    }
     pub async fn guest(&self, clock: impl Into<Clock>) -> Result<(User, String)> {
         let mut tx = self.pool.begin().await?;
         let now = clock.into().resolve(&mut tx).await?;

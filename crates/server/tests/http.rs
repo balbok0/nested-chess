@@ -28,6 +28,108 @@ struct Player {
 }
 
 #[tokio::test]
+async fn account_deletion_requires_authentication_origin_and_username_confirmation() {
+    let server = Server::start().await;
+    let player = server.player().await;
+    let user = server.app.store.user(&player.id).await.unwrap();
+    let anonymous = Client::new()
+        .delete(format!("{}/api/v1/account", server.url))
+        .header(ORIGIN, &server.url)
+        .json(&json!({"confirmation":user.handle}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(anonymous.status(), 401);
+    let wrong_origin = player
+        .client
+        .delete(format!("{}/api/v1/account", server.url))
+        .header(ORIGIN, "https://other.example")
+        .json(&json!({"confirmation":user.handle}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(wrong_origin.status(), 403);
+    let wrong_name = player
+        .client
+        .delete(format!("{}/api/v1/account", server.url))
+        .json(&json!({"confirmation":"wrong_username"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(wrong_name.status(), 400);
+    assert!(server.app.store.user(&player.id).await.is_ok());
+    let deleted = player
+        .client
+        .delete(format!("{}/api/v1/account", server.url))
+        .json(&json!({"confirmation":user.handle}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(deleted.status(), 204);
+    assert_eq!(deleted.headers()["cache-control"], "no-store");
+    let cookies: Vec<_> = deleted
+        .headers()
+        .get_all(SET_COOKIE)
+        .iter()
+        .map(|v| v.to_str().unwrap())
+        .collect();
+    assert_eq!(cookies.len(), 2);
+    assert!(
+        cookies
+            .iter()
+            .any(|v| v.starts_with("nc_session=;") && v.contains("Max-Age=0"))
+    );
+    assert!(
+        cookies
+            .iter()
+            .any(|v| v.starts_with("nc_auth=;") && v.contains("Max-Age=0"))
+    );
+    let me: Value = player
+        .client
+        .get(format!("{}/api/v1/me", server.url))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert!(me["user"].is_null());
+    server.stop().await;
+}
+
+#[tokio::test]
+async fn native_account_deletion_revokes_bearer_sessions_on_every_replica() {
+    let server = Server::start().await;
+    let replica = server.replica(Vec::new()).await;
+    let (user, token) = server.app.store.guest(Clock::Database).await.unwrap();
+    let second_token = server
+        .app
+        .store
+        .new_session(&user.id, Clock::Database)
+        .await
+        .unwrap();
+    let response = Client::new()
+        .delete(format!("{}/api/v1/account", server.url))
+        .bearer_auth(&token)
+        .json(&json!({"confirmation":user.handle}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 204);
+    for (url, token) in [(&server.url, &token), (&replica.url, &second_token)] {
+        let response = Client::new()
+            .get(format!("{url}/api/v1/games"))
+            .bearer_auth(token)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 401);
+    }
+    replica.stop().await;
+    server.stop().await;
+}
+
+#[tokio::test]
 async fn usage_statistics_require_a_configured_registered_administrator() {
     let server = Server::start().await;
     let guest = server.player().await;

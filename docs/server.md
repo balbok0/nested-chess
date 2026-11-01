@@ -107,6 +107,7 @@ provider secrets remain on the server.
 | `GET /me` | Current account, available providers, linked provider names |
 | `POST /guest`, `POST /logout` | Create a genuine guest session / revoke session |
 | `PATCH /profile` | Set a 3–24 character username, letters/numbers/underscore |
+| `DELETE /account` | Delete the authenticated account; body `{"confirmation":"current_username"}` |
 | `GET /games`, `POST /games` | Open matches / create invitation |
 | `POST /games/{id}/join` | Take the empty seat; repeat joins return current state |
 | `GET /games/{id}` | Participant-only full snapshot and replay save |

@@ -405,7 +405,7 @@ impl Store {
             }
         }
         let id = if flow.linking {
-            let user = flow.user_id.ok_or(Error::Unauthorized)?;
+            let user = flow.user_id.as_ref().ok_or(Error::Unauthorized)?.clone();
             if existing.as_ref().is_some_and(|other| other != &user) {
                 return Err(Error::IdentityInUse);
             }
@@ -421,6 +421,9 @@ impl Store {
         } else {
             Self::identity_user(db, &identity.name, now).await?
         };
+        if flow.user_id.as_deref() != Some(id.as_str()) {
+            Self::lock_user(db, &id).await?;
+        }
         sqlx::query("INSERT INTO identities(issuer,subject,user_id) VALUES($1,$2,$3) ON CONFLICT(issuer,subject) DO NOTHING").bind(identity.issuer).bind(identity.subject).bind(&id).execute(&mut *db).await?;
         sqlx::query("UPDATE users SET guest=false WHERE id=$1")
             .bind(&id)

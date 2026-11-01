@@ -53,6 +53,9 @@ impl Store {
         if linking && user.is_none() {
             return Err(Error::Unauthorized);
         }
+        if let Some(user) = &user {
+            Self::lock_user(&mut tx, &user.id).await?;
+        }
         sqlx::query("DELETE FROM mobile_auth WHERE expires_ms<=$1")
             .bind(now)
             .execute(&mut *tx)
@@ -71,6 +74,15 @@ impl Store {
         clock: impl Into<Clock>,
     ) -> Result<()> {
         let mut tx = self.pool.begin().await?;
+        if let Some(user) =
+            sqlx::query_scalar::<_, Option<String>>("SELECT user_id FROM mobile_auth WHERE hash=$1")
+                .bind(hash(ticket))
+                .fetch_optional(&mut *tx)
+                .await?
+                .flatten()
+        {
+            Self::lock_user(&mut tx, &user).await?;
+        }
         let row=sqlx::query("SELECT provider,user_id,session_hash,linking,expires_ms FROM mobile_auth WHERE hash=$1 AND state_hash IS NULL FOR UPDATE").bind(hash(ticket)).fetch_optional(&mut *tx).await?.ok_or(Error::Unauthorized)?;
         let now = clock.into().resolve(&mut tx).await?;
         if row.try_get::<String, _>("provider")? != expected_provider
@@ -117,13 +129,17 @@ impl Store {
         if user.is_some() == error.is_some() {
             return Err(Error::Invalid("A sign-in result is required.".into()));
         }
-        let mut db = self.pool.acquire().await?;
-        let now = clock.into().resolve(&mut db).await?;
+        let mut tx = self.pool.begin().await?;
+        if let Some(user) = user {
+            Self::lock_user(&mut tx, user).await?;
+        }
+        let now = clock.into().resolve(&mut tx).await?;
         let code = secret();
-        let result=sqlx::query("UPDATE mobile_auth SET result_user=$2,error=$3,code_hash=$4,expires_ms=$5 WHERE hash=$1 AND code_hash IS NULL AND state_hash IS NOT NULL AND expires_ms>$6").bind(id).bind(user).bind(error).bind(hash(&code)).bind(now+HANDOFF_MS).bind(now).execute(&mut *db).await?;
+        let result=sqlx::query("UPDATE mobile_auth SET result_user=$2,error=$3,code_hash=$4,expires_ms=$5 WHERE hash=$1 AND code_hash IS NULL AND state_hash IS NOT NULL AND expires_ms>$6").bind(id).bind(user).bind(error).bind(hash(&code)).bind(now+HANDOFF_MS).bind(now).execute(&mut *tx).await?;
         if result.rows_affected() != 1 {
             return Err(Error::Unauthorized);
         }
+        tx.commit().await?;
         Ok(code)
     }
     pub async fn exchange_mobile_login(
@@ -140,6 +156,16 @@ impl Store {
             return Err(Error::Invalid("Invalid app sign-in verifier.".into()));
         }
         let mut tx = self.pool.begin().await?;
+        if let Some(user) = sqlx::query_scalar::<_, Option<String>>(
+            "SELECT result_user FROM mobile_auth WHERE code_hash=$1",
+        )
+        .bind(hash(code))
+        .fetch_optional(&mut *tx)
+        .await?
+        .flatten()
+        {
+            Self::lock_user(&mut tx, &user).await?;
+        }
         let row=sqlx::query("SELECT challenge,result_user,error,session_hash,expires_ms FROM mobile_auth WHERE code_hash=$1 FOR UPDATE").bind(hash(code)).fetch_optional(&mut *tx).await?.ok_or(Error::Unauthorized)?;
         let now = clock.into().resolve(&mut tx).await?;
         if row.try_get::<i64, _>("expires_ms")? <= now
@@ -187,6 +213,7 @@ impl Store {
         let mut tx = self.pool.begin().await?;
         let now = clock.into().resolve(&mut tx).await?;
         let user = Self::session_on(&mut tx, &hash(session), now).await?;
+        Self::lock_user(&mut tx, &user.id).await?;
         Self::info_on(&mut tx, game, now)
             .await?
             .seat(&user.id)

@@ -16,7 +16,7 @@ use axum::{
     http::{HeaderMap, HeaderValue, Request, StatusCode, header},
     middleware::{self, Next},
     response::{AppendHeaders, IntoResponse, Redirect, Response},
-    routing::{get, patch, post},
+    routing::{delete, get, patch, post},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -212,6 +212,7 @@ pub fn router(app: Arc<App>, static_dir: PathBuf) -> Router {
         .route("/me", get(me))
         .route("/guest", post(guest))
         .route("/logout", post(logout))
+        .route("/account", delete(delete_account))
         .route("/profile", patch(profile))
         .route("/games", get(open_games).post(create))
         .route("/games/{id}", get(snapshot))
@@ -294,6 +295,32 @@ async fn logout(State(app): State<Arc<App>>, headers: HeaderMap) -> Result<Respo
             header::SET_COOKIE,
             session_cookie(&app, "nc_session", "", 0),
         )],
+        StatusCode::NO_CONTENT,
+    )
+        .into_response())
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DeleteAccount {
+    confirmation: String,
+}
+async fn delete_account(
+    State(app): State<Arc<App>>,
+    headers: HeaderMap,
+    Json(body): Json<DeleteAccount>,
+) -> Result<Response> {
+    let user = app.user(&headers).await?;
+    app.store
+        .delete_account(&user.id, &body.confirmation, Clock::Database)
+        .await?;
+    Ok((
+        AppendHeaders([
+            (
+                header::SET_COOKIE,
+                session_cookie(&app, "nc_session", "", 0),
+            ),
+            (header::SET_COOKIE, session_cookie(&app, "nc_auth", "", 0)),
+        ]),
         StatusCode::NO_CONTENT,
     )
         .into_response())

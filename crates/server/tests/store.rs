@@ -275,6 +275,386 @@ fn command(seq: u32, action: Action) -> Command {
 }
 
 #[tokio::test]
+async fn deleting_an_account_revokes_sessions_and_removes_the_login_identity() {
+    let (_, store) = database().await;
+    let subject = Uuid::new_v4().to_string();
+    let flow = || AuthFlow {
+        provider: "github".into(),
+        verifier: String::new(),
+        nonce: String::new(),
+        user_id: None,
+        linking: false,
+    };
+    let identity = || Identity {
+        issuer: "github".into(),
+        subject: subject.clone(),
+        name: "DeleteMe".into(),
+    };
+    let (user, token) = store.finish_auth(flow(), identity(), 1000).await.unwrap();
+    let second_token = store.new_session(&user.id, 1000).await.unwrap();
+    store
+        .delete_account(&user.id, &user.handle, 1100)
+        .await
+        .unwrap();
+    assert!(matches!(
+        store.user(&user.id).await,
+        Err(Error::Unauthorized)
+    ));
+    for token in [token, second_token] {
+        assert!(matches!(
+            store.session(&token, 1200).await,
+            Err(Error::Unauthorized)
+        ));
+    }
+    assert!(store.identities(&user.id).await.unwrap().is_empty());
+    let fresh = store.finish_auth(flow(), identity(), 1300).await.unwrap().0;
+    assert_ne!(fresh.id, user.id);
+    assert_eq!(fresh.rating, 1500.0);
+    assert_eq!(fresh.rated_games, 0);
+}
+
+#[tokio::test]
+async fn deleting_an_account_requires_the_current_username_without_changing_matches() {
+    let (_, store) = database().await;
+    let (user, token) = store.guest(1000).await.unwrap();
+    let game = store
+        .create(&user.id, CreateGame::default(), 1000)
+        .await
+        .unwrap();
+    assert!(matches!(
+        store.delete_account(&user.id, "wrong_username", 1100).await,
+        Err(Error::Invalid(_))
+    ));
+    assert_eq!(store.session(&token, 1200).await.unwrap().id, user.id);
+    assert_eq!(
+        store.info(&game.info.id, 1200).await.unwrap().status,
+        "waiting"
+    );
+}
+
+#[tokio::test]
+async fn deleting_an_account_resigns_rated_matches_and_preserves_anonymous_history() {
+    for seat in [Color::White, Color::Black] {
+        let (_, store) = database().await;
+        let game = pair(
+            &store,
+            CreateGame {
+                rated: true,
+                clock: Some(TimeControl::default()),
+                ..Default::default()
+            },
+        )
+        .await;
+        store
+            .command(
+                &game.id,
+                &game.white,
+                command(
+                    1,
+                    Action::Move {
+                        board: 0,
+                        uci: "e2e4".into(),
+                    },
+                ),
+                1100,
+            )
+            .await
+            .unwrap();
+        let (deleted, opponent, winner) = if seat == Color::White {
+            (&game.white, &game.black, "black")
+        } else {
+            (&game.black, &game.white, "white")
+        };
+        let user = store.user(deleted).await.unwrap();
+        let renamed = store
+            .rename(
+                deleted,
+                &format!("Renamed_{}", &Uuid::new_v4().simple().to_string()[..8]),
+            )
+            .await
+            .unwrap();
+        store
+            .delete_account(deleted, &renamed.handle, 1200)
+            .await
+            .unwrap();
+        let history = store.history(opponent, None, 1300).await.unwrap();
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0].info.result.as_deref(), Some(winner));
+        assert_eq!(history[0].info.reason.as_deref(), Some("resignation"));
+        assert_eq!(history[0].rating_before, Some(1500.0));
+        assert_eq!(history[0].rating_after, Some(1516.0));
+        assert_eq!(store.user(opponent).await.unwrap().rated_games, 1);
+        let snapshot = store.snapshot(&game.id, opponent, 1300).await.unwrap();
+        assert_eq!(snapshot.state.ply, 1);
+        assert!(snapshot.info.seat(deleted).is_none());
+        let events = store.events_after(&game.id, 0).await.unwrap();
+        assert_eq!(events.len(), 3);
+        let serialized = serde_json::to_string(&events).unwrap();
+        assert!(!serialized.contains(deleted));
+        assert!(!serialized.contains(&user.handle));
+        assert!(!serialized.contains(&renamed.handle));
+    }
+}
+
+#[tokio::test]
+async fn deleting_an_account_keeps_completed_results_and_opponents_ratings_unchanged() {
+    let (_, store) = database().await;
+    let game = pair(
+        &store,
+        CreateGame {
+            rated: true,
+            clock: Some(TimeControl::default()),
+            ..Default::default()
+        },
+    )
+    .await;
+    store
+        .command(&game.id, &game.white, command(1, Action::Resign), 1100)
+        .await
+        .unwrap();
+    let user = store.user(&game.white).await.unwrap();
+    store
+        .delete_account(&user.id, &user.handle, 1200)
+        .await
+        .unwrap();
+    let opponent = store.user(&game.black).await.unwrap();
+    assert_eq!(opponent.rating, 1516.0);
+    assert_eq!(opponent.rated_games, 1);
+    let history = store.history(&game.black, None, 1300).await.unwrap();
+    assert_eq!(history.len(), 1);
+    assert!(history[0].info.white.is_none());
+    assert_eq!(history[0].info.seq, 2);
+    assert_eq!(history[0].rating_after, Some(1516.0));
+}
+
+#[tokio::test]
+async fn deleting_an_account_cancels_invitations_and_pending_native_credentials() {
+    let (_, store) = database().await;
+    let user = registered(&store).await;
+    let token = store.new_session(&user.id, 1000).await.unwrap();
+    let game = store
+        .create(
+            &user.id,
+            CreateGame {
+                request_id: Some(Uuid::new_v4().to_string()),
+                ..Default::default()
+            },
+            1000,
+        )
+        .await
+        .unwrap();
+    let stream = store
+        .stream_ticket(&game.info.id, &token, 1000)
+        .await
+        .unwrap();
+    let auth = Auth::new(
+        "http://localhost:4180",
+        vec![("github".into(), "client".into(), "secret".into())],
+    )
+    .unwrap();
+    let start = auth.begin("github").unwrap();
+    let verifier = "a".repeat(43);
+    let mobile = store
+        .request_mobile_login(
+            "github",
+            &URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes())),
+            &"s".repeat(43),
+            Some(&token),
+            true,
+            1000,
+        )
+        .await
+        .unwrap();
+    store
+        .start_mobile_login(&mobile, "github", &start, 1000)
+        .await
+        .unwrap();
+    let login = store.mobile_login(&start.state).await.unwrap().unwrap();
+    let code = store
+        .complete_mobile_login(&login.id, Some(&user.id), None, 1000)
+        .await
+        .unwrap();
+    store
+        .record_activity(
+            Activity {
+                client_id: Uuid::new_v4().to_string(),
+                sequence: 1,
+                mode: ActivityMode::Engine,
+                game_id: None,
+                playing: true,
+                visible: true,
+            },
+            Some(&user),
+            1000,
+        )
+        .await
+        .unwrap();
+    store
+        .delete_account(&user.id, &user.handle, 1100)
+        .await
+        .unwrap();
+    assert_eq!(
+        store.info(&game.info.id, 1200).await.unwrap().status,
+        "cancelled"
+    );
+    assert!(matches!(
+        store.take_stream_ticket(&game.info.id, &stream, 1200).await,
+        Err(Error::Unauthorized)
+    ));
+    assert!(store.mobile_login(&start.state).await.unwrap().is_none());
+    assert!(matches!(
+        store.exchange_mobile_login(&code, &verifier, 1200).await,
+        Err(Error::Unauthorized)
+    ));
+    assert!(
+        store
+            .take_auth(&start.state, &start.browser_token, "github", 1200)
+            .await
+            .is_err()
+    );
+    assert_eq!(store.usage(1200).await.unwrap().active_clients, 0);
+}
+
+#[tokio::test]
+async fn concurrent_account_deletions_settle_a_shared_match_once() {
+    let (url, store) = database().await;
+    let other = Store::connect(&url).await.unwrap();
+    let game = pair(
+        &store,
+        CreateGame {
+            rated: true,
+            clock: Some(TimeControl::default()),
+            ..Default::default()
+        },
+    )
+    .await;
+    let white = store.user(&game.white).await.unwrap();
+    let black = store.user(&game.black).await.unwrap();
+    let (a, b) = tokio::join!(
+        store.delete_account(&white.id, &white.handle, 1100),
+        other.delete_account(&black.id, &black.handle, 1100),
+    );
+    a.unwrap();
+    b.unwrap();
+    let info = store.info(&game.id, 1200).await.unwrap();
+    assert_eq!(info.status, "finished");
+    assert_eq!(info.seq, 2);
+    assert!(info.white.is_none() && info.black.is_none());
+    let events = store.events_after(&game.id, 0).await.unwrap();
+    assert_eq!(events.len(), 2);
+    assert!(
+        events
+            .iter()
+            .all(|event| event.info.white.is_none() && event.info.black.is_none())
+    );
+}
+
+#[tokio::test]
+async fn account_deletion_honors_an_already_expired_clock() {
+    let (_, store) = database().await;
+    let game = pair(
+        &store,
+        CreateGame {
+            clock: Some(TimeControl {
+                seconds: 60,
+                increment: 0,
+            }),
+            ..Default::default()
+        },
+    )
+    .await;
+    let black = store.user(&game.black).await.unwrap();
+    store
+        .delete_account(&black.id, &black.handle, 61_001)
+        .await
+        .unwrap();
+    let info = store.info(&game.id, 61_100).await.unwrap();
+    assert_eq!(info.result.as_deref(), Some("black"));
+    assert_eq!(info.reason.as_deref(), Some("timeout"));
+}
+
+#[tokio::test]
+async fn account_deletion_and_a_concurrent_move_leave_a_settled_anonymous_match() {
+    let (url, store) = database().await;
+    let other = Store::connect(&url).await.unwrap();
+    let game = pair(&store, CreateGame::default()).await;
+    let white = store.user(&game.white).await.unwrap();
+    let (deletion, movement) = tokio::join!(
+        store.delete_account(&white.id, &white.handle, 1100),
+        other.command(
+            &game.id,
+            &game.white,
+            command(
+                1,
+                Action::Move {
+                    board: 0,
+                    uci: "e2e4".into()
+                }
+            ),
+            1100
+        ),
+    );
+    deletion.unwrap();
+    assert!(movement.is_ok() || matches!(movement, Err(Error::Forbidden(_) | Error::Conflict(_))));
+    let snapshot = store.snapshot(&game.id, &game.black, 1200).await.unwrap();
+    assert_eq!(snapshot.info.status, "finished");
+    assert_eq!(snapshot.info.result.as_deref(), Some("black"));
+    assert!(snapshot.info.white.is_none());
+    assert!(snapshot.state.ply <= 1);
+}
+
+#[tokio::test]
+async fn account_deletion_racing_native_exchange_cannot_leave_a_valid_session() {
+    let (url, store) = database().await;
+    let other = Store::connect(&url).await.unwrap();
+    let user = registered(&store).await;
+    let token = store.new_session(&user.id, 1000).await.unwrap();
+    let auth = Auth::new(
+        "http://localhost:4180",
+        vec![("github".into(), "client".into(), "secret".into())],
+    )
+    .unwrap();
+    let start = auth.begin("github").unwrap();
+    let verifier = "a".repeat(43);
+    let mobile = store
+        .request_mobile_login(
+            "github",
+            &URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes())),
+            &"s".repeat(43),
+            Some(&token),
+            true,
+            1000,
+        )
+        .await
+        .unwrap();
+    store
+        .start_mobile_login(&mobile, "github", &start, 1000)
+        .await
+        .unwrap();
+    let login = store.mobile_login(&start.state).await.unwrap().unwrap();
+    let code = store
+        .complete_mobile_login(&login.id, Some(&user.id), None, 1000)
+        .await
+        .unwrap();
+    let (deletion, exchange) = tokio::join!(
+        store.delete_account(&user.id, &user.handle, 1100),
+        other.exchange_mobile_login(&code, &verifier, 1100),
+    );
+    deletion.unwrap();
+    match exchange {
+        Ok(session) => assert!(matches!(
+            store.session(&session.token, 1200).await,
+            Err(Error::Unauthorized)
+        )),
+        Err(error) => assert!(matches!(error, Error::Unauthorized)),
+    }
+    assert!(matches!(
+        store.user(&user.id).await,
+        Err(Error::Unauthorized)
+    ));
+}
+
+#[tokio::test]
 async fn guest_session_expires() {
     let (_dir, store) = database().await;
     let (user, token) = store.guest(1000).await.unwrap();
