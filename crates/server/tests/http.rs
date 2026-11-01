@@ -1,5 +1,9 @@
 use futures_util::StreamExt;
-use nested_chess_server::web::{App, router};
+use nested_chess_server::{
+    auth::{AuthFlow, Identity},
+    store::Clock,
+    web::{App, router, signed_in_redirect},
+};
 use reqwest::{
     Client,
     header::{COOKIE, ORIGIN, SET_COOKIE},
@@ -21,6 +25,81 @@ struct Player {
     id: String,
     cookie: String,
     client: Client,
+}
+
+#[tokio::test]
+async fn browser_login_sets_a_registered_session_and_expires_the_sign_in_cookie() {
+    let server = Server::start().await;
+    let replica = server.replica().await;
+    let (user, token) = server
+        .app
+        .store
+        .finish_auth(
+            AuthFlow {
+                provider: "github".into(),
+                verifier: "verified_flow".into(),
+                nonce: "verified_nonce".into(),
+                user_id: None,
+                linking: false,
+            },
+            Identity {
+                issuer: "github".into(),
+                subject: Uuid::new_v4().to_string(),
+                name: "BrowserPlayer".into(),
+            },
+            Clock::Database,
+        )
+        .await
+        .unwrap();
+    let response = signed_in_redirect(&server.app, &token);
+    assert_eq!(response.status(), 303);
+    assert_eq!(response.headers()["location"], "/?online=1");
+    let cookies: Vec<_> = response.headers().get_all(SET_COOKIE).iter().collect();
+    assert_eq!(cookies.len(), 2);
+    let session = cookies
+        .iter()
+        .map(|cookie| cookie.to_str().unwrap())
+        .find(|cookie| cookie.starts_with("nc_session="))
+        .unwrap();
+    assert!(session.contains("Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000"));
+    assert!(
+        cookies.iter().any(|cookie| cookie.to_str().unwrap()
+            == "nc_auth=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0")
+    );
+    for url in [&server.url, &replica.url] {
+        let me: Value = Client::new()
+            .get(format!("{url}/api/v1/me"))
+            .header(COOKIE, session.split(';').next().unwrap())
+            .send()
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        assert_eq!(me["user"]["id"], user.id);
+        assert_eq!(me["user"]["guest"], false);
+        assert_eq!(me["identities"], json!(["github"]));
+    }
+    replica.stop().await;
+    server.stop().await;
+}
+
+#[tokio::test]
+async fn https_browser_login_sets_both_cookies_as_secure() {
+    let (database, store) = common::database().await;
+    let app = App::new(&database, "https://nestedchess.org", Vec::new())
+        .await
+        .unwrap();
+    let (_, token) = store.guest(Clock::Database).await.unwrap();
+    let response = signed_in_redirect(&app, &token);
+    let cookies: Vec<_> = response.headers().get_all(SET_COOKIE).iter().collect();
+    assert_eq!(cookies.len(), 2);
+    for cookie in cookies {
+        assert!(cookie.to_str().unwrap().ends_with("; Secure"));
+    }
+    app.stop().await.unwrap();
 }
 
 #[tokio::test]

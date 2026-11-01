@@ -14,7 +14,7 @@ use axum::{
     },
     http::{HeaderMap, HeaderValue, Request, StatusCode, header},
     middleware::{self, Next},
-    response::{IntoResponse, Redirect, Response},
+    response::{AppendHeaders, IntoResponse, Redirect, Response},
     routing::{get, patch, post},
 };
 use serde::{Deserialize, Serialize};
@@ -133,6 +133,21 @@ fn session_cookie(app: &App, name: &str, token: &str, seconds: i64) -> HeaderVal
         }
     ))
     .unwrap()
+}
+
+/// Redirect to online play with a session and an expired sign-in cookie.
+pub fn signed_in_redirect(app: &App, token: &str) -> Response {
+    (
+        AppendHeaders([
+            (
+                header::SET_COOKIE,
+                session_cookie(app, "nc_session", token, SESSION_SECONDS),
+            ),
+            (header::SET_COOKIE, session_cookie(app, "nc_auth", "", 0)),
+        ]),
+        Redirect::to("/?online=1"),
+    )
+        .into_response()
 }
 
 async fn origin_check(State(app): State<Arc<App>>, request: Request<Body>, next: Next) -> Response {
@@ -697,17 +712,7 @@ async fn callback(
             .into_response();
     }
     match result {
-        Ok((_, Some(token))) => (
-            [
-                (
-                    header::SET_COOKIE,
-                    session_cookie(&app, "nc_session", &token, SESSION_SECONDS),
-                ),
-                (header::SET_COOKIE, session_cookie(&app, "nc_auth", "", 0)),
-            ],
-            Redirect::to("/?online=1"),
-        )
-            .into_response(),
+        Ok((_, Some(token))) => signed_in_redirect(&app, &token),
         Ok((_, None)) => Error::Internal("Missing browser session.".into()).into_response(),
         Err(error) => {
             tracing::warn!(%error, "sign-in did not complete");
