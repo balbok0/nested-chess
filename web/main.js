@@ -17,6 +17,7 @@ const STORAGE_KEY = 'nested-chess-v1';
 const SETTINGS_KEY = 'nested-chess-settings';
 const BOT_TURN_MIN_MS = 650;
 const BOT_MOVE_DURATION_MS = 400;
+const HUMAN_MOVE_DURATION_MS = 220;
 const ROUTE_HOLD_MS = 450;
 const ROUTE_TOUCH_SLOP_PX = 12;
 const CHESS960_POSITIONS = 960;
@@ -28,7 +29,7 @@ let localFlipped = false;
 let engineError = '';
 let resetGrid = null;
 let routePress = null, suppressRouteClick = false;
-let botAnimations = [];
+let moveAnimations = [];
 let preferences = { theme: 'system', evaluations: false, animations: true, chess960: false, chess960Independent: false };
 let analyzer = null, evaluationGeneration = 0, evaluationError = '';
 const evaluations = new Map();
@@ -68,8 +69,8 @@ function applyPreferences() {
   document.documentElement.dataset.animations = animate ? 'on' : 'off';
   $('animate-moves').checked = animate;
   $('animate-moves').disabled = reducedMotion.matches;
-  $('motion-note').textContent = reducedMotion.matches ? 'Disabled by your system’s reduced-motion setting.' : 'Animate engine moves and changes to the evaluation bar.';
-  if (!animate) botAnimations.forEach(animation => animation.finish());
+  $('motion-note').textContent = reducedMotion.matches ? 'Disabled by your system’s reduced-motion setting.' : 'Animate moves and changes to the evaluation bar.';
+  if (!animate) moveAnimations.forEach(animation => animation.finish());
 }
 
 function savePreferences() {
@@ -149,13 +150,13 @@ async function refreshEvaluations() {
 
 function resetOpponent() {
   generation += 1;
-  botAnimations.forEach(animation => animation.cancel());
-  botAnimations = [];
+  moveAnimations.forEach(animation => animation.cancel());
+  moveAnimations = [];
   if (opponent) opponent.destroy();
   opponent = null; busy = false; engineError = '';
 }
 
-async function animateBotMove(board, move) {
+async function animateMove(board, move, duration = BOT_MOVE_DURATION_MS) {
   if (!preferences.animations || reducedMotion.matches) return;
   viewing = board; source = null; render();
   const details = JSON.parse(game.move_details(board, move));
@@ -165,25 +166,32 @@ async function animateBotMove(board, move) {
     const destination = document.querySelector(`[data-square="${squareName(motion.to)}"]`);
     const from = piece.getBoundingClientRect(), to = destination.getBoundingClientRect();
     const moving = piece.cloneNode(true);
+    moving.classList.add('moving-piece');
     moving.setAttribute('aria-hidden', 'true');
     Object.assign(moving.style, { position: 'fixed', left: `${from.x}px`, top: `${from.y}px`, width: `${from.width}px`, height: `${from.height}px`, margin: '0', display: 'grid', placeItems: 'center', zIndex: '1000', fontSize: getComputedStyle(piece).fontSize });
     document.body.append(moving); piece.style.visibility = 'hidden';
     return { piece, moving, from, to };
   });
-  botAnimations = pieces.map(({ moving, from, to }) => moving.animate([
+  const animations = pieces.map(({ moving, from, to }) => moving.animate([
     { transform: 'translate(0, 0)' },
     { transform: `translate(${to.x + (to.width - from.width) / 2 - from.x}px, ${to.y + (to.height - from.height) / 2 - from.y}px)` },
-  ], { duration: BOT_MOVE_DURATION_MS, easing: 'ease-in-out', fill: 'forwards' }));
-  try { await Promise.all(botAnimations.map(animation => animation.finished)); }
-  finally { pieces.forEach(({ piece, moving }) => { moving.remove(); piece.style.visibility = ''; }); botAnimations = []; }
+  ], { duration, easing: 'ease-in-out', fill: 'forwards' }));
+  moveAnimations = animations;
+  try { await Promise.all(animations.map(animation => animation.finished)); }
+  finally {
+    pieces.forEach(({ piece, moving }) => { moving.remove(); piece.style.visibility = ''; });
+    if (moveAnimations === animations) moveAnimations = [];
+  }
 }
 
 function acceptState(json) {
   state = JSON.parse(json);
+  source = null;
+  persist();
+  if (moveAnimations.length) return;
   if (state.forced_board !== null) viewing = state.forced_board;
   else if (!state.legal_boards.includes(viewing)) viewing = state.legal_boards[0] ?? 0;
-  source = null;
-  render(); persist();
+  render();
   void refreshEvaluations();
 }
 
@@ -372,7 +380,7 @@ function render() {
 }
 
 function clickSquare(square) {
-  if (busy || !humanTurn() || !state.legal_boards.includes(viewing) || state.outcome !== 'ongoing') return;
+  if (busy || moveAnimations.length || !humanTurn() || !state.legal_boards.includes(viewing) || state.outcome !== 'ongoing') return;
   clearError();
   const piece = state.boards[viewing].squares[square];
   if (source !== null) {
@@ -396,10 +404,20 @@ function showPromotion(candidates) {
 }
 
 async function play(move) {
-  const session = game;
+  const session = game, board = viewing;
   if (session.kind === 'local') generation += 1;
-  try { const json = await session.play(viewing, move); if (game === session && json) { acceptState(json); void maybeBot(); } }
-  catch (error) { if (game === session) showError(error); }
+  const ticket = generation;
+  try {
+    await Promise.all([
+      animateMove(board, move, HUMAN_MOVE_DURATION_MS).finally(() => {
+        if (game === session && ticket === generation) acceptState(session.state());
+      }),
+      Promise.resolve().then(() => session.play(board, move)).then(json => {
+        if (game === session && ticket === generation && json) acceptState(json);
+      }),
+    ]);
+    if (game === session && ticket === generation) void maybeBot();
+  } catch (error) { if (game === session && ticket === generation) showError(error); }
 }
 
 async function maybeBot() {
@@ -416,7 +434,7 @@ async function maybeBot() {
     if (!JSON.parse(game.legal_moves(board)).includes(move)) throw new Error(`Opponent returned an invalid move (${move}).`);
     await new Promise(resolve => setTimeout(resolve, Math.max(0, BOT_TURN_MIN_MS - (performance.now() - started))));
     if (ticket !== generation) return;
-    await animateBotMove(board, move);
+    await animateMove(board, move);
     if (ticket !== generation) return;
     busy = false;
     acceptState(game.play(board, move));
@@ -599,6 +617,7 @@ async function boot() {
     onback: () => { if (game.kind !== 'online') return false; leaveOnline(); return true; },
     onerror: showError,
   });
+  onlineControls.initializeAccount();
   if (!launched) void onlineControls.restore(() => generation === restoreGeneration).catch(showError);
   void maybeBot();
 }

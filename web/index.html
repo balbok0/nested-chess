@@ -15,7 +15,7 @@
 <body>
   <header class="masthead">
     <h1><a href="%BASE_URL%">Nested chess</a></h1>
-    <nav aria-label="Game controls"><button id="online-open-button" class="text-button">Online</button><button id="rules-open" class="text-button">Rules</button><button id="settings-open" class="text-button">Settings</button></nav>
+    <nav aria-label="Game controls"><button id="online-open-button" class="text-button" aria-label="Online" aria-describedby="account-status">Online<small id="account-status" class="account-status" hidden></small></button><button id="rules-open" class="text-button">Rules</button><button id="settings-open" class="text-button">Settings</button></nav>
   </header>
   <main>
     <section class="matchbar" aria-label="Match controls">
@@ -113,7 +113,7 @@
     <div id="online-error" class="error" role="alert" hidden></div>
     <fieldset id="online-controls" class="online-controls">
     <div class="online-account-row"><strong id="online-account"></strong><button id="online-logout" class="text-button" hidden>Sign out</button></div>
-    <div id="online-providers" class="online-actions"></div><p id="online-signin-note" class="small-note"></p>
+    <div id="online-providers" class="online-actions"></div><details id="online-linked-accounts" class="online-section" hidden><summary>Linked accounts</summary><div id="online-linked-providers" class="online-actions"></div></details><p id="online-signin-note" class="small-note"></p>
     <form id="online-profile" class="online-link-row" hidden><label class="sr-only" for="online-handle">Username</label><input id="online-handle" minlength="3" maxlength="24" pattern="[A-Za-z0-9_]+" required /><button class="text-button">Save username</button></form>
     <section id="online-open-section" class="online-section" hidden><h3>Open matches</h3><div id="online-open"></div></section>
     <form id="online-create" class="online-section"><h3>Create invitation</h3><div class="online-fields">

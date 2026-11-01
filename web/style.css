@@ -111,6 +111,7 @@ h1, h2 { font-family: var(--heading-font); }
 .masthead h1 { font-size: 21px; font-weight: 600; }
 .masthead h1 a { text-decoration: none; }
 .masthead nav { display: flex; gap: 24px; }
+.account-status { display: block; max-width: 90px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; color: var(--muted); }
 .text-button { border: 0; padding: 7px 0; background: none; font-size: 13px; }
 .text-button:hover { text-decoration: underline; }
 .matchbar { display: flex; align-items: center; gap: 24px; padding: 12px 16px; border: 1px solid var(--border); background: var(--panel); margin-bottom: 22px; }
@@ -280,6 +281,8 @@ html[data-native] input, html[data-native] select { font-size: 16px; }
 .online-actions, .online-account-row, .online-link-row, .online-game-row, .online-player { display: flex; align-items: center; gap: 12px; }
 .online-actions { flex-wrap: wrap; margin: 12px 0; }
 .online-account-row, .online-game-row, .online-player { justify-content: space-between; }
+#online-account { min-width: 0; overflow-wrap: anywhere; }
+#online-logout { flex-shrink: 0; }
 .online-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
 .online-fields label { display: grid; gap: 6px; font-size: 12px; }
 .online-link-row input { min-width: 0; width: 100%; border: 1px solid var(--border); background: var(--control); color: var(--text); padding: 8px; }
@@ -333,6 +336,7 @@ button.online-game-row:hover { background: var(--hover); }
   .masthead { height: 52px; }
   .masthead h1 { font-size: 19px; }
   .masthead nav { gap: 14px; }
+  .account-status { max-width: 60px; }
   .matchbar { padding: 8px; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
   .turn { order: 0; }
   .turn strong { font-size: 14px; }

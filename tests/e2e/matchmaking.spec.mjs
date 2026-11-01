@@ -112,3 +112,36 @@ test('a_cancel_search_confirmation_cannot_resign_a_match_found_while_it_was_open
     await peer.close();
   }
 });
+
+test('signed_in_accounts_show_their_username_and_sign_out_clears_the_session', async ({ page, baseURL }) => {
+  await registered(page.request, baseURL, 1600);
+  const renamed = await page.request.patch('/api/v1/profile', { headers: { Origin: baseURL }, data: { handle: `long_username_${randomUUID().replaceAll('-', '').slice(0, 10)}` } });
+  expect(renamed.ok()).toBeTruthy();
+  const me = await page.request.get('/api/v1/me');
+  const { user } = await me.json();
+  await page.goto('/');
+  await expect(page.locator('#account-status')).toHaveText(user.handle);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(page.viewportSize().width);
+  await page.getByRole('button', { name: 'Online', exact: true }).click();
+  await expect(page.locator('#online-account')).toHaveText(`Signed in as ${user.handle}`);
+  await expect(page.locator('#online-signin-note')).toHaveText('1600 Elo · Provisional');
+  await expect(page.locator('#online-providers')).not.toBeVisible();
+  await expect(page.locator('#online-linked-accounts')).toBeVisible();
+  await expect(page.locator('#online-linked-accounts')).not.toHaveAttribute('open');
+  await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible();
+  await page.locator('#online-close').click();
+  await page.reload();
+  await expect(page.locator('#account-status')).toHaveText(user.handle);
+  await page.getByRole('button', { name: 'Online', exact: true }).click();
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(page.locator('#online-account')).toHaveText('Not signed in');
+  await expect(page.locator('#account-status')).toHaveText('Signed out');
+  await expect(page.locator('#online-linked-accounts')).not.toBeVisible();
+  await expect(page.locator('#online-logout')).not.toBeVisible();
+  await expect(page.locator('#online-queue')).toBeDisabled();
+  const signedOut = await page.request.get('/api/v1/me');
+  expect((await signedOut.json()).user).toBeNull();
+  await page.locator('#online-close').click();
+  await page.reload();
+  await expect(page.locator('#account-status')).toHaveText('Signed out');
+});

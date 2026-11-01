@@ -219,3 +219,29 @@ test('reopening_a_match_that_ended_while_closed_shows_its_result', async ({ page
     await expect(reopened.locator('#error')).not.toBeVisible();
   } finally { await game.peer.dispose(); }
 });
+
+test('online_human_moves_are_submitted_before_the_animation_finishes', async ({ page, playwright, baseURL }) => {
+  const game = await match(page, playwright, baseURL);
+  try {
+    const white = game.info.white.id === game.owner.id;
+    if (!white) await move(game.peer, baseURL, game.id, 1, 0, 'e2e4');
+    await page.goto(`/?match=${game.id}`);
+    await expect(page.locator('#online-connection')).toContainText('You play');
+    await page.getByRole('button', { name: white ? 'e2 white pawn' : 'e7 black pawn', exact: true }).click();
+    const response = page.waitForResponse(result => result.url().endsWith(`/games/${game.id}/commands`) && result.request().method() === 'POST');
+    const finishedAt = await page.locator(`[data-square="${white ? 'e4' : 'e5'}"]`).evaluate(async square => {
+      square.click();
+      const piece = document.querySelector('.moving-piece');
+      await piece.getAnimations()[0].finished;
+      return Date.now();
+    });
+    const accepted = await response;
+    expect(accepted.ok()).toBeTruthy();
+    expect(accepted.request().timing().startTime).toBeLessThan(finishedAt);
+    await expect(page.locator('#ply-count')).toHaveText(white ? '1 move' : '2 moves');
+    await expect(page.locator('.moving-piece')).toHaveCount(0);
+    await expect(page.locator('#error')).not.toBeVisible();
+    const snapshot = await page.request.get(`/api/v1/games/${game.id}`);
+    expect((await snapshot.json()).state.ply).toBe(white ? 1 : 2);
+  } finally { await game.peer.dispose(); }
+});

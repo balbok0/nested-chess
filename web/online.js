@@ -32,10 +32,13 @@ export function setupOnline({ enter, current, leave, onerror }) {
       applyRatedSettings();
     }
   }
-  async function refresh() {
-    account = await request('/me');
-    $('online-account').textContent = account.user ? `${account.user.handle}${account.user.guest ? ' · Guest' : ` · ${Math.round(account.user.rating)}${account.user.rated_games < 20 ? '?' : ''}`}` : 'Sign in or play as a guest.';
-    $('online-logout').hidden = !account.user || account.user.guest;
+  function renderAccount() {
+    const signedIn = Boolean(account.user && !account.user.guest);
+    $('online-account').textContent = signedIn ? `Signed in as ${account.user.handle}` : account.user ? `${account.user.handle} · Guest` : 'Not signed in';
+    $('account-status').textContent = signedIn ? account.user.handle : account.user ? 'Guest' : 'Signed out';
+    $('account-status').hidden = false;
+    $('online-open-button').title = $('online-account').textContent;
+    $('online-logout').hidden = !signedIn;
     $('online-profile').hidden = !account.user;
     $('online-handle').value = account.user?.handle || '';
     $('online-queue').disabled = !account.user || account.user.guest;
@@ -43,20 +46,28 @@ export function setupOnline({ enter, current, leave, onerror }) {
     if ($('online-rated').disabled) $('online-rated').checked = false;
     applyRatedSettings();
     $('online-providers').replaceChildren();
-    for (const [id, label] of [['google', 'Google'], ['github', 'GitHub'], ['microsoft', 'Microsoft']]) {
+    $('online-linked-providers').replaceChildren();
+    $('online-providers').hidden = signedIn;
+    $('online-linked-accounts').hidden = !signedIn;
+    if (!signedIn) $('online-linked-accounts').open = false;
+    for (const { id, label } of account.providers) {
       const button = document.createElement('button'); button.type = 'button'; button.className = 'outline-button';
       const linked = account.identities.includes(id);
-      button.textContent = linked ? `${label} linked` : `${account.user && !account.user.guest ? 'Link' : 'Sign in with'} ${label}`;
-      button.disabled = linked || !account.providers.some(provider => provider.id === id);
+      button.textContent = linked ? `${label} linked` : `${signedIn ? 'Link' : 'Sign in with'} ${label}`;
+      button.disabled = linked;
       button.onclick = () => { void run(async () => {
         if (native) await nativeLogin(id, Boolean(account.user && !account.user.guest), request);
         else if (account.user && !account.user.guest) {
           const result = await request(`/auth/${id}/link`, { method: 'POST' }); location.assign(result.url);
         } else location.assign(`/auth/${id}`);
       }); };
-      $('online-providers').append(button);
+      $(signedIn ? 'online-linked-providers' : 'online-providers').append(button);
     }
-    $('online-signin-note').textContent = account.providers.length ? 'Sign in for rated matches. Your first 20 rated games are provisional.' : 'Sign-in is currently unavailable. Guest matches are unrated.';
+    $('online-signin-note').textContent = signedIn ? `${Math.round(account.user.rating)} Elo${account.user.rated_games < 20 ? ' · Provisional' : ''}` : account.providers.length ? 'Sign in for rated matches. Your first 20 rated games are provisional.' : 'Sign-in is currently unavailable. Guest matches are unrated.';
+  }
+  async function refresh() {
+    account = await request('/me');
+    renderAccount();
     open = account.user ? await request('/games') : [];
     $('online-open').replaceChildren();
     for (const info of open) {
@@ -110,7 +121,11 @@ export function setupOnline({ enter, current, leave, onerror }) {
   $('online-open-button').onclick = () => { void show(); };
   $('online-close').onclick = () => $('online').close();
   $('online-profile').onsubmit = event => { event.preventDefault(); void run(async () => { await request('/profile', { method: 'PATCH', data: { handle: $('online-handle').value } }); await refresh(); }); };
-  $('online-logout').onclick = () => { void run(async () => { leave(); await logoutSession(); await refresh(); }); };
+  $('online-logout').onclick = () => { void run(async () => {
+    leave(); await logoutSession();
+    account = { ...account, user: null, identities: [] }; renderAccount();
+    await refresh();
+  }); };
   $('online-create').onsubmit = event => { event.preventDefault(); void run(async () => {
     await ensureGuest();
     cancelRecovery();
@@ -266,8 +281,15 @@ export function setupOnline({ enter, current, leave, onerror }) {
   });
   return {
     show, restore,
+    initializeAccount() {
+      if (account !== null) return;
+      void request('/me').then(result => {
+        if (account === null) { account = result; renderAccount(); }
+      }).catch(() => { if (account === null) $('online-open-button').title = 'Online account unavailable'; });
+    },
     async loggedIn() {
       leave();
+      await refresh();
       if (pendingCreation() || rememberedMatch()) { await restore(); if (current().kind === 'online') { $('online').close(); return; } }
       await show();
     },
