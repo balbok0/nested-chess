@@ -1,5 +1,6 @@
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 mkdirSync('web/vendor/fairy', { recursive: true });
+copyFileSync('web/robots.txt', 'web/vendor/robots.txt');
 copyFileSync('scripts/bot-worker.js', 'web/vendor/bot-worker.js');
 copyFileSync('node_modules/coi-serviceworker/coi-serviceworker.js', 'web/vendor/coi-serviceworker.js');
 copyFileSync('node_modules/coi-serviceworker/LICENSE', 'web/vendor/coi-serviceworker.LICENSE');

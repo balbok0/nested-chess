@@ -97,6 +97,51 @@ For a local HTTP check instead, omit `COMPOSE_FILE`/`APP_DOMAIN`, use
 `scripts/check-compose.mjs` is a destructive *test-stack* recovery check: it stops
 replicas and the database. Do not run it against a live deployment.
 
+### Crawlers and rate limiting
+
+The app publishes `/robots.txt` with `User-agent: *` and `Disallow: /`, asking all
+crawlers, including search and AI crawlers, to stay out. This is a voluntary
+crawler policy, not access control. It is included in development, Docker, mobile
+assets, and Pages builds. On Pages the policy file is under `/nested-chess/`; an
+origin-root robots policy is required to govern compliant crawlers there.
+
+For enforced bot blocking and request limits on `nestedchess.org`, enable the
+orange-cloud proxy after verifying HTTPS, then configure these settings in your
+Cloudflare account. They are deployment settings; committing this repository
+does not enable them. The Rust server has body-size limits, but no built-in
+request-rate limiter.
+
+1. Under **Security settings → Configure AI bot policies**, set **Search**,
+   **Agent**, and **Training** each to **Block (on all pages)**. The default
+   ad-page-only setting does not cover this site. See
+   [Cloudflare AI bot policies](https://developers.cloudflare.com/bots/additional-configurations/block-ai-bots/).
+2. Under **Security → Security rules → Create rule → Rate limiting rules**, create
+   `API and login requests` with this expression:
+
+   ```text
+   starts_with(http.request.uri.path, "/api/") or starts_with(http.request.uri.path, "/auth/")
+   ```
+
+   Count by **IP**, with **120 requests per 10 seconds**, action **Block**, and
+   mitigation duration **10 seconds**. This is an initial limit to tune using
+   observed traffic, not a measured threshold. It fits the Free plan's single
+   rate rule and 10-second periods. Use Block rather than a browser challenge so
+   native API clients are not asked to run a challenge page. See
+   [create a rule](https://developers.cloudflare.com/waf/rate-limiting-rules/create-zone-dashboard/)
+   and [plan limits](https://developers.cloudflare.com/waf/rate-limiting-rules/).
+3. After confirming the proxied site works, restrict Lightsail's inbound **80 and
+   443** rules to [Cloudflare's current IP ranges](https://www.cloudflare.com/ips/).
+   Keep the SSH rule separate. Otherwise requests to the origin IP can bypass
+   Cloudflare's blocking and limits. Keep these allowlists updated and preserve
+   the HTTP certificate-challenge path described above. See
+   [protecting the origin](https://developers.cloudflare.com/fundamentals/security/protect-your-origin-server/).
+
+The rate rule covers HTTP API/auth requests and WebSocket handshakes, not messages
+inside an established socket. Game commands use HTTP. Players on the same public
+IP share the quota; account for that when tuning the limit. Cloudflare enforcement
+is approximate and may allow excess requests while counters update. No deployment
+can identify every AI client; the bot policy blocks those Cloudflare recognizes.
+
 ## 3. Enable login
 
 Create the provider applications and put their client IDs/secrets into `.env`:
