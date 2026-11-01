@@ -201,6 +201,51 @@ unsigned iOS simulator app, not store releases. Set repository variable
 `MOBILE_API_URL` to your HTTPS origin (or use the workflow's `api_url` input), then
 run it. A simulator app cannot be installed on a physical iPhone.
 
+## Current usage statistics
+
+Sign in to `https://nestedchess.org`, then open
+`https://nestedchess.org/api/v1/me` in that same browser. Copy your `user.id`
+(the account UUID, not a session cookie). Add it to the server's `.env`:
+
+```dotenv
+USAGE_ADMIN_IDS=your_account_uuid
+```
+
+Use comma-separated account UUIDs for additional administrators. Recreate the app
+containers after changing the setting:
+
+```sh
+sudo docker compose up -d --wait app-a app-b
+```
+
+While signed in, visit **https://nestedchess.org/usage.html**. The JSON endpoint is
+`GET /api/v1/usage`. Both use existing account sessions; guests and accounts not
+listed in `USAGE_ADMIN_IDS` cannot read the statistics. With no administrators
+configured, nobody can read them.
+
+The page splits current activity into online, vs engine, and same-device
+two-player games. Foreground browsers/apps report every 30 seconds, with a
+90-second activity window. Online matches are deduplicated across their players;
+local games count after their first move. A foreground client is not a person:
+two humans sharing a computer have one client, and anonymous tabs cannot be
+deduplicated into people. Signed-in account counts are deduplicated across clients.
+The separate in-progress-online total includes active server matches even when
+nobody is currently viewing them.
+
+Presence is shared in PostgreSQL across replicas. Local counts are client reports,
+not authoritative match results. Clients that are offline, unreachable, or have
+disabled **Settings → Share usage statistics** cannot contribute to live counts.
+Game play and local saves do not depend on reporting succeeding. Browser clients
+on GitHub Pages have no telemetry backend and are not included.
+
+Reports contain an ephemeral page/client UUID, sequence, mode, visible/playing
+flags, and an online match ID when applicable. The server associates a signed-in
+account ID when present. No local moves, board positions, usernames, or device
+fingerprints are sent in reports. Live presence rows are removed within about
+150 seconds of the last report while the server is running; no historical usage
+series is kept. Backups follow your database backup retention policy. Reflect
+this collection and the opt-out in the site's privacy information before release.
+
 ## Updates and backups
 
 PostgreSQL data and Caddy certificates use named Docker volumes. Container

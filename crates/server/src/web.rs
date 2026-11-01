@@ -4,6 +4,7 @@ use crate::{
     mobile::{APP_CALLBACK, MobileSession},
     model::*,
     store::{Clock, Store, hash},
+    usage::{Activity, Usage},
 };
 use axum::{
     Json, Router,
@@ -19,14 +20,16 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{collections::HashSet, path::PathBuf, sync::Arc, time::Duration};
 use tokio::sync::watch;
 use tower_http::{services::ServeDir, set_header::SetResponseHeaderLayer};
+use uuid::Uuid;
 
 pub struct App {
     pub store: Store,
     hub: Arc<Hub>,
     pub auth: Auth,
+    usage_admins: HashSet<String>,
     shutdown: watch::Sender<bool>,
 }
 impl App {
@@ -34,12 +37,22 @@ impl App {
         database: &str,
         public_url: &str,
         credentials: Vec<(String, String, String)>,
+        usage_admins: Vec<String>,
     ) -> Result<Arc<Self>> {
         let auth = Auth::new(public_url, credentials)?;
+        let usage_admins = usage_admins
+            .into_iter()
+            .map(|id| {
+                Uuid::parse_str(&id).map(|id| id.to_string()).map_err(|_| {
+                    Error::Invalid("USAGE_ADMIN_IDS must contain account UUIDs.".into())
+                })
+            })
+            .collect::<Result<HashSet<_>>>()?;
         let app = Arc::new(Self {
             store: Store::connect(database).await?,
             hub: Arc::default(),
             auth,
+            usage_admins,
             shutdown: watch::channel(false).0,
         });
         app.hub.start(app.store.clone(), app.stopped());
@@ -72,9 +85,13 @@ impl App {
         let mut stopped = self.stopped();
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(1));
+            let mut cleanup = tokio::time::interval(Duration::from_secs(60));
             loop {
                 tokio::select! {
                     _=stopped.changed()=>break,
+                    _=cleanup.tick()=>{
+                        if let Err(error)=app.store.expire_activity(Clock::Database).await {tracing::error!(%error,"activity cleanup failed");}
+                    },
                     _=interval.tick()=>{
                         if let Err(error)=app.store.tick(Clock::Database).await {tracing::error!(%error,"clock update failed");}
                         if let Err(error)=app.store.matchmake(Clock::Database).await {tracing::error!(%error,"matchmaking update failed");}
@@ -176,6 +193,7 @@ async fn origin_check(State(app): State<Arc<App>>, request: Request<Body>, next:
 
 pub fn router(app: Arc<App>, static_dir: PathBuf) -> Router {
     let mobile = Router::new()
+        .route("/activity", post(activity))
         .route("/guest", post(mobile_guest))
         .route("/auth/{provider}", post(mobile_login))
         .route("/exchange", post(mobile_exchange))
@@ -184,6 +202,8 @@ pub fn router(app: Arc<App>, static_dir: PathBuf) -> Router {
         .layer(middleware::from_fn(native_request))
         .layer(DefaultBodyLimit::max(8192));
     let api = Router::new()
+        .route("/activity", post(activity))
+        .route("/usage", get(usage))
         .route(
             "/health",
             get(|| async { Json(json!({"ok":true,"api":1})) }),
@@ -733,4 +753,24 @@ async fn callback(
 async fn ready(State(app): State<Arc<App>>) -> Result<Json<serde_json::Value>> {
     app.store.ready().await?;
     Ok(Json(json!({"ok":true})))
+}
+
+async fn activity(
+    State(app): State<Arc<App>>,
+    headers: HeaderMap,
+    Json(activity): Json<Activity>,
+) -> Result<StatusCode> {
+    let user = app.optional_user(&headers).await?;
+    app.store
+        .record_activity(activity, user.as_ref(), Clock::Database)
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn usage(State(app): State<Arc<App>>, headers: HeaderMap) -> Result<Json<Usage>> {
+    let user = app.user(&headers).await?;
+    if user.guest || !app.usage_admins.contains(&user.id) {
+        return Err(Error::Forbidden("Usage statistics are private.".into()));
+    }
+    Ok(Json(app.store.usage(Clock::Database).await?))
 }

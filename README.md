@@ -26,6 +26,8 @@ configuration, storage, clocks, deployment, and the protocol shared with mobile.
 The GitHub Pages demo remains client-side; it does not host the multiplayer API.
 See the [deployment walkthrough](docs/deployment.md) for the HTTPS single-server
 setup and Android/iOS distribution steps.
+The [private usage page](docs/deployment.md#current-usage-statistics) counts active
+clients and games by online, engine, and same-device mode.
 
 ## Android and iOS
 

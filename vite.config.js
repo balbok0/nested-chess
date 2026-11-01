@@ -19,6 +19,7 @@ export default defineConfig(({ mode }) => {
           game: fileURLToPath(new URL('./web/index.html', import.meta.url)),
           analysis: fileURLToPath(new URL('./web/analysis.html', import.meta.url)),
           rectangularAnalysis: fileURLToPath(new URL('./web/rectangular-analysis.html', import.meta.url)),
+          usage: fileURLToPath(new URL('./web/usage.html', import.meta.url)),
         },
       },
     },

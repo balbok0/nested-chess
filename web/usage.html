@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en" data-theme="classic">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="robots" content="noindex, nofollow" /><title>Usage · Nested chess</title><link rel="stylesheet" href="/style.css" /><link rel="stylesheet" href="/usage.css" /></head>
+<body>
+  <header class="masthead"><h1>Usage</h1><nav><a href="%BASE_URL%">Nested chess</a></nav></header>
+  <main class="usage-page">
+    <div class="section-heading"><p id="usage-updated" role="status">Loading…</p><button id="usage-refresh" class="outline-button">Refresh</button></div>
+    <p id="usage-error" class="error" role="alert" hidden></p>
+    <div class="usage-totals"><div>Foreground clients<strong id="usage-clients">—</strong></div><div>Signed-in accounts<strong id="usage-accounts">—</strong></div><div>Active games<strong id="usage-games">—</strong></div></div>
+    <table><thead><tr><th>Mode</th><th>Clients</th><th>Games</th></tr></thead><tbody><tr><th>Online</th><td id="online-clients">—</td><td id="online-games">—</td></tr><tr><th>Vs engine</th><td id="engine-clients">—</td><td id="engine-games">—</td></tr><tr><th>Same-device two-player</th><td id="same_device-clients">—</td><td id="same_device-games">—</td></tr></tbody></table>
+    <p>Online matches in progress: <strong id="usage-in-progress">—</strong>. This also includes matches without a currently active client.</p>
+    <p class="small-note">Foreground clients are visible browser tabs or foreground apps seen in the last 90 seconds. Signed-in accounts are deduplicated across clients; guests have no account count. Clients are not a count of individual people.</p>
+    <p class="small-note">An online match counts once when either player is active. A local game counts after its first move and until it finishes. Each local client runs one game, including when two people share a device. Clients that disable usage sharing or cannot reach the server are absent.</p>
+    <p class="small-note">Refreshes every 30 seconds. Activity records are temporary; no moves or positions are collected.</p>
+  </main><script type="module" src="/usage.js"></script>
+</body></html>

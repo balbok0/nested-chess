@@ -38,6 +38,7 @@ login requests to port 4180. The browser origin and `PUBLIC_URL` must match.
 | `PUBLIC_URL` | `http://localhost:4180`; public app origin, HTTPS outside localhost |
 | `DATABASE_URL` | Required PostgreSQL connection URL; no embedded database |
 | `STATIC_DIR` | `dist`; built web assets |
+| `USAGE_ADMIN_IDS` | Comma-separated account UUIDs allowed to read private usage statistics; empty disables access |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google web OAuth application credentials |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | GitHub OAuth application credentials |
 | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` | Microsoft web application credentials |
@@ -113,6 +114,8 @@ provider secrets remain on the server.
 | `GET /games/{id}/stream` | WebSocket: initial snapshot, then ordered events |
 | `POST /queue` | Enter/resume the rated queue |
 | `GET /history?before=CURSOR` | 20 completed matches and rating changes per page |
+| `POST /activity`, `POST /mobile/activity` | Best-effort foreground activity; local reporting does not require an account |
+| `GET /usage` | Current activity counts; configured administrator account required |
 | `POST /auth/{provider}/link` | Begin linking an identity to the current account |
 
 Invitation creation accepts an optional UUID `request_id` in its JSON body. Repeating
@@ -164,6 +167,15 @@ when adding replicas. Use a direct PostgreSQL endpoint or a session-pooling prox
 persistent session and cannot use transaction pooling.
 
 ## Hosting and scaling
+
+Private current usage is available at `/usage.html`; see
+[usage setup and definitions](deployment.md#current-usage-statistics). Presence is
+shared in PostgreSQL, updated every 30 seconds and excluded after 90 seconds.
+Counts split online, local engine, and same-device games; an online game counts
+once across clients. The server checks online participants and current match
+status. Local counts are client reports and exclude offline/unreachable clients
+and devices that disable usage sharing. Temporary records include signed-in
+account IDs for deduplication, not local moves, positions, or usernames.
 
 Compose defaults cap each Rust replica at 1 CPU / 384 MiB, PostgreSQL at 2 CPUs /
 768 MiB, and HAProxy at 0.5 CPU / 64 MiB. These are ceilings, not reservations or

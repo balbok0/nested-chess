@@ -28,9 +28,84 @@ struct Player {
 }
 
 #[tokio::test]
+async fn usage_statistics_require_a_configured_registered_administrator() {
+    let server = Server::start().await;
+    let guest = server.player().await;
+    let (user, token) = server
+        .app
+        .store
+        .finish_auth(
+            AuthFlow {
+                provider: "github".into(),
+                verifier: String::new(),
+                nonce: String::new(),
+                user_id: None,
+                linking: false,
+            },
+            Identity {
+                issuer: "github".into(),
+                subject: Uuid::new_v4().to_string(),
+                name: "StatsAdmin".into(),
+            },
+            Clock::Database,
+        )
+        .await
+        .unwrap();
+    let admin_server = server.replica(vec![user.id]).await;
+    let anonymous = Client::new()
+        .get(format!("{}/api/v1/usage", admin_server.url))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(anonymous.status(), 401);
+    let denied = guest
+        .client
+        .get(format!("{}/api/v1/usage", admin_server.url))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(denied.status(), 403);
+    let unconfigured = Client::new()
+        .get(format!("{}/api/v1/usage", server.url))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(unconfigured.status(), 403);
+    let activity = Client::new().post(format!("{}/api/v1/activity",server.url)).header(ORIGIN,&server.url).json(&json!({"client_id":Uuid::new_v4().to_string(),"sequence":1,"mode":"same_device","game_id":null,"playing":true,"visible":true})).send().await.unwrap();
+    assert_eq!(activity.status(), 204);
+    let allowed = Client::new()
+        .get(format!("{}/api/v1/usage", admin_server.url))
+        .bearer_auth(token)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(allowed.status(), 200);
+    assert_eq!(allowed.headers()["cache-control"], "no-store");
+    let actual: Value = allowed.json().await.unwrap();
+    assert_eq!(actual["active_clients"], 1);
+    assert_eq!(actual["modes"][2]["games"], 1);
+    admin_server.stop().await;
+    server.stop().await;
+}
+
+#[tokio::test]
+async fn native_local_activity_does_not_require_creating_an_account() {
+    let server = Server::start().await;
+    let response = Client::new().post(format!("{}/api/v1/mobile/activity",server.url)).json(&json!({"client_id":Uuid::new_v4().to_string(),"sequence":1,"mode":"engine","game_id":null,"playing":true,"visible":true})).send().await.unwrap();
+    assert_eq!(response.status(), 204);
+    assert!(!response.headers().contains_key(SET_COOKIE));
+    assert_eq!(
+        server.app.store.usage(Clock::Database).await.unwrap().modes[1].games,
+        1
+    );
+    server.stop().await;
+}
+
+#[tokio::test]
 async fn browser_login_sets_a_registered_session_and_expires_the_sign_in_cookie() {
     let server = Server::start().await;
-    let replica = server.replica().await;
+    let replica = server.replica(Vec::new()).await;
     let (user, token) = server
         .app
         .store
@@ -89,7 +164,7 @@ async fn browser_login_sets_a_registered_session_and_expires_the_sign_in_cookie(
 #[tokio::test]
 async fn https_browser_login_sets_both_cookies_as_secure() {
     let (database, store) = common::database().await;
-    let app = App::new(&database, "https://nestedchess.org", Vec::new())
+    let app = App::new(&database, "https://nestedchess.org", Vec::new(), Vec::new())
         .await
         .unwrap();
     let (_, token) = store.guest(Clock::Database).await.unwrap();
@@ -129,7 +204,9 @@ impl Server {
         let (database, _store) = common::database().await;
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
-        let app = App::new(&database, &url, credentials).await.unwrap();
+        let app = App::new(&database, &url, credentials, Vec::new())
+            .await
+            .unwrap();
         app.start_clock();
         let mut stopped = app.stopped();
         let routes = router(app.clone(), PathBuf::from("web"));
@@ -148,10 +225,10 @@ impl Server {
             url,
         }
     }
-    async fn replica(&self) -> Self {
+    async fn replica(&self, usage_admins: Vec<String>) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
-        let app = App::new(&self.database, &self.url, Vec::new())
+        let app = App::new(&self.database, &self.url, Vec::new(), usage_admins)
             .await
             .unwrap();
         app.start_clock();
@@ -209,7 +286,7 @@ impl Server {
 #[tokio::test]
 async fn replicas_deliver_committed_moves_and_survive_another_server_stopping() {
     let server = Server::start().await;
-    let replica = server.replica().await;
+    let replica = server.replica(Vec::new()).await;
     let a = server.player().await;
     let b = server.player().await;
     let created: Value = a

@@ -9,7 +9,7 @@ export function isTransientError(error) {
   return !(error instanceof ApiError) || error.status === 0 || [408, 429].includes(error.status) || error.status >= 500;
 }
 
-export async function request(path, { method = 'GET', data } = {}) {
+export async function request(path, { method = 'GET', data, keepalive = false } = {}) {
   if (native) {
     const response = await nativeRequest(path, method, data);
     if (response.status === 204) return null;
@@ -25,7 +25,7 @@ export async function request(path, { method = 'GET', data } = {}) {
   const timeout = setTimeout(() => controller.abort(), 15_000);
   try {
     const response = await fetch(`/api/v1${path}`, {
-      method, credentials: 'same-origin', signal: controller.signal,
+      method, credentials: 'same-origin', signal: controller.signal, keepalive,
       ...(data === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
     });
     if (response.status === 204) return null;

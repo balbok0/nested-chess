@@ -1,0 +1,8 @@
+.usage-page { max-width: 850px; }
+.usage-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
+.usage-totals div { padding: 16px; background: var(--panel); border: 1px solid var(--border); }
+.usage-totals strong { display: block; font-size: 28px; margin-top: 8px; }
+.usage-page table { width: 100%; border-collapse: collapse; background: var(--panel); }
+.usage-page th, .usage-page td { padding: 12px; border-bottom: 1px solid var(--border); text-align: right; }
+.usage-page th:first-child { text-align: left; }
+@media (max-width: 500px) { .usage-totals { grid-template-columns: 1fr; } }

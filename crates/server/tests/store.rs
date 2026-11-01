@@ -4,11 +4,220 @@ use nested_chess_server::{
     auth::{Auth, AuthFlow, Identity},
     model::*,
     store::Store,
+    usage::{Activity, ActivityMode},
 };
 use sha2::{Digest, Sha256};
 mod common;
 use common::database;
 use uuid::Uuid;
+
+#[tokio::test]
+async fn usage_counts_distinct_online_games_and_splits_local_modes() {
+    let (_, store) = database().await;
+    let a = registered(&store).await;
+    let b = store.guest(1000).await.unwrap().0;
+    let created = store
+        .create(
+            &a.id,
+            serde_json::from_value(serde_json::json!({})).unwrap(),
+            1000,
+        )
+        .await
+        .unwrap();
+    store.join(&created.info.id, &b.id, 1000).await.unwrap();
+    for (mode, user, playing, game_id) in [
+        (
+            ActivityMode::Online,
+            Some(&a),
+            true,
+            Some(created.info.id.clone()),
+        ),
+        (
+            ActivityMode::Online,
+            Some(&b),
+            true,
+            Some(created.info.id.clone()),
+        ),
+        (ActivityMode::Engine, Some(&a), true, None),
+        (ActivityMode::Engine, None, false, None),
+        (ActivityMode::SameDevice, None, true, None),
+    ] {
+        store
+            .record_activity(
+                Activity {
+                    client_id: Uuid::new_v4().to_string(),
+                    sequence: 1,
+                    mode,
+                    game_id,
+                    playing,
+                    visible: true,
+                },
+                user,
+                1000,
+            )
+            .await
+            .unwrap();
+    }
+    let actual = serde_json::to_value(store.usage(1000).await.unwrap()).unwrap();
+    assert_eq!(
+        actual,
+        serde_json::json!({"as_of_ms":1000,"window_seconds":90,"active_clients":5,"signed_in_accounts":1,"online_in_progress":1,
+        "modes":[{"mode":"online","clients":2,"games":1},{"mode":"engine","clients":2,"games":1},{"mode":"same_device","clients":1,"games":1}]})
+    );
+}
+
+#[tokio::test]
+async fn activity_expires_at_the_window_boundary_and_is_removed() {
+    let (_, store) = database().await;
+    store
+        .record_activity(
+            Activity {
+                client_id: Uuid::new_v4().to_string(),
+                sequence: 1,
+                mode: ActivityMode::Engine,
+                game_id: None,
+                playing: true,
+                visible: true,
+            },
+            None,
+            1000,
+        )
+        .await
+        .unwrap();
+    assert_eq!(store.usage(90_999).await.unwrap().active_clients, 1);
+    assert_eq!(store.usage(91_000).await.unwrap().active_clients, 0);
+    store.expire_activity(91_000).await.unwrap();
+    assert_eq!(store.usage(1000).await.unwrap().active_clients, 0);
+}
+
+#[tokio::test]
+async fn older_activity_cannot_reactivate_a_hidden_client() {
+    let (_, store) = database().await;
+    let client_id = Uuid::new_v4().to_string();
+    for (sequence, visible) in [(2, false), (1, true)] {
+        store
+            .record_activity(
+                Activity {
+                    client_id: client_id.clone(),
+                    sequence,
+                    mode: ActivityMode::SameDevice,
+                    game_id: None,
+                    playing: true,
+                    visible,
+                },
+                None,
+                1000,
+            )
+            .await
+            .unwrap();
+    }
+    assert_eq!(store.usage(1000).await.unwrap().active_clients, 0);
+    store
+        .record_activity(
+            Activity {
+                client_id,
+                sequence: 3,
+                mode: ActivityMode::SameDevice,
+                game_id: None,
+                playing: true,
+                visible: true,
+            },
+            None,
+            1001,
+        )
+        .await
+        .unwrap();
+    assert_eq!(store.usage(1001).await.unwrap().active_clients, 1);
+}
+
+#[tokio::test]
+async fn online_activity_requires_a_participant() {
+    let (_, store) = database().await;
+    let game = pair(
+        &store,
+        serde_json::from_value(serde_json::json!({})).unwrap(),
+    )
+    .await;
+    let stranger = store.guest(1000).await.unwrap().0;
+    for user in [None, Some(&stranger)] {
+        let result = store
+            .record_activity(
+                Activity {
+                    client_id: Uuid::new_v4().to_string(),
+                    sequence: 1,
+                    mode: ActivityMode::Online,
+                    game_id: Some(game.id.clone()),
+                    playing: true,
+                    visible: true,
+                },
+                user,
+                1000,
+            )
+            .await;
+        assert!(matches!(
+            result,
+            Err(Error::Unauthorized | Error::Forbidden(_))
+        ));
+    }
+    assert_eq!(store.usage(1000).await.unwrap().active_clients, 0);
+}
+
+#[tokio::test]
+async fn usage_survives_reconnecting_the_store() {
+    let (url, store) = database().await;
+    store
+        .record_activity(
+            Activity {
+                client_id: Uuid::new_v4().to_string(),
+                sequence: 1,
+                mode: ActivityMode::Engine,
+                game_id: None,
+                playing: true,
+                visible: true,
+            },
+            None,
+            1000,
+        )
+        .await
+        .unwrap();
+    let another = Store::connect(&url).await.unwrap();
+    assert_eq!(another.usage(1001).await.unwrap().modes[1].games, 1);
+}
+
+#[tokio::test]
+async fn settled_online_matches_are_excluded_even_before_clients_refresh() {
+    let (_, store) = database().await;
+    let game = pair(
+        &store,
+        serde_json::from_value(serde_json::json!({})).unwrap(),
+    )
+    .await;
+    let player = store.user(&game.white).await.unwrap();
+    store
+        .record_activity(
+            Activity {
+                client_id: Uuid::new_v4().to_string(),
+                sequence: 1,
+                mode: ActivityMode::Online,
+                game_id: Some(game.id.clone()),
+                playing: true,
+                visible: true,
+            },
+            Some(&player),
+            1000,
+        )
+        .await
+        .unwrap();
+    assert_eq!(store.usage(1000).await.unwrap().modes[0].games, 1);
+    store
+        .command(&game.id, &game.white, command(1, Action::Resign), 1001)
+        .await
+        .unwrap();
+    let actual = store.usage(1001).await.unwrap();
+    assert_eq!(actual.modes[0].games, 0);
+    assert_eq!(actual.active_clients, 1);
+    assert_eq!(actual.online_in_progress, 0);
+}
 
 async fn registered(store: &Store) -> User {
     let guest = store.guest(1000).await.unwrap().0;

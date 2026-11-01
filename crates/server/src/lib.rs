@@ -2,6 +2,7 @@ pub mod auth;
 pub mod mobile;
 pub mod model;
 pub mod store;
+pub mod usage;
 pub mod web;
 
 mod hub;

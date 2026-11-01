@@ -12,7 +12,7 @@ async fn main() -> Result<()> {
         [flag, path] if flag == "--import-sqlite" => Some(path.clone()),
         [flag] if flag == "--help" || flag == "-h" => {
             println!(
-                "Nested chess online server\n\nUsage: nested-chess-server [--import-sqlite EXPORT.json]\n\nEnvironment:\n  LISTEN_ADDR       127.0.0.1:4180\n  PUBLIC_URL        http://localhost:4180\n  DATABASE_URL      postgres://...\n  STATIC_DIR        dist\n  GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET\n  GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET\n  MICROSOFT_CLIENT_ID / MICROSOFT_CLIENT_SECRET\n\nSee docs/server.md for provider setup and API details."
+                "Nested chess online server\n\nUsage: nested-chess-server [--import-sqlite EXPORT.json]\n\nEnvironment:\n  LISTEN_ADDR       127.0.0.1:4180\n  PUBLIC_URL        http://localhost:4180\n  DATABASE_URL      postgres://...\n  STATIC_DIR        dist\n  USAGE_ADMIN_IDS  Comma-separated statistics administrator account UUIDs\n  GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET\n  GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET\n  MICROSOFT_CLIENT_ID / MICROSOFT_CLIENT_SECRET\n\nSee docs/server.md for provider setup and API details."
             );
             return Ok(());
         }
@@ -64,7 +64,13 @@ async fn main() -> Result<()> {
     let listener = tokio::net::TcpListener::bind(&address)
         .await
         .map_err(|error| Error::Internal(format!("Could not listen on {address}: {error}")))?;
-    let app = App::new(&database, &public_url, credentials).await?;
+    let admins = env::var("USAGE_ADMIN_IDS").unwrap_or_default();
+    let usage_admins = if admins.is_empty() {
+        Vec::new()
+    } else {
+        admins.split(',').map(|id| id.trim().to_owned()).collect()
+    };
+    let app = App::new(&database, &public_url, credentials, usage_admins).await?;
     app.start_clock();
     tracing::info!(%address,"server listening");
     let signal_app = app.clone();

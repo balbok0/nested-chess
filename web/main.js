@@ -9,6 +9,7 @@ import { LocalSession, RemoteSession } from './session.js';
 import { setupOnline, renderOnline } from './online.js';
 import { botsAvailable, native, initializeMobile, shareSave, hydrateLocal, saveLocal, rememberMatch, setNativeAppearance } from './platform.js';
 import { request } from './transport.js';
+import { startActivity } from './activity.js';
 
 const $ = id => document.getElementById(id);
 const GLYPHS = { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚' };
@@ -26,11 +27,12 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 let game, state, viewing = 0, source = null, flipped = false, busy = false, opponent = null, generation = 0;
 let localGame = null, localMode = 'bot', onlineControls;
 let localFlipped = false;
+let activity = null;
 let engineError = '';
 let resetGrid = null;
 let routePress = null, suppressRouteClick = false;
 let moveAnimations = [];
-let preferences = { theme: 'system', evaluations: false, animations: true, chess960: false, chess960Independent: false };
+let preferences = { theme: 'system', evaluations: false, animations: true, chess960: false, chess960Independent: false, usage: true };
 let analyzer = null, evaluationGeneration = 0, evaluationError = '';
 const evaluations = new Map();
 
@@ -60,6 +62,7 @@ function applyPreferences() {
   document.querySelector(`input[name="theme"][value="${preferences.theme}"]`).checked = true;
   document.querySelector('meta[name="theme-color"]').content = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
   $('show-evaluations').checked = preferences.evaluations;
+  $('share-usage').checked = preferences.usage;
   $('chess960').checked = preferences.chess960;
   $('chess960-layout').value = preferences.chess960Independent ? 'independent' : 'shared';
   $('chess960-layout').disabled = online || !preferences.chess960;
@@ -377,6 +380,7 @@ function render() {
   renderHistory($('local-history'), viewing);
   renderMacro(); renderBoard(); clearRoute(); updateEvaluations();
   renderOnline(game);
+  activity?.update();
 }
 
 function clickSquare(square) {
@@ -515,7 +519,7 @@ async function boot() {
   catch (error) { showError(`Could not restore device storage: ${error}`); }
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
-    if (saved) preferences = { theme: THEMES.includes(saved.theme) ? saved.theme : 'system', evaluations: saved.evaluations === true, animations: saved.animations !== false, chess960: saved.chess960 === true, chess960Independent: saved.chess960Independent === true };
+    if (saved) preferences = { theme: THEMES.includes(saved.theme) ? saved.theme : 'system', evaluations: saved.evaluations === true, animations: saved.animations !== false, chess960: saved.chess960 === true, chess960Independent: saved.chess960Independent === true, usage: saved.usage !== false };
   } catch {}
   applyPreferences();
   systemAppearance.addEventListener('change', () => { if (preferences.theme === 'system') applyPreferences(); });
@@ -588,6 +592,7 @@ async function boot() {
   });
   $('show-evaluations').onchange = () => { preferences.evaluations = $('show-evaluations').checked; savePreferences(); void refreshEvaluations(); };
   $('animate-moves').onchange = () => { preferences.animations = $('animate-moves').checked; applyPreferences(); savePreferences(); };
+  $('share-usage').onchange = () => { preferences.usage = $('share-usage').checked; savePreferences(); activity.setEnabled(preferences.usage); };
   $('chess960').onchange = () => { preferences.chess960 = $('chess960').checked; applyPreferences(); savePreferences(); };
   $('chess960-layout').onchange = () => { preferences.chess960Independent = $('chess960-layout').value === 'independent'; savePreferences(); };
   $('retry-evaluations').onclick = () => { void refreshEvaluations(); };
@@ -618,6 +623,10 @@ async function boot() {
     onerror: showError,
   });
   onlineControls.initializeAccount();
+  activity = startActivity({ enabled: preferences.usage, read: () => game.kind === 'online'
+    ? { mode: 'online', game_id: game.info.id, playing: game.info.status === 'active' }
+    : { mode: $('mode').value === 'bot' ? 'engine' : 'same_device', game_id: null, playing: state.ply > 0 && state.outcome === 'ongoing' },
+  });
   if (!launched) void onlineControls.restore(() => generation === restoreGeneration).catch(showError);
   void maybeBot();
 }
