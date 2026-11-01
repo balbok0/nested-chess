@@ -165,6 +165,43 @@ These same registrations serve web and mobile login. Secrets remain on the
 server; the apps receive a one-use login handoff. Check each provider's real login
 flow before inviting users. Signed-in accounts can enter rated matchmaking.
 
+### Google privacy-policy URL
+
+The app serves a public policy at **https://nestedchess.org/privacy.html**, linked
+from the homepage and Settings. Deploy the current build before submitting it.
+In Google Auth Platform → Branding, set:
+
+- Application home page: `https://nestedchess.org`
+- Application privacy policy: `https://nestedchess.org/privacy.html`
+- Authorized domain: `nestedchess.org`
+
+Verify domain ownership through Search Console with a Google account associated
+with the Cloud project. Save, verify, and publish the updated branding. Review
+[Google's branding requirements](https://developers.google.com/identity/protocols/oauth2/production-readiness/brand-verification)
+if verification reports another issue; a working URL alone does not guarantee
+approval.
+
+The policy describes the actual sign-in scopes, online data, optional usage
+collection, device storage, and self-service deletion. Its hosting description
+assumes this AWS/Cloudflare deployment. Keep it accurate when changing hosting,
+data collection, or backup retention. General privacy contact currently uses the
+public project issue tracker; never ask players to post account secrets there.
+
+### Self-service account deletion
+
+Players can use **Settings → Delete account** and type their username to confirm.
+This works with both browser sessions and native app bearer sessions. It removes
+the account, identities, sessions, sign-in attempts, personal ratings, and
+associated activity. It resigns active/paused matches, honors already expired
+clocks, and cancels waiting invitations. The opponent receives the ordinary match
+result and rating change.
+
+Shared results and moves remain with deleted player IDs and usernames removed
+from both match records and historical event payloads. Opponents' existing ratings
+and history remain. Local saves/settings are not cleared. Signing in again
+creates a new account. Database deletion does not purge historical backup copies;
+manage the retention of server backups and infrastructure logs separately.
+
 ## 4. Build Android and iOS against this server
 
 On your development machine, install the tools in [mobile setup](mobile.md).
@@ -244,7 +281,7 @@ account ID when present. No local moves, board positions, usernames, or device
 fingerprints are sent in reports. Live presence rows are removed within about
 150 seconds of the last report while the server is running; no historical usage
 series is kept. Backups follow your database backup retention policy. Reflect
-this collection and the opt-out in the site's privacy information before release.
+this collection and the opt-out in the site's [privacy policy](../web/privacy.html).
 
 ## Updates and backups
 
@@ -258,7 +295,8 @@ Before an update, create a database dump:
 mkdir -p scratch/claude/backups
 docker compose exec -T db pg_dump -U nested -d nested -Fc > scratch/claude/backups/nested.dump
 git pull --ff-only
-docker compose up --build -d --wait
+docker compose build app-a
+docker compose up -d --wait
 curl -fsS https://nestedchess.org/api/v1/ready
 ```
 

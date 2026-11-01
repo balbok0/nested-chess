@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { ApiError, isTransientError, request, guestSession, logoutSession } from './transport.js';
+import { ApiError, isTransientError, request, guestSession, logoutSession, deleteAccountSession } from './transport.js';
 import { native, nativeLogin, rememberedMatch, rememberMatch, saveLocal, onlineOrigin, copyText, shareInvite } from './platform.js';
 import { APP_SCHEME, invitationId } from './mobile-protocol.js';
 
@@ -39,6 +39,8 @@ export function setupOnline({ enter, current, leave, onerror }) {
     $('account-status').hidden = false;
     $('online-open-button').title = $('online-account').textContent;
     $('online-logout').hidden = !signedIn;
+    $('account-settings').hidden = !account.user;
+    $('settings-account-name').textContent = $('online-account').textContent;
     $('online-profile').hidden = !account.user;
     $('online-handle').value = account.user?.handle || '';
     $('online-queue').disabled = !account.user || account.user.guest;
@@ -102,11 +104,11 @@ export function setupOnline({ enter, current, leave, onerror }) {
     if (!account?.user) { $('online-history').textContent = 'No online matches yet.'; return; }
     const rows = await request(`/history${cursor === null ? '' : `?before=${cursor}`}`);
     for (const row of rows) {
-      const info = row.info, white = info.white.id === account.user.id;
+      const info = row.info, white = info.white?.id === account.user.id;
       const result = info.result === 'draw' ? 'Draw' : info.result === (white ? 'white' : 'black') ? 'Won' : 'Lost';
       const opponent = white ? info.black : info.white;
       const button = document.createElement('button'); button.className = 'online-game-row';
-      const text = document.createElement('span'); text.textContent = `${result} vs ${opponent.handle} · ${info.rows ?? info.size} × ${info.size} · ${new Date(info.created_ms).toLocaleDateString()}`;
+      const text = document.createElement('span'); text.textContent = `${result} vs ${opponent?.handle || 'Deleted player'} · ${info.rows ?? info.size} × ${info.size} · ${new Date(info.created_ms).toLocaleDateString()}`;
       const rating = document.createElement('span');
       if (row.rating_after !== null) { const delta = Math.round(row.rating_after - row.rating_before); rating.textContent = `${Math.round(row.rating_after)} (${delta >= 0 ? '+' : ''}${delta})`; }
       else rating.textContent = 'Unrated';
@@ -126,6 +128,55 @@ export function setupOnline({ enter, current, leave, onerror }) {
     account = { ...account, user: null, identities: [] }; renderAccount();
     await refresh();
   }); };
+  let deleting = false;
+  $('delete-account-open').onclick = () => {
+    $('delete-account-name').textContent = account.user.handle;
+    $('delete-account-confirmation').value = '';
+    $('delete-account-submit').disabled = true;
+    $('delete-account-error').hidden = true;
+    $('delete-account').showModal();
+  };
+  $('delete-account-confirmation').oninput = () => {
+    $('delete-account-submit').disabled = $('delete-account-confirmation').value !== account?.user?.handle;
+  };
+  $('delete-account-cancel').onclick = () => $('delete-account').close();
+  $('delete-account').oncancel = event => { if (deleting) event.preventDefault(); };
+  $('delete-account-form').onsubmit = event => {
+    event.preventDefault();
+    if (deleting) return;
+    deleting = true;
+    $('delete-account-controls').disabled = true;
+    $('delete-account-form').setAttribute('aria-busy', 'true');
+    $('delete-account-error').hidden = true;
+    void (async () => {
+      try {
+        await deleteAccountSession($('delete-account-confirmation').value);
+        cancelRecovery();
+        leave();
+        await rememberMatch(null);
+        await saveLocal(CREATION_KEY, null);
+        account = { ...account, user: null, identities: [] };
+        open = [];
+        renderAccount();
+        $('online-open').replaceChildren();
+        $('online-open-section').hidden = true;
+        $('online-history').replaceChildren();
+        cursor = null;
+        $('online-history-more').hidden = true;
+        $('delete-account').close();
+        $('settings').close();
+        $('online').close();
+        $('account-status').textContent = 'Account deleted';
+      } catch (value) {
+        $('delete-account-error').textContent = value.message || String(value);
+        $('delete-account-error').hidden = false;
+      } finally {
+        deleting = false;
+        $('delete-account-controls').disabled = false;
+        $('delete-account-form').setAttribute('aria-busy', 'false');
+      }
+    })();
+  };
   $('online-create').onsubmit = event => { event.preventDefault(); void run(async () => {
     await ensureGuest();
     cancelRecovery();
@@ -301,11 +352,12 @@ export function renderOnline(session) {
   const online = session?.kind === 'online'; $('online-match').hidden = !online; $('online-actions').hidden = !online;
   if (!online) return;
   const info = session.info;
-  $('online-white').textContent = info.white?.handle || 'Open seat'; $('online-black').textContent = info.black?.handle || 'Open seat';
+  const emptySeat = info.status === 'finished' ? 'Deleted player' : 'Open seat';
+  $('online-white').textContent = info.white?.handle || emptySeat; $('online-black').textContent = info.black?.handle || emptySeat;
   $('online-label-white').textContent = session.seat === 'white' ? 'White · You' : 'White';
   $('online-label-black').textContent = session.seat === 'black' ? 'Black · You' : 'Black';
-  $('online-white').title = info.white?.handle || 'Open seat';
-  $('online-black').title = info.black?.handle || 'Open seat';
+  $('online-white').title = info.white?.handle || emptySeat;
+  $('online-black').title = info.black?.handle || emptySeat;
   const connection = session.connectionIssue || (session.pending ? 'Confirming move…' : !session.connected ? 'Reconnecting…' : `You play ${session.seat === 'white' ? 'White' : 'Black'} · ${info.rated ? 'Rated' : 'Unrated'}`);
   if ($('online-connection').textContent !== connection) $('online-connection').textContent = connection;
   $('online-retry').hidden = session.connected;

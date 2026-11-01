@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en" data-theme="classic">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="How Nested Chess handles sign-in, online matches, local saves, usage statistics, and account deletion." />
+  <title>Privacy policy · Nested Chess</title>
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/privacy.css" />
+</head>
+<body>
+  <header class="masthead"><h1>Privacy policy</h1><nav><a href="%BASE_URL%">Nested Chess</a></nav></header>
+  <main class="privacy-page">
+    <p>Effective November 1, 2026.</p>
+    <p>This policy covers nestedchess.org and the Nested Chess Android and iOS apps connected to it. Nested Chess is an open-source chess variant maintained by <a href="https://github.com/balbok0">balbok0</a>. You can play locally without signing in.</p>
+
+    <h2>Local play and device storage</h2>
+    <p>Local games, engine analysis, and settings run on your device. Local saves and preferences use browser or app storage. Local moves and positions are not uploaded for usage statistics. Exporting a game or sharing an invitation sends it only where you choose to share it.</p>
+
+    <h2>Sign-in and account information</h2>
+    <p>When you sign in with Google, GitHub, or Microsoft, we store the provider’s account identifier, a Nested Chess account ID, your username, and account creation time. A provider display name may be used to suggest an initial username. We use this information to sign you in, link accounts you choose to link, and provide online play, ratings, and history. We do not receive your provider password.</p>
+    <p>Google sign-in requests the <code>openid</code> and <code>profile</code> permissions. We use the verified Google account identifier and may use its display name to create your username. We do not request Gmail, Drive, contacts, or email permissions. We do not store a Google profile picture. Provider access tokens are used during sign-in and are not kept in the account database.</p>
+    <p>Google user data is used only for these account features, not advertising, sale, or AI training. You can also revoke Nested Chess access in your <a href="https://myaccount.google.com/connections">Google Account connections</a>; revoking access there does not itself delete your Nested Chess account.</p>
+
+    <h2>Online matches</h2>
+    <p>The server stores online positions, moves, results, clocks, invitations, and whole-match ratings. Opponents can see your username and rating, and retain access to your shared match history. Guest online play also creates a server account and session. Local games remain local.</p>
+
+    <h2>Cookies and sessions</h2>
+    <p>The website uses essential <code>nc_session</code> and temporary <code>nc_auth</code> cookies for sessions and sign-in security. Sessions expire after 30 days; the sign-in cookie expires after 10 minutes. Server session tokens are stored as hashes. The mobile app stores its session token in the device’s secure storage. Signing out revokes that session.</p>
+
+    <h2>Optional usage statistics</h2>
+    <p>With “Share usage statistics” enabled in Settings, a foreground app or browser tab reports its game mode (online, vs engine, or same-device two-player), whether a game is underway, and a random identifier for that page instance. Reports include a sequence number; online reports include the match ID. A signed-in account ID can be associated with the report to count distinct accounts.</p>
+    <p>Reports are sent about every 30 seconds and count as active for 90 seconds. Temporary activity records are normally removed within about 150 seconds of the last report while the server is running. We keep no historical usage series. Counts are visible only to configured administrators. Statistics do not include local moves, positions, or a persistent device identifier.</p>
+    <p>You can disable “Share usage statistics” in Settings. It defaults to enabled. Disabling it stops reporting and sends an inactive update when the server is reachable. Local play continues when reporting or the internet is unavailable.</p>
+
+    <h2>Hosting and other services</h2>
+    <p>Amazon Web Services hosts the service, and Cloudflare provides DNS, network delivery, and security. Those services process connection information such as IP addresses and request metadata to deliver and protect the website. Your chosen sign-in provider processes authentication under its own policy. Voluntary links to GitHub and Buy Me a Coffee open separate services governed by their own policies.</p>
+    <p>We do not sell personal information or use advertising trackers. Service data is used to operate, secure, and troubleshoot Nested Chess. Infrastructure providers process data as needed to supply their services; information may also be disclosed when legally required.</p>
+
+    <h2>Retention and deleting your account</h2>
+    <p>Account and online-game data is retained while needed to provide the service. To delete your own account, sign in, open Settings, choose “Delete account,” and confirm your username. No deletion request or email is required.</p>
+    <p>Deletion removes your account, provider identifiers, sign-in sessions, pending sign-in records, personal rating, and associated activity records from the live database. Open matches are resigned and waiting invitations are cancelled. Shared match moves and results remain for opponents, with your account ID and username removed from match records and event history. The app displays “Deleted player.” Opponents’ ratings are retained. Signing in again creates a new account.</p>
+    <p>Account deletion does not clear local saves or preferences; remove those through your browser or app’s storage controls. It cannot erase information another player has already saved. Hosting logs and any backups may retain earlier data until their retention periods expire; deletion from the live database does not instantly remove those copies.</p>
+
+    <h2>Questions and changes</h2>
+    <p>For general privacy questions, contact the maintainer through the <a href="https://github.com/balbok0/nested-chess/issues">Nested Chess project</a>. GitHub issues are public: do not post passwords, session tokens, or other private information. Account deletion is available in the app itself.</p>
+    <p>Updates will appear on this page with a revised effective date. If we change how Google user data is used, we will provide notice and obtain consent where required before the new use.</p>
+  </main>
+</body>
+</html>

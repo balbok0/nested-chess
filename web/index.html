@@ -70,7 +70,7 @@
         <div class="save-tools"><button id="export" class="text-button">Export match</button><button id="import" class="text-button">Import match</button><input id="import-file" type="file" accept="application/json,.json" hidden /></div><p id="save-status" class="small-note"></p>
       </aside>
     </div>
-    <footer class="site-footer"><a href="https://www.buymeacoffee.com/balbok0" target="_blank" rel="noopener noreferrer">Buy me a coffee</a></footer>
+    <footer class="site-footer"><span>Nested Chess is a chess variant played across several boards. Each move selects the next board.</span><a href="%BASE_URL%privacy.html">Privacy policy</a><a href="https://www.buymeacoffee.com/balbok0" target="_blank" rel="noopener noreferrer">Buy me a coffee</a></footer>
   </main>
   <dialog id="settings" aria-labelledby="settings-title">
     <div class="dialog-heading"><h2 id="settings-title">Settings</h2><button id="settings-close" class="dialog-close" aria-label="Close settings">×</button></div>
@@ -90,6 +90,19 @@
     </div>
     <p class="small-note">Settings are saved on this device.</p>
     <div class="motion-settings"><label class="checkbox-label" for="share-usage"><input id="share-usage" type="checkbox" checked />Share usage statistics</label><p class="small-note">Reports activity and game mode, without moves or board positions. Local games work offline.</p></div>
+    <div id="account-settings" class="motion-settings" hidden><p id="settings-account-name"></p><button id="delete-account-open" class="text-button">Delete account</button></div>
+    <p class="small-note"><a href="%BASE_URL%privacy.html">Privacy policy</a></p>
+  </dialog>
+  <dialog id="delete-account" aria-labelledby="delete-account-title">
+    <h2 id="delete-account-title">Delete your account?</h2>
+    <p>This permanently removes your account, linked sign-ins, sessions, and rating. Open matches will be resigned and invitations cancelled. Completed matches stay in opponents’ histories as “Deleted player.”</p>
+    <p>Local saves and settings stay on this device. Signing in again creates a new account.</p>
+    <form id="delete-account-form"><fieldset id="delete-account-controls" class="online-controls">
+      <label for="delete-account-confirmation">Type <strong id="delete-account-name"></strong> to confirm</label>
+      <input id="delete-account-confirmation" autocomplete="off" autocapitalize="none" spellcheck="false" required />
+      <p id="delete-account-error" class="error" role="alert" hidden></p>
+      <div class="online-actions"><button id="delete-account-cancel" type="button" class="outline-button" autofocus>Keep account</button><button id="delete-account-submit" class="text-button" disabled>Delete permanently</button></div>
+    </fieldset></form>
   </dialog>
   <dialog id="rules" aria-labelledby="rules-title">
     <div class="dialog-heading"><h2 id="rules-title">Rules</h2><button id="rules-close" class="dialog-close" aria-label="Close rules">×</button></div>

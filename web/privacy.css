@@ -1,0 +1,5 @@
+.privacy-page { max-width: 760px; line-height: 1.65; padding-bottom: 40px; }
+.privacy-page h2 { margin-top: 28px; font-size: 18px; }
+.privacy-page p { margin: 12px 0; }
+.privacy-page li { margin: 8px 0; }
+.privacy-page a { overflow-wrap: anywhere; }

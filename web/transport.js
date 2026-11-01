@@ -46,6 +46,10 @@ export async function logoutSession() {
   await request('/logout', { method: 'POST' });
   if (native) await clearSession();
 }
+export async function deleteAccountSession(confirmation) {
+  await request('/account', { method: 'DELETE', data: { confirmation } });
+  if (native) await clearSession();
+}
 export async function streamURL(id) {
   const path = native ? `/mobile/games/${id}/stream` : `/games/${id}/stream`;
   const url = new URL(`/api/v1${path}`, onlineOrigin());

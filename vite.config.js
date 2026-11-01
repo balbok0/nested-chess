@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => {
           analysis: fileURLToPath(new URL('./web/analysis.html', import.meta.url)),
           rectangularAnalysis: fileURLToPath(new URL('./web/rectangular-analysis.html', import.meta.url)),
           usage: fileURLToPath(new URL('./web/usage.html', import.meta.url)),
+          privacy: fileURLToPath(new URL('./web/privacy.html', import.meta.url)),
         },
       },
     },
